@@ -1,0 +1,319 @@
+// HRM Phase 1 core schema.
+// Sensitive fields (PAN, Aadhaar, bank account, IFSC) are encrypted at the
+// application layer (src/lib/crypto.ts) before write — columns hold
+// `iv:tag:ciphertext`, never plaintext. `panHash`/`aadhaarHash` are HMAC
+// blind indexes used for uniqueness/dedupe without decryption.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  HR_ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+enum EmpType {
+  INTERN
+  PROBATION
+  PERMANENT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum IdCardStatus {
+  PHOTO_TAKEN
+  CORRECTION
+  PENDING
+  ISSUED
+  RETURN_PENDING // set automatically when the employee exits
+  RETURNED
+}
+
+enum ProbationStatus {
+  PENDING
+  CONFIRMED
+  EXTENDED
+}
+
+enum SessionMode {
+  IN_PERSON
+  VIRTUAL
+}
+
+enum QuantumSource {
+  MANUAL
+  BASECAMP
+}
+
+enum Availability {
+  AVAILABLE
+  BUSY
+  UNAVAILABLE
+  UNKNOWN
+}
+
+enum LetterType {
+  OFFER
+  INTERN
+  COMPENSATION
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  role         Role      @default(EMPLOYEE)
+  passwordHash String? // credentials fallback; null for SSO-only accounts
+  googleId     String?   @unique
+  employee     Employee?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Employee {
+  id     String  @id @default(cuid())
+  empId  String  @unique
+  user   User?   @relation(fields: [userId], references: [id])
+  userId String? @unique
+
+  // Identity & personal
+  name             String
+  gender           Gender?
+  dateOfBirth      DateTime? @db.Date
+  bloodGroup       String?
+  tshirtSize       String?
+  phone            String
+  personalEmail    String
+  workEmail        String    @unique
+  emergencyContact String?
+
+  // Address
+  address String?
+  city    String?
+  state   String?
+  pincode String?
+
+  // Employment
+  department    String
+  designation   String
+  dateOfJoining DateTime  @db.Date
+  empType       EmpType   @default(PROBATION)
+  isFresher     Boolean   @default(true)
+  dateOfExit    DateTime? @db.Date
+
+  // Statutory (plaintext-safe identifiers)
+  pfNumber  String?
+  uanNumber String?
+
+  // Encrypted at application layer (iv:tag:ciphertext)
+  panEnc         String?
+  aadhaarEnc     String?
+  bankAccountEnc String?
+  ifscEnc        String?
+
+  // Blind indexes (HMAC-SHA256) for uniqueness without decryption
+  panHash     String? @unique
+  aadhaarHash String? @unique
+
+  // Document uploads — Vercel Blob keys, not bytes
+  photoBlobKey            String?
+  panBlobKey              String?
+  aadhaarBlobKey          String?
+  // Experienced-hire documents (isFresher = false)
+  offerLetterBlobKey      String?
+  experienceLetterBlobKey String?
+  relievingLetterBlobKey  String?
+  linkedinId              String?
+
+  // Manager for team-scoped views (MANAGER role sees direct reports)
+  manager   Employee?  @relation("Reports", fields: [managerId], references: [id])
+  managerId String?
+  reports   Employee[] @relation("Reports")
+
+  onboarding     OnboardingRecord?
+  idCard         IdCard?
+  probation      ProbationRecord?
+  quantumEntries QuantumEntry[]
+  registrations  SessionRegistration[]
+  attendance     SessionAttendance[]
+  letters        Letter[]
+  reviewMeetings ReviewMeeting[]
+  freelancer     Freelancer?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([dateOfJoining])
+  @@index([department])
+  @@index([dateOfExit])
+}
+
+model OnboardingRecord {
+  id          String   @id @default(cuid())
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  employeeId  String   @unique
+  joinDate    DateTime @db.Date
+  designation String
+  empType     EmpType
+  completedAt DateTime @default(now())
+
+  @@index([joinDate])
+}
+
+model IdCard {
+  id         String       @id @default(cuid())
+  employee   Employee     @relation(fields: [employeeId], references: [id])
+  employeeId String       @unique
+  status     IdCardStatus @default(PHOTO_TAKEN)
+  issuedAt   DateTime?
+  updatedAt  DateTime     @updatedAt
+
+  @@index([status])
+}
+
+model ProbationRecord {
+  id          String          @id @default(cuid())
+  employee    Employee        @relation(fields: [employeeId], references: [id])
+  employeeId  String          @unique
+  status      ProbationStatus @default(PENDING)
+  dueDate     DateTime        @db.Date // when confirmation is due
+  extendedTo  DateTime?       @db.Date
+  confirmedAt DateTime?
+  notes       String?
+  updatedAt   DateTime        @updatedAt
+
+  @@index([dueDate])
+  @@index([status])
+}
+
+// Per-employee work log (Quantum Sheet). Manual entries or Basecamp import.
+model QuantumEntry {
+  id           String        @id @default(cuid())
+  employee     Employee      @relation(fields: [employeeId], references: [id])
+  employeeId   String
+  date         DateTime      @db.Date
+  brand        String
+  workName     String
+  link         String? // Basecamp/Figma URL
+  durationMins Int
+  source       QuantumSource @default(MANUAL)
+  basecampId   String? // dedupe key for imported todos
+  createdAt    DateTime      @default(now())
+
+  @@unique([employeeId, basecampId])
+  @@index([employeeId, date])
+}
+
+model TrainingSession {
+  id            String                @id @default(cuid())
+  name          String
+  date          DateTime
+  trainer       String
+  mode          SessionMode           @default(IN_PERSON)
+  notes         String?
+  registrations SessionRegistration[]
+  attendance    SessionAttendance[]
+  createdAt     DateTime              @default(now())
+
+  @@index([date])
+}
+
+model SessionRegistration {
+  id         String          @id @default(cuid())
+  session    TrainingSession @relation(fields: [sessionId], references: [id])
+  sessionId  String
+  employee   Employee        @relation(fields: [employeeId], references: [id])
+  employeeId String
+  createdAt  DateTime        @default(now())
+
+  @@unique([sessionId, employeeId])
+}
+
+// Manual attendance log. sessionId optional — HR may log sessions that
+// never went through the calendar; sessionName is the source of truth.
+model SessionAttendance {
+  id          String           @id @default(cuid())
+  employee    Employee         @relation(fields: [employeeId], references: [id])
+  employeeId  String
+  session     TrainingSession? @relation(fields: [sessionId], references: [id])
+  sessionId   String?
+  sessionName String
+  date        DateTime         @db.Date
+  attended    Boolean          @default(true)
+  trainer     String?
+  notes       String?
+  createdAt   DateTime         @default(now())
+
+  @@index([employeeId, date])
+  @@index([date])
+}
+
+// ~20k records — every filterable column indexed; server pagination only.
+model Freelancer {
+  id           String       @id @default(cuid())
+  name         String
+  email        String?
+  phone        String?
+  skillset     String
+  rate         String? // free-form: "₹2500/day", "$40/hr"
+  availability Availability @default(UNKNOWN)
+  notes        String?
+  // Linked only if converted to FTE
+  employee     Employee?    @relation(fields: [employeeId], references: [id])
+  employeeId   String?      @unique
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([name])
+  @@index([skillset])
+  @@index([availability])
+}
+
+model Letter {
+  id         String     @id @default(cuid())
+  employee   Employee   @relation(fields: [employeeId], references: [id])
+  employeeId String
+  type       LetterType
+  subject    String
+  bodyHtml   String
+  sentAt     DateTime?
+  sentTo     String?
+  createdAt  DateTime   @default(now())
+
+  @@index([employeeId])
+}
+
+// Stub — fields to be finalized in a dedicated planning pass.
+model ReviewMeeting {
+  id         String   @id @default(cuid())
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  employeeId String
+  date       DateTime @db.Date
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@index([employeeId, date])
+}
+
+// Basecamp OAuth tokens, encrypted at the application layer.
+model BasecampToken {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  accessTokenEnc  String
+  refreshTokenEnc String?
+  expiresAt       DateTime
+  accountId       String
+  updatedAt       DateTime @updatedAt
+}
