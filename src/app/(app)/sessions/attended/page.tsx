@@ -13,6 +13,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AttendanceForm } from "../session-forms";
+import { importAttendance } from "../actions";
+import { BulkImportForm } from "@/components/bulk-import-form";
+import { ATTENDANCE_IMPORT_COLUMNS } from "@/lib/import-columns";
 import type { Prisma } from "@/generated/prisma/client";
 
 export const metadata = { title: "Session Attended" };
@@ -66,12 +69,19 @@ export default async function SessionAttendedPage({
         <h1 className="text-2xl font-semibold tracking-tight">
           Session Attended
         </h1>
-        <Link
-          href="/sessions"
-          className="text-sm underline underline-offset-4"
-        >
-          ← Session calendar
-        </Link>
+        <div className="flex items-center gap-3">
+          <BulkImportForm
+            action={importAttendance}
+            columns={ATTENDANCE_IMPORT_COLUMNS}
+            title="Import attendance"
+          />
+          <Link
+            href="/sessions"
+            className="text-sm underline underline-offset-4"
+          >
+            ← Session calendar
+          </Link>
+        </div>
       </div>
 
       <div className="mt-6">

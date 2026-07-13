@@ -7,6 +7,14 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import { blindIndex, encryptField, normalizeIdentifier } from "@/lib/crypto";
 import { uploadDocument } from "@/lib/blob";
+import {
+  cell,
+  collectRows,
+  importSummary,
+  parseCsvBoolean,
+  parseCsvFile,
+  type ImportState,
+} from "@/lib/csv-import";
 import type { Prisma } from "@/generated/prisma/client";
 
 export type EmployeeFormState = {
@@ -224,6 +232,175 @@ export async function createEmployee(
   revalidatePath("/onboarding");
   revalidatePath("/id-cards");
   redirect(`/employees/${employee.id}`);
+}
+
+export async function importEmployees(
+  _prev: ImportState,
+  formData: FormData,
+): Promise<ImportState> {
+  await requireRole("HR_ADMIN");
+
+  const parsed = await parseCsvFile(formData);
+  if ("error" in parsed) return { error: parsed.error };
+
+  // Validate every row first; per-row schema mirrors the single-create form.
+  const { valid, failures } = collectRows(parsed.rows, (row, rowNumber) => {
+    const raw: Record<string, string> = {};
+    for (const key of Object.keys(employeeSchema.shape)) {
+      const value = cell(row, key);
+      if (value !== undefined) {
+        raw[key] = ["pan", "aadhaar", "ifsc", "bankAccount"].includes(key)
+          ? normalizeIdentifier(value)
+          : value;
+      }
+    }
+    raw.empType = cell(row, "empType") ?? "PROBATION";
+    // z.coerce.boolean would turn "false" into true — parse explicitly.
+    raw.isFresher = parseCsvBoolean(cell(row, "isFresher")) ? "true" : "";
+    delete raw.managerId; // import links managers by empId, second pass below
+
+    const result = employeeSchema.safeParse(raw);
+    if (!result.success) {
+      throw new Error(result.error.issues[0]?.message ?? "Invalid row");
+    }
+    const joinDate = new Date(result.data.dateOfJoining);
+    if (isNaN(joinDate.getTime())) {
+      throw new Error(`Invalid dateOfJoining: ${result.data.dateOfJoining}`);
+    }
+    return {
+      data: result.data,
+      managerEmpId: cell(row, "managerEmpId"),
+      rowNumber,
+    };
+  });
+
+  // One query instead of a findDuplicate round-trip per row.
+  const existing = await db.employee.findMany({
+    select: { empId: true, workEmail: true, panHash: true, aadhaarHash: true },
+  });
+  const seenEmpIds = new Set(existing.map((e) => e.empId));
+  const seenEmails = new Set(existing.map((e) => e.workEmail));
+  const seenPans = new Set(existing.map((e) => e.panHash).filter(Boolean));
+  const seenAadhaars = new Set(
+    existing.map((e) => e.aadhaarHash).filter(Boolean),
+  );
+
+  const managerLinks: { empId: string; managerEmpId: string; row: number }[] =
+    [];
+  let imported = 0;
+
+  for (const { data, managerEmpId, rowNumber } of valid) {
+    const workEmail = data.workEmail.toLowerCase();
+    const panHash = data.pan ? blindIndex(data.pan) : undefined;
+    const aadhaarHash = data.aadhaar ? blindIndex(data.aadhaar) : undefined;
+
+    const duplicate =
+      (seenEmpIds.has(data.empId) && "Employee ID already exists") ||
+      (seenEmails.has(workEmail) && "Work email already exists") ||
+      (panHash && seenPans.has(panHash) && "PAN already exists") ||
+      (aadhaarHash &&
+        seenAadhaars.has(aadhaarHash) &&
+        "Aadhaar already exists");
+    if (duplicate) {
+      failures.push({ row: rowNumber, message: duplicate });
+      continue;
+    }
+
+    const joinDate = new Date(data.dateOfJoining);
+    const probationDue = new Date(joinDate);
+    probationDue.setUTCMonth(probationDue.getUTCMonth() + PROBATION_MONTHS);
+
+    try {
+      await db.employee.create({
+        data: {
+          empId: data.empId,
+          name: data.name,
+          gender: data.gender,
+          dateOfBirth: data.dateOfBirth
+            ? new Date(data.dateOfBirth)
+            : undefined,
+          bloodGroup: data.bloodGroup,
+          tshirtSize: data.tshirtSize,
+          phone: data.phone,
+          personalEmail: data.personalEmail,
+          workEmail,
+          emergencyContact: data.emergencyContact,
+          address: data.address,
+          city: data.city,
+          state: data.state,
+          pincode: data.pincode,
+          department: data.department,
+          designation: data.designation,
+          dateOfJoining: joinDate,
+          empType: data.empType,
+          isFresher: data.isFresher,
+          pfNumber: data.pfNumber,
+          uanNumber: data.uanNumber,
+          linkedinId: data.isFresher ? undefined : data.linkedinId,
+          ...sensitiveColumns(data),
+          onboarding: {
+            create: {
+              joinDate,
+              designation: data.designation,
+              empType: data.empType,
+            },
+          },
+          idCard: { create: {} },
+          ...(data.empType === "PROBATION"
+            ? { probation: { create: { dueDate: probationDue } } }
+            : {}),
+        },
+      });
+    } catch (e) {
+      failures.push({
+        row: rowNumber,
+        message: e instanceof Error ? e.message : "Insert failed",
+      });
+      continue;
+    }
+
+    imported++;
+    seenEmpIds.add(data.empId);
+    seenEmails.add(workEmail);
+    if (panHash) seenPans.add(panHash);
+    if (aadhaarHash) seenAadhaars.add(aadhaarHash);
+    if (managerEmpId) {
+      managerLinks.push({
+        empId: data.empId,
+        managerEmpId,
+        row: rowNumber,
+      });
+    }
+  }
+
+  // Second pass: managers may appear later in the file than their reports.
+  if (managerLinks.length > 0) {
+    const managers = await db.employee.findMany({
+      where: { empId: { in: managerLinks.map((l) => l.managerEmpId) } },
+      select: { id: true, empId: true },
+    });
+    const managerIdByEmpId = new Map(managers.map((m) => [m.empId, m.id]));
+    for (const link of managerLinks) {
+      const managerId = managerIdByEmpId.get(link.managerEmpId);
+      if (!managerId || link.managerEmpId === link.empId) {
+        failures.push({
+          row: link.row,
+          message: `Imported, but manager "${link.managerEmpId}" not found — set manually`,
+        });
+        continue;
+      }
+      await db.employee.update({
+        where: { empId: link.empId },
+        data: { managerId },
+      });
+    }
+  }
+
+  revalidatePath("/employees");
+  revalidatePath("/onboarding");
+  revalidatePath("/id-cards");
+  revalidatePath("/probation");
+  return importSummary(imported, parsed.rows.length, failures);
 }
 
 export async function updateEmployee(

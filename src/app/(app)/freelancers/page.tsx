@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { FreelancerAddForm } from "./freelancer-forms";
-import { deleteFreelancer } from "./actions";
+import { deleteFreelancer, importFreelancers } from "./actions";
+import { BulkImportForm } from "@/components/bulk-import-form";
+import { FREELANCER_IMPORT_COLUMNS } from "@/lib/import-columns";
 import type { Prisma } from "@/generated/prisma/client";
 
 export const metadata = { title: "Freelance Resource Pool" };
@@ -64,9 +66,16 @@ export default async function FreelancersPage({
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Freelance Resource Pool
-      </h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Freelance Resource Pool
+        </h1>
+        <BulkImportForm
+          action={importFreelancers}
+          columns={FREELANCER_IMPORT_COLUMNS}
+          title="Import freelancers"
+        />
+      </div>
 
       <div className="mt-6">
         <FreelancerAddForm />

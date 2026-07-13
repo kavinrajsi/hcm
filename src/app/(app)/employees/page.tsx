@@ -13,6 +13,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { BulkImportForm } from "@/components/bulk-import-form";
+import { EMPLOYEE_IMPORT_COLUMNS } from "@/lib/import-columns";
+import { importEmployees } from "./actions";
 import type { Prisma } from "@/generated/prisma/client";
 
 export const metadata = { title: "Employees" };
@@ -66,7 +69,14 @@ export default async function EmployeesPage({
     <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Employees</h1>
-        <Button render={<Link href="/employees/new" />}>Add employee</Button>
+        <div className="flex items-center gap-2">
+          <BulkImportForm
+            action={importEmployees}
+            columns={EMPLOYEE_IMPORT_COLUMNS}
+            title="Import employees"
+          />
+          <Button render={<Link href="/employees/new" />}>Add employee</Button>
+        </div>
       </div>
 
       <div className="mt-6">

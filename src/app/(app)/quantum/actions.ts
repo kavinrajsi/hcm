@@ -5,6 +5,14 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole, requireSelfOrRole } from "@/lib/rbac";
 import { getAccessToken, listProjects, listProjectTodos } from "@/lib/basecamp";
+import {
+  cell,
+  collectRows,
+  importSummary,
+  parseCsvDate,
+  parseCsvFile,
+  type ImportState,
+} from "@/lib/csv-import";
 
 const entrySchema = z.object({
   employeeId: z.string().min(1),
@@ -69,6 +77,44 @@ export async function deleteQuantumEntry(formData: FormData) {
   await db.quantumEntry.delete({ where: { id } });
   revalidatePath("/quantum");
   revalidatePath("/me");
+}
+
+export async function importQuantumEntries(
+  _prev: ImportState,
+  formData: FormData,
+): Promise<ImportState> {
+  await requireRole("HR_ADMIN");
+
+  const parsed = await parseCsvFile(formData);
+  if ("error" in parsed) return { error: parsed.error };
+
+  const employees = await db.employee.findMany({
+    where: { empId: { in: parsed.rows.map((r) => r.empId).filter(Boolean) } },
+    select: { id: true, empId: true },
+  });
+  const idByEmpId = new Map(employees.map((e) => [e.empId, e.id]));
+
+  const { valid, failures } = collectRows(parsed.rows, (row) => {
+    const employeeId = idByEmpId.get(row.empId ?? "");
+    if (!employeeId) throw new Error(`Unknown empId: ${row.empId || "(empty)"}`);
+    const result = entrySchema.safeParse({
+      employeeId,
+      date: row.date,
+      brand: row.brand,
+      workName: row.workName,
+      link: cell(row, "link"),
+      durationMins: cell(row, "durationMins") ?? "0",
+    });
+    if (!result.success) {
+      throw new Error(result.error.issues[0]?.message ?? "Invalid row");
+    }
+    return { ...result.data, date: parseCsvDate(result.data.date, "date") };
+  });
+
+  await db.quantumEntry.createMany({ data: valid });
+  revalidatePath("/quantum");
+  revalidatePath("/me");
+  return importSummary(valid.length, parsed.rows.length, failures);
 }
 
 /**

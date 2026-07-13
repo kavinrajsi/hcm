@@ -4,6 +4,13 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
+import {
+  cell,
+  collectRows,
+  importSummary,
+  parseCsvFile,
+  type ImportState,
+} from "@/lib/csv-import";
 
 export type FreelancerFormState = { error?: string; ok?: boolean };
 
@@ -62,6 +69,36 @@ export async function updateFreelancer(
   await db.freelancer.update({ where: { id }, data: parsed.data });
   revalidatePath("/freelancers");
   return { ok: true };
+}
+
+export async function importFreelancers(
+  _prev: ImportState,
+  formData: FormData,
+): Promise<ImportState> {
+  await requireRole("HR_ADMIN", "MANAGER");
+
+  const parsed = await parseCsvFile(formData);
+  if ("error" in parsed) return { error: parsed.error };
+
+  const { valid, failures } = collectRows(parsed.rows, (row) => {
+    const result = freelancerSchema.safeParse({
+      name: row.name,
+      email: cell(row, "email"),
+      phone: cell(row, "phone"),
+      skillset: row.skillset,
+      rate: cell(row, "rate"),
+      availability: cell(row, "availability") ?? "UNKNOWN",
+      notes: cell(row, "notes"),
+    });
+    if (!result.success) {
+      throw new Error(result.error.issues[0]?.message ?? "Invalid row");
+    }
+    return result.data;
+  });
+
+  await db.freelancer.createMany({ data: valid });
+  revalidatePath("/freelancers");
+  return importSummary(valid.length, parsed.rows.length, failures);
 }
 
 export async function deleteFreelancer(formData: FormData) {

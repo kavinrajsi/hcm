@@ -4,6 +4,15 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole, requireUser } from "@/lib/rbac";
+import {
+  cell,
+  collectRows,
+  importSummary,
+  parseCsvBoolean,
+  parseCsvDate,
+  parseCsvFile,
+  type ImportState,
+} from "@/lib/csv-import";
 
 export type SessionFormState = { error?: string; ok?: boolean };
 
@@ -40,6 +49,34 @@ export async function createSession(
   });
   revalidatePath("/sessions");
   return { ok: true };
+}
+
+export async function importSessions(
+  _prev: ImportState,
+  formData: FormData,
+): Promise<ImportState> {
+  await requireRole("HR_ADMIN");
+
+  const parsed = await parseCsvFile(formData);
+  if ("error" in parsed) return { error: parsed.error };
+
+  const { valid, failures } = collectRows(parsed.rows, (row) => {
+    const result = sessionSchema.safeParse({
+      name: row.name,
+      date: row.date,
+      trainer: row.trainer,
+      mode: cell(row, "mode") ?? "IN_PERSON",
+      notes: cell(row, "notes"),
+    });
+    if (!result.success) {
+      throw new Error(result.error.issues[0]?.message ?? "Invalid row");
+    }
+    return { ...result.data, date: parseCsvDate(result.data.date, "date") };
+  });
+
+  await db.trainingSession.createMany({ data: valid });
+  revalidatePath("/sessions");
+  return importSummary(valid.length, parsed.rows.length, failures);
 }
 
 /** Employees register themselves; HR can register anyone. */
@@ -113,4 +150,40 @@ export async function logAttendance(
   });
   revalidatePath("/sessions/attended");
   return { ok: true };
+}
+
+export async function importAttendance(
+  _prev: ImportState,
+  formData: FormData,
+): Promise<ImportState> {
+  await requireRole("HR_ADMIN");
+
+  const parsed = await parseCsvFile(formData);
+  if ("error" in parsed) return { error: parsed.error };
+
+  // Rows reference employees by their human-facing empId.
+  const employees = await db.employee.findMany({
+    where: { empId: { in: parsed.rows.map((r) => r.empId).filter(Boolean) } },
+    select: { id: true, empId: true },
+  });
+  const idByEmpId = new Map(employees.map((e) => [e.empId, e.id]));
+
+  const { valid, failures } = collectRows(parsed.rows, (row) => {
+    const employeeId = idByEmpId.get(row.empId ?? "");
+    if (!employeeId) throw new Error(`Unknown empId: ${row.empId || "(empty)"}`);
+    if (!cell(row, "sessionName")) throw new Error("sessionName is required");
+    return {
+      employeeId,
+      sessionName: row.sessionName,
+      date: parseCsvDate(cell(row, "date"), "date"),
+      // Blank cell means present; only explicit false/no/0 marks absent.
+      attended: cell(row, "attended") === undefined || parseCsvBoolean(row.attended),
+      trainer: cell(row, "trainer"),
+      notes: cell(row, "notes"),
+    };
+  });
+
+  await db.sessionAttendance.createMany({ data: valid });
+  revalidatePath("/sessions/attended");
+  return importSummary(valid.length, parsed.rows.length, failures);
 }

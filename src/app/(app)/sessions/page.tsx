@@ -11,7 +11,9 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { NewSessionForm } from "./session-forms";
-import { registerForSession } from "./actions";
+import { importSessions, registerForSession } from "./actions";
+import { BulkImportForm } from "@/components/bulk-import-form";
+import { SESSION_IMPORT_COLUMNS } from "@/lib/import-columns";
 
 export const metadata = { title: "Session Calendar" };
 
@@ -48,8 +50,15 @@ export default async function SessionsPage() {
       </div>
 
       {user.role === "HR_ADMIN" && (
-        <div className="mt-6">
+        <div className="mt-6 flex flex-col gap-3">
           <NewSessionForm />
+          <div>
+            <BulkImportForm
+              action={importSessions}
+              columns={SESSION_IMPORT_COLUMNS}
+              title="Import sessions"
+            />
+          </div>
         </div>
       )}
 

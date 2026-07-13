@@ -18,7 +18,9 @@ import {
 } from "@/components/ui/table";
 import { QuantumEntryForm } from "./quantum-entry-form";
 import { BasecampImportForm } from "./import-form";
-import { deleteQuantumEntry } from "./actions";
+import { deleteQuantumEntry, importQuantumEntries } from "./actions";
+import { BulkImportForm } from "@/components/bulk-import-form";
+import { QUANTUM_IMPORT_COLUMNS } from "@/lib/import-columns";
 import type { Prisma } from "@/generated/prisma/client";
 
 export const metadata = { title: "Quantum Sheet" };
@@ -82,7 +84,14 @@ export default async function QuantumPage({
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Quantum Sheet</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Quantum Sheet</h1>
+        <BulkImportForm
+          action={importQuantumEntries}
+          columns={QUANTUM_IMPORT_COLUMNS}
+          title="Import quantum entries"
+        />
+      </div>
 
       <div className="mt-6">
         <QuantumEntryForm showEmployeePicker employees={employees} />
