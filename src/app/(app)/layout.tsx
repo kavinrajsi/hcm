@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const nav = [
   { href: "/", label: "Dashboard" },
@@ -41,19 +42,22 @@ export default async function AppLayout({
               </Link>
             ))}
           </nav>
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/login" });
-            }}
-          >
-            <button
-              type="submit"
-              className="text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:hover:text-zinc-100"
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <form
+              action={async () => {
+                "use server";
+                await signOut({ redirectTo: "/login" });
+              }}
             >
-              Sign out · {session.user.email}
-            </button>
-          </form>
+              <button
+                type="submit"
+                className="text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:hover:text-zinc-100"
+              >
+                Sign out · {session.user.email}
+              </button>
+            </form>
+          </div>
         </div>
       </header>
       {children}
