@@ -4,11 +4,6 @@ import { AuthError } from "next-auth";
 
 export const metadata = { title: "Sign in" };
 
-async function googleSignIn() {
-  "use server";
-  await signIn("google", { redirectTo: "/" });
-}
-
 async function credentialsSignIn(formData: FormData) {
   "use server";
   try {
@@ -40,25 +35,10 @@ export default async function LoginPage({
       <div className="w-full max-w-sm">
         <h1 className="text-2xl font-semibold tracking-tight">HRM</h1>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Sign in with your work account.
+          Sign in with your email and password.
         </p>
 
-        <form action={googleSignIn} className="mt-8">
-          <button
-            type="submit"
-            className="w-full rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
-          >
-            Continue with Google
-          </button>
-        </form>
-
-        <div className="my-6 flex items-center gap-3 text-xs text-zinc-400">
-          <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
-          or
-          <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
-        </div>
-
-        <form action={credentialsSignIn} className="flex flex-col gap-3">
+        <form action={credentialsSignIn} className="mt-8 flex flex-col gap-3">
           <input
             name="email"
             type="email"
