@@ -1,22 +1,13 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
+import { AppSidebar, HeaderBreadcrumb } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
-
-const nav = [
-  { href: "/", label: "Dashboard" },
-  { href: "/employees", label: "Employees" },
-  { href: "/onboarding", label: "Onboarding" },
-  { href: "/exit", label: "Exit" },
-  { href: "/id-cards", label: "ID Cards" },
-  { href: "/probation", label: "Probation" },
-  { href: "/quantum", label: "Quantum" },
-  { href: "/sessions", label: "Sessions" },
-  { href: "/freelancers", label: "Freelancers" },
-  { href: "/letters", label: "Letters" },
-  { href: "/reviews", label: "Reviews" },
-  { href: "/me", label: "Me" },
-] as const;
+import { Separator } from "@/components/ui/separator";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 
 export default async function AppLayout({
   children,
@@ -27,21 +18,18 @@ export default async function AppLayout({
   if (!session?.user) redirect("/login");
 
   return (
-    <div className="flex min-h-full flex-1 flex-col">
-      <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-3">
-          <nav className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-            <span className="font-semibold">HRM</span>
-            {nav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-3">
+          <div className="flex items-center gap-2">
+            <SidebarTrigger />
+            <Separator
+              orientation="vertical"
+              className="mr-2 data-vertical:h-4 data-vertical:self-auto"
+            />
+            <HeaderBreadcrumb />
+          </div>
           <div className="flex items-center gap-1">
             <ThemeToggle />
             <form
@@ -58,9 +46,9 @@ export default async function AppLayout({
               </button>
             </form>
           </div>
-        </div>
-      </header>
-      {children}
-    </div>
+        </header>
+        {children}
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
