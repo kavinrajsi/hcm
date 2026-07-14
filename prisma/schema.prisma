@@ -70,15 +70,26 @@ enum LetterType {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id           String               @id @default(cuid())
+  email        String               @unique
   name         String?
-  role         Role      @default(EMPLOYEE)
+  role         Role                 @default(EMPLOYEE)
   passwordHash String? // credentials fallback; null for SSO-only accounts
-  googleId     String?   @unique
+  googleId     String?              @unique
   employee     Employee?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  resetTokens  PasswordResetToken[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String    @unique // sha256 of the raw token; raw never stored
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 }
 
 model Employee {

@@ -58,6 +58,14 @@ export default async function LoginPage({
           {error === "invalid" && (
             <p className="text-sm text-red-600">Invalid email or password.</p>
           )}
+          <p className="text-right text-xs">
+            <a
+              href="/forgot-password"
+              className="text-zinc-500 underline underline-offset-4 hover:text-zinc-900 dark:hover:text-zinc-100"
+            >
+              Forgot password?
+            </a>
+          </p>
           <button
             type="submit"
             className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
