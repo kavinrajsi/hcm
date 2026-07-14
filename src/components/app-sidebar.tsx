@@ -32,6 +32,7 @@ const nav = [
     items: [
       { title: "Dashboard", url: "/" },
       { title: "Me", url: "/me" },
+      { title: "Profile", url: "/profile" },
     ],
   },
   {
