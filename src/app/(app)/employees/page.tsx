@@ -75,7 +75,7 @@ export default async function EmployeesPage({
             columns={EMPLOYEE_IMPORT_COLUMNS}
             title="Import employees"
           />
-          <Button render={<Link href="/employees/new" />}>Add employee</Button>
+          <Button nativeButton={false} render={<Link href="/employees/new" />}>Add employee</Button>
         </div>
       </div>
 

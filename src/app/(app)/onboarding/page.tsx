@@ -56,7 +56,7 @@ export default async function OnboardingPage({
     <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Onboarding</h1>
-        <Button render={<Link href="/employees/new" />}>New joiner</Button>
+        <Button nativeButton={false} render={<Link href="/employees/new" />}>New joiner</Button>
       </div>
 
       <div className="mt-6">
