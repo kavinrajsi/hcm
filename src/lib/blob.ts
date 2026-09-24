@@ -15,8 +15,17 @@ export async function uploadDocument(
   return result.pathname;
 }
 
+// Career-form resumes live in a separate store ("madarth-resume", shared with
+// the madarth website project), connected to this project with the env
+// prefix RESUMES → RESUMES_READ_WRITE_TOKEN.
+function tokenFor(pathname: string): string | undefined {
+  return pathname.startsWith("resumes/")
+    ? process.env.RESUMES_READ_WRITE_TOKEN
+    : undefined;
+}
+
 export async function readDocument(pathname: string) {
-  return get(pathname, { access: "private" });
+  return get(pathname, { access: "private", token: tokenFor(pathname) });
 }
 
 export async function deleteDocument(pathname: string) {

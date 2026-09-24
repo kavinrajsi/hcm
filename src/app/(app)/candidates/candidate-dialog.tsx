@@ -4,14 +4,6 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -104,110 +96,115 @@ export function CandidateDialog({ candidate }: { candidate: CandidateDetail }) {
     "h-9 rounded-md border border-input bg-transparent px-2 text-sm dark:bg-input/30";
 
   return (
-    <Dialog>
-      <DialogTrigger className="text-xs text-zinc-400 hover:text-foreground">
+    <Sheet>
+      <SheetTrigger className="text-xs text-zinc-400 hover:text-foreground">
         View
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{candidate.name}</DialogTitle>
-          <DialogDescription>
+      </SheetTrigger>
+      <SheetContent side="right" className="w-full sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>{candidate.name}</SheetTitle>
+          <SheetDescription>
             {candidate.jobRole ?? "—"} · {candidate.position ?? "—"} · applied{" "}
             {candidate.appliedOn}
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
-        <dl className="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1.5 text-sm">
-          <Row label="Email">
-            {candidate.email && (
-              <a
-                href={`mailto:${candidate.email}`}
-                className="underline underline-offset-4"
-              >
-                {candidate.email}
-              </a>
-            )}
-          </Row>
-          <Row label="Mobile">
-            {candidate.mobileNumber && (
-              <a
-                href={`tel:${candidate.mobileNumber}`}
-                className="underline underline-offset-4"
-              >
-                {candidate.mobileNumber}
-              </a>
-            )}
-          </Row>
-          <Row label="Location">{candidate.location}</Row>
-          <Row label="Resume">
-            {candidate.resumeHref && (
-              <span className="flex flex-wrap items-center gap-3">
-                <ResumeDrawer
-                  name={candidate.name}
-                  href={candidate.resumeHref}
-                />
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+          <dl className="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1.5 text-sm">
+            <Row label="Email">
+              {candidate.email && (
                 <a
-                  href={candidate.resumeHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={`mailto:${candidate.email}`}
                   className="underline underline-offset-4"
                 >
-                  Download
+                  {candidate.email}
                 </a>
-              </span>
-            )}
-          </Row>
-          <Row label="Portfolio">
-            {candidate.portfolio && (
-              <a
-                href={candidate.portfolio}
-                target="_blank"
-                rel="noopener noreferrer nofollow"
-                className="underline underline-offset-4"
-              >
-                {candidate.portfolio.replace(/^https?:\/\//, "")}
-              </a>
-            )}
-          </Row>
-          <Row label="Applied from">{candidate.pageUrl}</Row>
-          <Row label="Referrer">{candidate.referrer}</Row>
-        </dl>
+              )}
+            </Row>
+            <Row label="Mobile">
+              {candidate.mobileNumber && (
+                <a
+                  href={`tel:${candidate.mobileNumber}`}
+                  className="underline underline-offset-4"
+                >
+                  {candidate.mobileNumber}
+                </a>
+              )}
+            </Row>
+            <Row label="Location">{candidate.location}</Row>
+            <Row label="Resume">
+              {candidate.resumeHref && (
+                <span className="flex flex-wrap items-center gap-3">
+                  <ResumeDrawer
+                    name={candidate.name}
+                    href={candidate.resumeHref}
+                  />
+                  <a
+                    href={candidate.resumeHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-4"
+                  >
+                    Download
+                  </a>
+                </span>
+              )}
+            </Row>
+            <Row label="Portfolio">
+              {candidate.portfolio && (
+                <a
+                  href={candidate.portfolio}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="underline underline-offset-4"
+                >
+                  {candidate.portfolio.replace(/^https?:\/\//, "")}
+                </a>
+              )}
+            </Row>
+            <Row label="Applied from">{candidate.pageUrl}</Row>
+            <Row label="Referrer">{candidate.referrer}</Row>
+          </dl>
 
-        <form action={formAction} className="mt-2 flex flex-col gap-3 text-sm">
-          <input type="hidden" name="id" value={candidate.id} />
-          <label className="flex flex-col gap-1">
-            Status
-            <select
-              name="status"
-              defaultValue={candidate.status}
-              className={selectClass}
-            >
-              {CANDIDATE_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            Notes
-            <Textarea
-              name="notes"
-              defaultValue={candidate.notes ?? ""}
-              rows={3}
-            />
-          </label>
-          <div className="flex items-center gap-3">
-            <Button type="submit" disabled={pending}>
-              {pending ? "Saving…" : "Save"}
-            </Button>
-            {state.error && <p className="text-red-600">{state.error}</p>}
-            {state.ok && (
-              <p className="text-emerald-600 dark:text-emerald-400">Saved.</p>
-            )}
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          <form
+            action={formAction}
+            className="mt-6 flex flex-col gap-3 text-sm"
+          >
+            <input type="hidden" name="id" value={candidate.id} />
+            <label className="flex flex-col gap-1">
+              Status
+              <select
+                name="status"
+                defaultValue={candidate.status}
+                className={selectClass}
+              >
+                {CANDIDATE_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              Notes
+              <Textarea
+                name="notes"
+                defaultValue={candidate.notes ?? ""}
+                rows={3}
+              />
+            </label>
+            <div className="flex items-center gap-3">
+              <Button type="submit" disabled={pending}>
+                {pending ? "Saving…" : "Save"}
+              </Button>
+              {state.error && <p className="text-red-600">{state.error}</p>}
+              {state.ok && (
+                <p className="text-emerald-600 dark:text-emerald-400">Saved.</p>
+              )}
+            </div>
+          </form>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
