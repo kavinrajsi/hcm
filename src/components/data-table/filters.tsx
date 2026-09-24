@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 // URL-driven filter bar shared by Onboarding, Exit, Employees, Freelance.
 // Filters live in searchParams so the Server Component page does the actual
@@ -26,6 +26,9 @@ export function TableFilters({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
+  // Controlled: Base UI warns if an uncontrolled input's defaultValue
+  // changes, which happens every time the debounced search rewrites ?q.
+  const [search, setSearch] = useState(searchParams.get("q") ?? "");
 
   function setParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams);
@@ -51,8 +54,11 @@ export function TableFilters({
       <Input
         type="search"
         placeholder="Search by name…"
-        defaultValue={searchParams.get("q") ?? ""}
-        onChange={(e) => setSearchDebounced(e.target.value)}
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setSearchDebounced(e.target.value);
+        }}
         className="w-56"
       />
       <select
