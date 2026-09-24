@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
-import { datePartsToRange, parseTableParams } from "@/lib/table-params";
+import { parseTableParams } from "@/lib/table-params";
 import { TableFilters } from "@/components/data-table/filters";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
@@ -13,31 +13,29 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { CandidateDialog } from "./candidate-dialog";
+import { CandidateDialog, type CandidateDetail } from "./candidate-dialog";
+import { CandidateBoard } from "./candidate-board";
+import {
+  BOARD_PAGE_SIZE,
+  NOT_SPAM,
+  POSITIONS,
+  candidateWhere,
+  statusOf,
+  statusWhere,
+  toCandidateDetail,
+  type CandidateFilters,
+} from "./query";
 import {
   CANDIDATE_STATUSES,
   CANDIDATE_STATUS_CLASSES,
   type CandidateStatus,
 } from "./statuses";
-import type { Prisma } from "@/generated/prisma/client";
 
 export const metadata = { title: "Candidates" };
 
 // Applications submitted through the madarth.com career form. The website
-// writes rows directly; this page is HR's read/triage view.
-
-const POSITIONS = ["Full Time", "Intern"] as const;
-
-/** Only link user-supplied URLs that are plain http(s). */
-function safeUrl(value: string | null): string | null {
-  if (!value) return null;
-  const v = value.trim();
-  return /^https?:\/\//i.test(v) ? v : null;
-}
-
-function statusOf(value: string | null): CandidateStatus {
-  return CANDIDATE_STATUSES.find((s) => s === value) ?? "New";
-}
+// writes rows directly; this page is HR's triage view — a paginated list,
+// or a board with one column per status (?view=board).
 
 export default async function CandidatesPage({
   searchParams,
@@ -45,56 +43,45 @@ export default async function CandidatesPage({
   await requireRole("HR_ADMIN");
   const raw = await searchParams;
   const params = parseTableParams(raw);
+  const view = raw.view === "board" ? "board" : "list";
   const position = POSITIONS.find((p) => p === raw.position);
-
-  // Non-empty honeypot = bot submission; never shown.
-  const base: Prisma.CandidateWhereInput = {
-    OR: [{ honeypot: null }, { honeypot: "" }],
+  const filters: CandidateFilters = {
+    q: params.q,
+    position,
+    day: params.day,
+    month: params.month,
+    year: params.year,
   };
-  const and: Prisma.CandidateWhereInput[] = [base];
-  if (params.q) {
-    and.push({
-      OR: [
-        { firstName: { contains: params.q, mode: "insensitive" } },
-        { lastName: { contains: params.q, mode: "insensitive" } },
-        { email: { contains: params.q, mode: "insensitive" } },
-        { jobRole: { contains: params.q, mode: "insensitive" } },
-        { location: { contains: params.q, mode: "insensitive" } },
-      ],
-    });
-  }
-  if (CANDIDATE_STATUSES.includes(params.type as CandidateStatus)) {
-    and.push({ status: params.type });
-  }
-  if (position) and.push({ position });
-  const range = datePartsToRange(params);
-  if (range) and.push({ createdAt: range });
-  const where: Prisma.CandidateWhereInput = { AND: and };
+  const and = candidateWhere(filters);
 
-  const [candidates, total, statusCounts] = await Promise.all([
-    db.candidate.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: params.skip,
-      take: params.take,
-    }),
-    db.candidate.count({ where }),
-    db.candidate.groupBy({ by: ["status"], where: base, _count: true }),
-  ]);
-  const countByStatus = new Map(statusCounts.map((s) => [s.status, s._count]));
+  // Totals across everything (not filtered); null/unknown statuses count as New.
+  const statusCounts = await db.candidate.groupBy({
+    by: ["status"],
+    where: NOT_SPAM,
+    _count: true,
+  });
+  const countByStatus = new Map<CandidateStatus, number>();
+  for (const s of statusCounts) {
+    const k = statusOf(s.status);
+    countByStatus.set(k, (countByStatus.get(k) ?? 0) + s._count);
+  }
 
-  const positionHref = (p?: string) => {
+  const hrefWith = (key: string, value?: string) => {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(raw)) {
-      if (typeof v === "string" && k !== "position" && k !== "page")
-        qs.set(k, v);
+      if (typeof v === "string" && k !== key && k !== "page") qs.set(k, v);
     }
-    if (p) qs.set("position", p);
+    if (value) qs.set(key, value);
     return `/candidates${qs.size ? `?${qs}` : ""}`;
   };
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
+    <main
+      className={cn(
+        "mx-auto w-full flex-1 px-6 py-8",
+        view === "list" && "max-w-6xl",
+      )}
+    >
       <h1 className="text-2xl font-semibold tracking-tight">Candidates</h1>
       <p className="mt-1 text-sm text-zinc-500">
         Applications from the madarth.com career form.
@@ -118,33 +105,140 @@ export default async function CandidatesPage({
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        {/* Board columns are the statuses, so no status filter there. */}
         <TableFilters
           typeLabel="Status"
-          typeOptions={CANDIDATE_STATUSES.map((s) => ({ value: s, label: s }))}
+          typeOptions={
+            view === "list"
+              ? CANDIDATE_STATUSES.map((s) => ({ value: s, label: s }))
+              : undefined
+          }
         />
-        <nav
-          className="inline-flex rounded-lg border border-zinc-200 p-0.5 text-sm dark:border-zinc-800"
-          aria-label="Position"
-        >
-          {([undefined, ...POSITIONS] as const).map((p) => (
-            <Link
-              key={p ?? "all"}
-              href={positionHref(p)}
-              aria-current={position === p ? "page" : undefined}
-              className={cn(
-                "rounded-md px-3 py-1",
-                position === p
-                  ? "bg-muted font-medium"
-                  : "text-zinc-500 hover:text-foreground",
-              )}
-            >
-              {p ?? "All"}
-            </Link>
-          ))}
-        </nav>
+        <div className="flex flex-wrap items-center gap-2">
+          <nav
+            className="inline-flex rounded-lg border border-zinc-200 p-0.5 text-sm dark:border-zinc-800"
+            aria-label="Position"
+          >
+            {([undefined, ...POSITIONS] as const).map((p) => (
+              <Link
+                key={p ?? "all"}
+                href={hrefWith("position", p)}
+                aria-current={position === p ? "page" : undefined}
+                className={cn(
+                  "rounded-md px-3 py-1",
+                  position === p
+                    ? "bg-muted font-medium"
+                    : "text-zinc-500 hover:text-foreground",
+                )}
+              >
+                {p ?? "All"}
+              </Link>
+            ))}
+          </nav>
+          <nav
+            className="inline-flex rounded-lg border border-zinc-200 p-0.5 text-sm dark:border-zinc-800"
+            aria-label="View"
+          >
+            {(["list", "board"] as const).map((v) => (
+              <Link
+                key={v}
+                href={hrefWith("view", v === "board" ? "board" : undefined)}
+                aria-current={view === v ? "page" : undefined}
+                className={cn(
+                  "rounded-md px-3 py-1 capitalize",
+                  view === v
+                    ? "bg-muted font-medium"
+                    : "text-zinc-500 hover:text-foreground",
+                )}
+              >
+                {v}
+              </Link>
+            ))}
+          </nav>
+        </div>
       </div>
 
-      <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="mt-4">
+        {view === "board" ? (
+          <BoardView filters={filters} and={and} />
+        ) : (
+          <ListView
+            and={and}
+            type={params.type}
+            page={params.page}
+            skip={params.skip}
+            take={params.take}
+            raw={raw}
+          />
+        )}
+      </div>
+    </main>
+  );
+}
+
+async function BoardView({
+  filters,
+  and,
+}: {
+  filters: CandidateFilters;
+  and: ReturnType<typeof candidateWhere>;
+}) {
+  const results = await Promise.all(
+    CANDIDATE_STATUSES.map(async (status) => {
+      const where = { AND: [...and, statusWhere(status)] };
+      const [rows, count] = await Promise.all([
+        db.candidate.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          take: BOARD_PAGE_SIZE,
+        }),
+        db.candidate.count({ where }),
+      ]);
+      return [status, rows.map(toCandidateDetail), count] as const;
+    }),
+  );
+  const columns = Object.fromEntries(results.map(([s, rows]) => [s, rows]));
+  const counts = Object.fromEntries(results.map(([s, , n]) => [s, n]));
+
+  return (
+    <CandidateBoard
+      initialColumns={columns as Record<CandidateStatus, CandidateDetail[]>}
+      initialCounts={counts as Record<CandidateStatus, number>}
+      filters={filters}
+    />
+  );
+}
+
+async function ListView({
+  and,
+  type,
+  page,
+  skip,
+  take,
+  raw,
+}: {
+  and: ReturnType<typeof candidateWhere>;
+  type?: string;
+  page: number;
+  skip: number;
+  take: number;
+  raw: Record<string, string | string[] | undefined>;
+}) {
+  const status = CANDIDATE_STATUSES.find((s) => s === type);
+  const where = { AND: status ? [...and, statusWhere(status)] : and };
+  const [rows, total] = await Promise.all([
+    db.candidate.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take,
+    }),
+    db.candidate.count({ where }),
+  ]);
+
+  return (
+    <>
+      <div className="rounded-lg border border-zinc-200 dark:border-zinc-800">
         <Table>
           <TableHeader>
             <TableRow>
@@ -159,23 +253,19 @@ export default async function CandidatesPage({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {candidates.length === 0 && (
+            {rows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={8} className="text-center text-zinc-500">
                   No candidates.
                 </TableCell>
               </TableRow>
             )}
-            {candidates.map((c) => {
-              const name =
-                [c.firstName, c.lastName].filter(Boolean).join(" ") || "—";
-              const status = statusOf(c.status);
-              const resumeHref = c.fileUrl
-                ? `/api/files/${c.fileUrl.split("/").map(encodeURIComponent).join("/")}`
-                : null;
+            {rows.map((row) => {
+              const c = toCandidateDetail(row);
+              const st = c.status as CandidateStatus;
               return (
-                <TableRow key={String(c.id)}>
-                  <TableCell className="font-medium">{name}</TableCell>
+                <TableRow key={c.id}>
+                  <TableCell className="font-medium">{c.name}</TableCell>
                   <TableCell>{c.jobRole ?? "—"}</TableCell>
                   <TableCell className="whitespace-nowrap">
                     {c.position ?? "—"}
@@ -186,23 +276,23 @@ export default async function CandidatesPage({
                   </TableCell>
                   <TableCell>{c.location ?? "—"}</TableCell>
                   <TableCell className="whitespace-nowrap tabular-nums">
-                    {c.createdAt.toISOString().slice(0, 10)}
+                    {c.appliedOn}
                   </TableCell>
                   <TableCell>
                     <span
                       className={cn(
                         "rounded px-1.5 py-0.5 text-xs font-medium",
-                        CANDIDATE_STATUS_CLASSES[status],
+                        CANDIDATE_STATUS_CLASSES[st],
                       )}
                     >
-                      {status}
+                      {st}
                     </span>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     <div className="flex items-center gap-3">
-                      {resumeHref && (
+                      {c.resumeHref && (
                         <a
-                          href={resumeHref}
+                          href={`${c.resumeHref}?inline=1`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-zinc-400 hover:text-foreground"
@@ -210,24 +300,7 @@ export default async function CandidatesPage({
                           Resume
                         </a>
                       )}
-                      <CandidateDialog
-                        candidate={{
-                          id: String(c.id),
-                          name,
-                          email: c.email,
-                          mobileNumber: c.mobileNumber,
-                          position: c.position,
-                          jobRole: c.jobRole,
-                          location: c.location,
-                          portfolio: safeUrl(c.portfolio),
-                          resumeHref,
-                          status,
-                          notes: c.notes,
-                          appliedOn: c.createdAt.toISOString().slice(0, 10),
-                          pageUrl: c.pageUrl,
-                          referrer: c.referrer,
-                        }}
-                      />
+                      <CandidateDialog candidate={c} />
                     </div>
                   </TableCell>
                 </TableRow>
@@ -239,12 +312,12 @@ export default async function CandidatesPage({
 
       <div className="mt-4">
         <TablePagination
-          page={params.page}
+          page={page}
           total={total}
           searchParams={raw}
           pathname="/candidates"
         />
       </div>
-    </main>
+    </>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Sheet,
@@ -46,48 +46,24 @@ function Row({
   );
 }
 
-/** Drawer opened from inside the candidate modal (nested Base UI dialog). */
-function ResumeDrawer({ name, href }: { name: string; href: string }) {
-  const isPdf = /\.pdf$/i.test(href.split("?")[0]);
-  return (
-    <Sheet>
-      <SheetTrigger render={<Button variant="outline" size="sm" />}>
-        Preview resume
-      </SheetTrigger>
-      <SheetContent side="right" className="w-full sm:max-w-3xl">
-        <SheetHeader>
-          <SheetTitle>{name} — resume</SheetTitle>
-          <SheetDescription>
-            {isPdf
-              ? "PDF preview."
-              : "Preview isn't available for this file type."}
-          </SheetDescription>
-        </SheetHeader>
-        {isPdf ? (
-          <iframe
-            src={`${href}?inline=1`}
-            title={`${name} resume`}
-            className="mx-4 mb-4 min-h-0 flex-1 rounded-md border border-zinc-200 bg-white dark:border-zinc-800"
-          />
-        ) : (
-          <p className="px-4 text-sm">
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-4"
-            >
-              Download the file
-            </a>{" "}
-            to view it.
-          </p>
-        )}
-      </SheetContent>
-    </Sheet>
-  );
+/** Browsers can render PDFs inline; other types (doc/docx) only download. */
+function isPdf(href: string): boolean {
+  return /\.pdf$/i.test(href.split("?")[0]);
 }
 
-export function CandidateDialog({ candidate }: { candidate: CandidateDetail }) {
+/**
+ * Candidate details drawer. Uncontrolled with its own "View" trigger (list
+ * view), or controlled via `open`/`onOpenChange` with no trigger (board).
+ */
+export function CandidateDialog({
+  candidate,
+  open,
+  onOpenChange,
+}: {
+  candidate: CandidateDetail;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
   const [state, formAction, pending] = useActionState<
     CandidateFormState,
     FormData
@@ -96,10 +72,12 @@ export function CandidateDialog({ candidate }: { candidate: CandidateDetail }) {
     "h-9 rounded-md border border-input bg-transparent px-2 text-sm dark:bg-input/30";
 
   return (
-    <Sheet>
-      <SheetTrigger className="text-xs text-zinc-400 hover:text-foreground">
-        View
-      </SheetTrigger>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      {open === undefined && (
+        <SheetTrigger className="text-xs text-zinc-400 hover:text-foreground">
+          View
+        </SheetTrigger>
+      )}
       <SheetContent side="right" className="w-full sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>{candidate.name}</SheetTitle>
@@ -135,10 +113,19 @@ export function CandidateDialog({ candidate }: { candidate: CandidateDetail }) {
             <Row label="Resume">
               {candidate.resumeHref && (
                 <span className="flex flex-wrap items-center gap-3">
-                  <ResumeDrawer
-                    name={candidate.name}
-                    href={candidate.resumeHref}
-                  />
+                  {isPdf(candidate.resumeHref) && (
+                    <a
+                      href={`${candidate.resumeHref}?inline=1`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={buttonVariants({
+                        variant: "outline",
+                        size: "sm",
+                      })}
+                    >
+                      Preview resume
+                    </a>
+                  )}
                   <a
                     href={candidate.resumeHref}
                     target="_blank"
