@@ -2,6 +2,7 @@ import { datePartsToRange } from "@/lib/table-params";
 import type { Candidate, Prisma } from "@/generated/prisma/client";
 import type { CandidateDetail } from "./candidate-dialog";
 import { CANDIDATE_STATUSES, type CandidateStatus } from "./statuses";
+import { formatNoteTime, parseNotes } from "./notes";
 
 // Shared by the list view, the board view and the board's "Load more" action.
 
@@ -77,7 +78,10 @@ export function toCandidateDetail(c: Candidate): CandidateDetail {
       ? `/api/files/${c.fileUrl.split("/").map(encodeURIComponent).join("/")}`
       : null,
     status: statusOf(c.status),
-    notes: c.notes,
+    // Newest first, with IST display time resolved on the server.
+    notes: parseNotes(c.notes)
+      .map((n) => ({ ...n, when: formatNoteTime(n.timestamp) }))
+      .reverse(),
     appliedOn: c.createdAt.toISOString().slice(0, 10),
     pageUrl: c.pageUrl,
     referrer: c.referrer,

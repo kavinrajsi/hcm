@@ -98,7 +98,7 @@ function BoardCard({
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
-        className="mt-2 hidden h-7 w-full rounded-md border border-input bg-transparent px-1.5 text-xs group-focus-within:block group-hover:block pointer-coarse:block dark:bg-input/30"
+        className="mt-2 hidden h-7 w-full rounded-md border border-input bg-transparent px-1.5 text-xs group-has-focus-visible:block pointer-coarse:block dark:bg-input/30"
       >
         <option value="" disabled>
           Move to…
