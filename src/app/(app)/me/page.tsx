@@ -12,6 +12,7 @@ import {
 import { updateOwnContact } from "./actions";
 import { ContactForm } from "./contact-form";
 import { QuantumEntryForm } from "../quantum/quantum-entry-form";
+import { LEAVE_TYPE_LABELS } from "@/lib/leave";
 
 export const metadata = { title: "My Profile" };
 
@@ -27,6 +28,7 @@ export default async function MePage() {
       onboarding: true,
       quantumEntries: { orderBy: { date: "desc" }, take: 20 },
       attendance: { orderBy: { date: "desc" }, take: 10 },
+      leaveEntries: { orderBy: { postedOn: "desc" }, take: 20 },
       registrations: { include: { session: true } },
     },
   });
@@ -52,6 +54,17 @@ export default async function MePage() {
   const upcoming = employee.registrations
     .filter((r) => r.session.date >= new Date())
     .map((r) => r.session);
+
+  const leaveAgg = await db.leaveEntry.aggregate({
+    where: {
+      employeeId: employee.id,
+      type: { in: ["FULL_DAY", "HALF_DAY"] },
+      status: { not: "REJECTED" },
+      startDate: { gte: new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1)) },
+    },
+    _sum: { days: true },
+  });
+  const leaveDaysThisYear = Number(leaveAgg._sum.days ?? 0);
 
   const masked = {
     pan: employee.panEnc ? maskValue(decryptField(employee.panEnc)) : "—",
@@ -156,6 +169,47 @@ export default async function MePage() {
           </TableBody>
         </Table>
       </div>
+
+      <h2 className="mt-10 text-lg font-medium">
+        My leave{" "}
+        <span className="text-sm font-normal text-zinc-500">
+          {leaveDaysThisYear} day{leaveDaysThisYear === 1 ? "" : "s"} in{" "}
+          {new Date().getUTCFullYear()}
+        </span>
+      </h2>
+      <ul className="mt-3 flex flex-col gap-2 text-sm">
+        {employee.leaveEntries.length === 0 && (
+          <li className="text-zinc-500">
+            No leave posts found in Basecamp check-ins.
+          </li>
+        )}
+        {employee.leaveEntries.map((l) => (
+          <li
+            key={l.id}
+            className="rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800"
+          >
+            <span className="font-medium">
+              {l.type ? LEAVE_TYPE_LABELS[l.type] : "Pending"}
+            </span>{" "}
+            · {(l.startDate ?? l.postedOn).toISOString().slice(0, 10)}
+            {l.endDate && l.startDate && l.endDate > l.startDate
+              ? ` → ${l.endDate.toISOString().slice(0, 10)}`
+              : ""}
+            {l.reason ? ` · ${l.reason}` : ""}
+            <span
+              className={
+                l.status === "APPROVED"
+                  ? "ml-2 text-xs text-emerald-600 dark:text-emerald-400"
+                  : l.status === "REJECTED"
+                    ? "ml-2 text-xs text-rose-600 dark:text-rose-400"
+                    : "ml-2 text-xs text-amber-600 dark:text-amber-400"
+              }
+            >
+              {l.status.charAt(0) + l.status.slice(1).toLowerCase()}
+            </span>
+          </li>
+        ))}
+      </ul>
 
       <div className="mt-10 grid gap-8 lg:grid-cols-2">
         <section>

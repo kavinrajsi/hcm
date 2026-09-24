@@ -63,6 +63,21 @@ enum Availability {
   UNKNOWN
 }
 
+enum LeaveType {
+  FULL_DAY
+  HALF_DAY
+  LATE_ARRIVAL
+  EARLY_LOGOUT
+  WFH
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum LetterType {
   OFFER
   INTERN
@@ -78,6 +93,7 @@ model User {
   googleId     String?              @unique
   employee     Employee?
   resetTokens  PasswordResetToken[]
+  leaveReviews LeaveEntry[]         @relation("LeaveReviews")
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
 }
@@ -161,6 +177,7 @@ model Employee {
   letters        Letter[]
   reviewMeetings ReviewMeeting[]
   freelancer     Freelancer?
+  leaveEntries   LeaveEntry[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -327,4 +344,67 @@ model BasecampToken {
   expiresAt       DateTime
   accountId       String
   updatedAt       DateTime @updatedAt
+}
+
+// Leave posts imported from the Basecamp "Post your leave here" check-in.
+// Free-text answers are classified by AI; HR/managers can correct them
+// (classifiedBy = "manual"), which the sync never overwrites.
+model LeaveEntry {
+  id           String      @id @default(cuid())
+  basecampId   String      @unique // check-in answer id
+  employee     Employee?   @relation(fields: [employeeId], references: [id])
+  employeeId   String? // null when the poster's email matches no employee
+  creatorName  String
+  creatorEmail String
+  postedOn     DateTime    @db.Date // Basecamp group_on
+  postedAt     DateTime
+  message      String // plain text, HTML stripped
+  link         String
+  type         LeaveType? // null = not yet classified
+  startDate    DateTime?   @db.Date
+  endDate      DateTime?   @db.Date
+  days         Decimal?    @db.Decimal(4, 1)
+  reason       String?
+  classifiedBy String? // "ai" | "manual"
+  status       LeaveStatus @default(PENDING)
+  reviewedBy   User?       @relation("LeaveReviews", fields: [reviewedById], references: [id])
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([employeeId, startDate])
+  @@index([postedOn])
+  @@index([status])
+}
+
+// Job applications from the madarth.com career form (/api/career), which
+// inserts with raw SQL — keep the snake_case table/column names stable.
+// Migrated from Supabase `candidates`; ids preserved. Résumés live in Vercel
+// Blob (private) at the `fileUrl` pathname. Non-empty `honeypot` = spam hit.
+model Candidate {
+  id           BigInt   @id @default(autoincrement())
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  firstName    String?  @map("first_name")
+  lastName     String?  @map("last_name")
+  email        String?
+  mobileNumber String?  @map("mobile_number")
+  position     String?
+  jobRole      String?  @map("job_role")
+  fileUrl      String?  @map("file_url")
+  portfolio    String?
+  status       String?  @default("New") // New | Screening | Interview | Offer | Freelancer | Rejected
+  ipAddress    String?  @map("ip_address")
+  location     String?
+  sourceUrl    String?  @map("source_url")
+  notes        String?
+  orderIndex   Int?     @default(9999) @map("order_index")
+  pageUrl      String?  @map("page_url")
+  referrer     String?
+  userAgent    String?  @map("user_agent")
+  honeypot     String?  @default("")
+
+  @@index([createdAt(sort: Desc)])
+  @@map("candidates")
 }

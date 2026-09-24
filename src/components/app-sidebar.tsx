@@ -38,11 +38,13 @@ const nav = [
   {
     title: "People",
     items: [
+      { title: "Candidates", url: "/candidates" },
       { title: "Employees", url: "/employees" },
       { title: "Onboarding", url: "/onboarding" },
       { title: "Probation", url: "/probation" },
       { title: "Exit", url: "/exit" },
       { title: "ID Cards", url: "/id-cards" },
+      { title: "Leave", url: "/leave" },
     ],
   },
   {

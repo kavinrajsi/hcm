@@ -6,7 +6,7 @@ import { AuthorizationError, requireRole } from "@/lib/rbac";
 // HR-only for now; per-employee self-service access can be layered on by
 // checking blob-key ownership against the caller's employee record.
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: RouteContext<"/api/files/[...path]">,
 ) {
   try {
@@ -23,7 +23,14 @@ export async function GET(
   if (!result) {
     return new Response("Not found", { status: 404 });
   }
-  return new Response(result.stream, {
-    headers: Object.fromEntries(result.headers.entries()),
-  });
+  const headers = new Headers(Object.fromEntries(result.headers.entries()));
+  // ?inline=1 lets PDFs render in an <iframe> preview instead of downloading.
+  if (req.nextUrl.searchParams.get("inline") === "1") {
+    const name = path.at(-1) ?? "file";
+    headers.set(
+      "Content-Disposition",
+      `inline; filename*=UTF-8''${encodeURIComponent(name)}`,
+    );
+  }
+  return new Response(result.stream, { headers });
 }
