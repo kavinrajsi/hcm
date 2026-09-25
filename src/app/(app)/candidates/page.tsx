@@ -15,6 +15,8 @@ import {
 import { cn } from "@/lib/utils";
 import { CandidateDialog, type CandidateDetail } from "./candidate-dialog";
 import { CandidateBoard } from "./candidate-board";
+import { AddCandidate } from "./add-candidate";
+import { FileOpenIcon } from "./icons";
 import {
   BOARD_PAGE_SIZE,
   NOT_SPAM,
@@ -48,9 +50,6 @@ export default async function CandidatesPage({
   const filters: CandidateFilters = {
     q: params.q,
     position,
-    day: params.day,
-    month: params.month,
-    year: params.year,
   };
   const and = candidateWhere(filters);
 
@@ -82,10 +81,15 @@ export default async function CandidatesPage({
         view === "list" && "max-w-6xl",
       )}
     >
-      <h1 className="text-2xl font-semibold tracking-tight">Candidates</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Applications from the madarth.com career form.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Candidates</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Applications from the madarth.com career form.
+          </p>
+        </div>
+        <AddCandidate />
+      </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
         {CANDIDATE_STATUSES.map((s) => (
@@ -107,6 +111,7 @@ export default async function CandidatesPage({
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         {/* Board columns are the statuses, so no status filter there. */}
         <TableFilters
+          dateFilters={false}
           typeLabel="Status"
           typeOptions={
             view === "list"
@@ -243,7 +248,6 @@ async function ListView({
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Role</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Location</TableHead>
@@ -255,7 +259,7 @@ async function ListView({
           <TableBody>
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-zinc-500">
+                <TableCell colSpan={7} className="text-center text-zinc-500">
                   No candidates.
                 </TableCell>
               </TableRow>
@@ -265,8 +269,12 @@ async function ListView({
               const st = c.status as CandidateStatus;
               return (
                 <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.name}</TableCell>
-                  <TableCell>{c.jobRole ?? "—"}</TableCell>
+                  <TableCell>
+                    <div className="font-medium">{c.name}</div>
+                    {c.jobRole && (
+                      <div className="text-sm text-zinc-500">{c.jobRole}</div>
+                    )}
+                  </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {c.position ?? "—"}
                   </TableCell>
@@ -290,17 +298,18 @@ async function ListView({
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     <div className="flex items-center gap-3">
+                      <CandidateDialog candidate={c} />
                       {c.resumeHref && (
                         <a
                           href={`${c.resumeHref}?inline=1`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs text-zinc-400 hover:text-foreground"
+                          className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-foreground"
                         >
+                          <FileOpenIcon className="size-4" />
                           Resume
                         </a>
                       )}
-                      <CandidateDialog candidate={c} />
                     </div>
                   </TableCell>
                 </TableRow>

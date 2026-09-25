@@ -24,6 +24,31 @@ function tokenFor(pathname: string): string | undefined {
     : undefined;
 }
 
+/**
+ * HR-added candidate resumes go to the resumes store with the website's
+ * naming (`resumes/<first-name>-<ISO time>.<ext>`) so both apps read them.
+ */
+export async function uploadResume(
+  firstName: string,
+  file: File,
+): Promise<string> {
+  const slug =
+    firstName
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "candidate";
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "pdf";
+  const pathname = `resumes/${slug}-${stamp}.${ext}`;
+  const result = await put(pathname, file, {
+    access: "private",
+    addRandomSuffix: false,
+    token: tokenFor(pathname),
+  });
+  return result.pathname;
+}
+
 export async function readDocument(pathname: string) {
   return get(pathname, { access: "private", token: tokenFor(pathname) });
 }

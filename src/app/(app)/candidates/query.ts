@@ -1,4 +1,3 @@
-import { datePartsToRange } from "@/lib/table-params";
 import type { Candidate, Prisma } from "@/generated/prisma/client";
 import type { CandidateDetail } from "./candidate-dialog";
 import { CANDIDATE_STATUSES, type CandidateStatus } from "./statuses";
@@ -8,13 +7,12 @@ import { formatNoteTime, parseNotes } from "./notes";
 
 export const POSITIONS = ["Full Time", "Intern"] as const;
 export const BOARD_PAGE_SIZE = 50;
+/** `source_url` marker for candidates HR added in this app. */
+export const MANUAL_SOURCE = "hcm";
 
 export type CandidateFilters = {
   q?: string;
   position?: string;
-  day?: number;
-  month?: number;
-  year?: number;
 };
 
 /** Non-empty honeypot = bot submission; never shown. */
@@ -39,8 +37,6 @@ export function candidateWhere(
   }
   const position = POSITIONS.find((p) => p === f.position);
   if (position) and.push({ position });
-  const range = datePartsToRange(f);
-  if (range) and.push({ createdAt: range });
   return and;
 }
 
@@ -57,13 +53,6 @@ export function statusOf(value: string | null): CandidateStatus {
   return CANDIDATE_STATUSES.find((s) => s === value) ?? "New";
 }
 
-/** Only link user-supplied URLs that are plain http(s). */
-function safeUrl(value: string | null): string | null {
-  if (!value) return null;
-  const v = value.trim();
-  return /^https?:\/\//i.test(v) ? v : null;
-}
-
 export function toCandidateDetail(c: Candidate): CandidateDetail {
   return {
     id: String(c.id),
@@ -73,7 +62,7 @@ export function toCandidateDetail(c: Candidate): CandidateDetail {
     position: c.position,
     jobRole: c.jobRole,
     location: c.location,
-    portfolio: safeUrl(c.portfolio),
+    portfolio: c.portfolio?.trim() || null,
     resumeHref: c.fileUrl
       ? `/api/files/${c.fileUrl.split("/").map(encodeURIComponent).join("/")}`
       : null,
@@ -84,6 +73,7 @@ export function toCandidateDetail(c: Candidate): CandidateDetail {
       .reverse(),
     appliedOn: c.createdAt.toISOString().slice(0, 10),
     pageUrl: c.pageUrl,
+    addedManually: c.sourceUrl === MANUAL_SOURCE,
     referrer: c.referrer,
   };
 }

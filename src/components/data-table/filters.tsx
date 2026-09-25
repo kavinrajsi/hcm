@@ -16,9 +16,11 @@ const MONTHS = [
 export function TableFilters({
   typeOptions,
   typeLabel = "Type",
+  dateFilters = true,
 }: {
   typeOptions?: { value: string; label: string }[];
   typeLabel?: string;
+  dateFilters?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -61,48 +63,52 @@ export function TableFilters({
         }}
         className="w-56"
       />
-      <select
-        aria-label="Day"
-        className={selectClass}
-        defaultValue={searchParams.get("day") ?? ""}
-        onChange={(e) => setParam("day", e.target.value)}
-      >
-        <option value="">Day</option>
-        {Array.from({ length: 31 }, (_, i) => (
-          <option key={i + 1} value={String(i + 1)}>
-            {i + 1}
-          </option>
-        ))}
-      </select>
-      <select
-        aria-label="Month"
-        className={selectClass}
-        defaultValue={searchParams.get("month") ?? ""}
-        onChange={(e) => setParam("month", e.target.value)}
-      >
-        <option value="">Month</option>
-        {MONTHS.map((m, i) => (
-          <option key={m} value={String(i + 1)}>
-            {m}
-          </option>
-        ))}
-      </select>
-      <select
-        aria-label="Year"
-        className={selectClass}
-        defaultValue={searchParams.get("year") ?? ""}
-        onChange={(e) => setParam("year", e.target.value)}
-      >
-        <option value="">Year</option>
-        {Array.from({ length: 10 }, (_, i) => {
-          const y = new Date().getFullYear() - i;
-          return (
-            <option key={y} value={String(y)}>
-              {y}
-            </option>
-          );
-        })}
-      </select>
+      {dateFilters && (
+        <>
+          <select
+            aria-label="Day"
+            className={selectClass}
+            defaultValue={searchParams.get("day") ?? ""}
+            onChange={(e) => setParam("day", e.target.value)}
+          >
+            <option value="">Day</option>
+            {Array.from({ length: 31 }, (_, i) => (
+              <option key={i + 1} value={String(i + 1)}>
+                {i + 1}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Month"
+            className={selectClass}
+            defaultValue={searchParams.get("month") ?? ""}
+            onChange={(e) => setParam("month", e.target.value)}
+          >
+            <option value="">Month</option>
+            {MONTHS.map((m, i) => (
+              <option key={m} value={String(i + 1)}>
+                {m}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Year"
+            className={selectClass}
+            defaultValue={searchParams.get("year") ?? ""}
+            onChange={(e) => setParam("year", e.target.value)}
+          >
+            <option value="">Year</option>
+            {Array.from({ length: 10 }, (_, i) => {
+              const y = new Date().getFullYear() - i;
+              return (
+                <option key={y} value={String(y)}>
+                  {y}
+                </option>
+              );
+            })}
+          </select>
+        </>
+      )}
       {typeOptions && (
         <select
           aria-label={typeLabel}

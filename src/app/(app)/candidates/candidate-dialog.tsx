@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useTransition } from "react";
-import { Trash2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -18,6 +17,22 @@ import {
   updateCandidate,
   type CandidateFormState,
 } from "./actions";
+import {
+  AddIcon,
+  ArrowOutwardIcon,
+  CallIcon,
+  CheckIcon,
+  DeleteIcon,
+  DescriptionIcon,
+  FileOpenIcon,
+  FlagIcon,
+  InputIcon,
+  LanguageIcon,
+  LinkIcon,
+  LocationOnIcon,
+  MailIcon,
+  StickyNoteIcon,
+} from "./icons";
 import type { CandidateNote } from "./notes";
 import { CANDIDATE_STATUSES } from "./statuses";
 
@@ -35,22 +50,53 @@ export type CandidateDetail = {
   notes: (CandidateNote & { when: string | null })[];
   appliedOn: string;
   pageUrl: string | null;
+  addedManually: boolean;
   referrer: string | null;
 };
 
 function Row({
+  icon: Icon,
   label,
   children,
 }: {
+  icon: React.ComponentType<{ className?: string }>;
   label: string;
   children: React.ReactNode;
 }) {
   return (
     <>
-      <dt className="text-zinc-500">{label}</dt>
+      <dt className="flex items-center gap-1.5 text-zinc-500">
+        <Icon className="size-4 shrink-0" />
+        {label}
+      </dt>
       <dd className="min-w-0 break-words">{children || "—"}</dd>
     </>
   );
+}
+
+/**
+ * Portfolio is free text from the career form — sometimes several URLs or a
+ * URL plus a sentence. Link each http(s) URL; everything else stays text.
+ */
+function Linkified({ text }: { text: string }) {
+  return text.split(/(https?:\/\/[^\s,]+)/i).map((part, i) => {
+    if (i % 2 === 0) return part;
+    // Don't swallow sentence punctuation that follows a URL.
+    const url = part.replace(/[.)\]]+$/, "");
+    return (
+      <span key={i}>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          className="underline underline-offset-4"
+        >
+          {url.replace(/^https?:\/\//i, "")}
+        </a>
+        {part.slice(url.length)}
+      </span>
+    );
+  });
 }
 
 /** Browsers can render PDFs inline; other types (doc/docx) only download. */
@@ -73,7 +119,10 @@ function NotesLog({
 
   return (
     <section className="mt-8 text-sm">
-      <h3 className="font-medium">Notes</h3>
+      <h3 className="flex items-center gap-1.5 font-medium">
+        <StickyNoteIcon className="size-4 text-zinc-500" />
+        Notes
+      </h3>
       {/* Remount after a note lands so the textarea clears. */}
       <form
         key={notes.length}
@@ -84,6 +133,7 @@ function NotesLog({
         <Textarea name="text" rows={2} placeholder="Add a note…" required />
         <div className="flex items-center gap-3">
           <Button type="submit" size="sm" disabled={pending}>
+            <AddIcon className="size-4" />
             {pending ? "Adding…" : "Add note"}
           </Button>
           {state.error && <p className="text-red-600">{state.error}</p>}
@@ -116,7 +166,7 @@ function NotesLog({
                   }}
                   className="text-zinc-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-600 focus-visible:opacity-100"
                 >
-                  <Trash2 className="size-3.5" />
+                  <DeleteIcon className="size-4" />
                 </button>
               </div>
               <p className="mt-1 whitespace-pre-line">{n.text}</p>
@@ -151,7 +201,8 @@ export function CandidateDialog({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       {open === undefined && (
-        <SheetTrigger className="text-xs text-zinc-400 hover:text-foreground">
+        <SheetTrigger className="inline-flex cursor-pointer items-center gap-1 text-xs text-zinc-400 hover:text-foreground">
+          <ArrowOutwardIcon className="size-4" />
           View
         </SheetTrigger>
       )}
@@ -165,8 +216,8 @@ export function CandidateDialog({
         </SheetHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-          <dl className="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1.5 text-sm">
-            <Row label="Email">
+          <dl className="grid grid-cols-[8.5rem_1fr] gap-x-3 gap-y-1.5 text-sm">
+            <Row icon={MailIcon} label="Email">
               {candidate.email && (
                 <a
                   href={`mailto:${candidate.email}`}
@@ -176,7 +227,7 @@ export function CandidateDialog({
                 </a>
               )}
             </Row>
-            <Row label="Mobile">
+            <Row icon={CallIcon} label="Mobile">
               {candidate.mobileNumber && (
                 <a
                   href={`tel:${candidate.mobileNumber}`}
@@ -186,8 +237,8 @@ export function CandidateDialog({
                 </a>
               )}
             </Row>
-            <Row label="Location">{candidate.location}</Row>
-            <Row label="Resume">
+            <Row icon={LocationOnIcon} label="Location">{candidate.location}</Row>
+            <Row icon={DescriptionIcon} label="Resume">
               {candidate.resumeHref &&
                 // PDFs preview in a new tab; other formats can only download.
                 (isPdf(candidate.resumeHref) ? (
@@ -200,6 +251,7 @@ export function CandidateDialog({
                       size: "sm",
                     })}
                   >
+                    <FileOpenIcon className="size-4" />
                     Preview resume
                   </a>
                 ) : (
@@ -213,20 +265,15 @@ export function CandidateDialog({
                   </a>
                 ))}
             </Row>
-            <Row label="Portfolio">
+            <Row icon={LinkIcon} label="Portfolio">
               {candidate.portfolio && (
-                <a
-                  href={candidate.portfolio}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow"
-                  className="underline underline-offset-4"
-                >
-                  {candidate.portfolio.replace(/^https?:\/\//, "")}
-                </a>
+                <Linkified text={candidate.portfolio} />
               )}
             </Row>
-            <Row label="Applied from">{candidate.pageUrl}</Row>
-            <Row label="Referrer">{candidate.referrer}</Row>
+            <Row icon={LanguageIcon} label="Applied from">
+              {candidate.addedManually ? "Added in HCM" : candidate.pageUrl}
+            </Row>
+            <Row icon={InputIcon} label="Referrer">{candidate.referrer}</Row>
           </dl>
 
           <form
@@ -235,7 +282,10 @@ export function CandidateDialog({
           >
             <input type="hidden" name="id" value={candidate.id} />
             <label className="flex flex-col gap-1">
-              Status
+              <span className="flex items-center gap-1.5">
+                <FlagIcon className="size-4 text-zinc-500" />
+                Status
+              </span>
               <select
                 name="status"
                 defaultValue={candidate.status}
@@ -250,6 +300,7 @@ export function CandidateDialog({
             </label>
             <div className="flex items-center gap-3">
               <Button type="submit" disabled={pending}>
+                <CheckIcon className="size-4" />
                 {pending ? "Saving…" : "Save"}
               </Button>
               {state.error && <p className="text-red-600">{state.error}</p>}
