@@ -63,7 +63,7 @@ export function AddCandidate() {
       <SheetTrigger render={<Button type="button" />}>
         Add candidate
       </SheetTrigger>
-      <SheetContent side="right" className="w-full sm:max-w-lg">
+      <SheetContent side="right" className="w-full data-[side=right]:w-full sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>Add candidate</SheetTitle>
           <SheetDescription>

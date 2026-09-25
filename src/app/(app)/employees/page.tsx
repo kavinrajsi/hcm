@@ -13,6 +13,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { ListCard } from "@/components/list-card";
+import {
+  DesktopTable,
+  MobileList,
+  PageHeader,
+  PageShell,
+} from "@/components/page";
 import { BulkImportForm } from "@/components/bulk-import-form";
 import { EMPLOYEE_IMPORT_COLUMNS } from "@/lib/import-columns";
 import { importEmployees } from "./actions";
@@ -25,6 +32,9 @@ const EMP_TYPE_OPTIONS = [
   { value: "PROBATION", label: "Probation" },
   { value: "PERMANENT", label: "Permanent" },
 ];
+const EMP_TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  EMP_TYPE_OPTIONS.map((o) => [o.value, o.label]),
+);
 
 export default async function EmployeesPage({
   searchParams,
@@ -35,12 +45,8 @@ export default async function EmployeesPage({
 
   const where: Prisma.EmployeeWhereInput = {
     // Managers see only their direct reports.
-    ...(user.role === "MANAGER"
-      ? { manager: { userId: user.id } }
-      : {}),
-    ...(params.q
-      ? { name: { contains: params.q, mode: "insensitive" } }
-      : {}),
+    ...(user.role === "MANAGER" ? { manager: { userId: user.id } } : {}),
+    ...(params.q ? { name: { contains: params.q, mode: "insensitive" } } : {}),
     ...(params.type ? { empType: params.type as never } : {}),
   };
   const dateRange = datePartsToRange(params);
@@ -66,24 +72,62 @@ export default async function EmployeesPage({
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Employees</h1>
-        <div className="flex items-center gap-2">
-          <BulkImportForm
-            action={importEmployees}
-            columns={EMPLOYEE_IMPORT_COLUMNS}
-            title="Import employees"
-          />
-          <Button nativeButton={false} render={<Link href="/employees/new" />}>Add employee</Button>
-        </div>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Employees"
+        actions={
+          <>
+            <BulkImportForm
+              action={importEmployees}
+              columns={EMPLOYEE_IMPORT_COLUMNS}
+              title="Import employees"
+            />
+            <Button
+              nativeButton={false}
+              render={<Link href="/employees/new" />}
+            >
+              Add employee
+            </Button>
+          </>
+        }
+      />
 
-      <div className="mt-6">
+      <div className="mt-5 md:mt-6">
         <TableFilters typeOptions={EMP_TYPE_OPTIONS} typeLabel="Emp type" />
       </div>
 
-      <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="mt-4">
+        <MobileList
+          isEmpty={employees.length === 0}
+          empty="No employees found."
+        >
+          {employees.map((e) => (
+            <ListCard
+              key={e.id}
+              href={`/employees/${e.id}`}
+              title={e.name}
+              subtitle={[e.designation, e.department]
+                .filter(Boolean)
+                .join(" · ")}
+              badge={
+                <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium">
+                  {EMP_TYPE_LABELS[e.empType] ?? e.empType}
+                </span>
+              }
+              meta={
+                <>
+                  <span>{e.empId}</span>
+                  <span>
+                    Joined {e.dateOfJoining.toISOString().slice(0, 10)}
+                  </span>
+                </>
+              }
+            />
+          ))}
+        </MobileList>
+      </div>
+
+      <DesktopTable>
         <Table>
           <TableHeader>
             <TableRow>
@@ -124,7 +168,7 @@ export default async function EmployeesPage({
             ))}
           </TableBody>
         </Table>
-      </div>
+      </DesktopTable>
 
       <div className="mt-4">
         <TablePagination
@@ -134,6 +178,6 @@ export default async function EmployeesPage({
           pathname="/employees"
         />
       </div>
-    </main>
+    </PageShell>
   );
 }

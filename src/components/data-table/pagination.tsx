@@ -25,13 +25,13 @@ export function TablePagination({
   }
 
   const linkClass =
-    "rounded-md border border-zinc-200 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900";
+    "flex h-11 flex-1 items-center justify-center rounded-md border border-zinc-200 px-3 text-sm transition-colors hover:bg-zinc-50 md:h-auto md:flex-none md:py-1.5 dark:border-zinc-800 dark:hover:bg-zinc-900";
   const disabledClass =
-    "rounded-md border border-zinc-100 px-3 py-1.5 text-sm text-zinc-300 dark:border-zinc-900 dark:text-zinc-700";
+    "flex h-11 flex-1 items-center justify-center rounded-md border border-zinc-100 px-3 text-sm text-zinc-300 md:h-auto md:flex-none md:py-1.5 dark:border-zinc-900 dark:text-zinc-700";
 
   return (
-    <div className="flex items-center justify-between text-sm text-zinc-500">
-      <span>
+    <div className="flex flex-col gap-3 text-sm text-zinc-500 md:flex-row md:items-center md:justify-between">
+      <span className="text-center md:text-left">
         {total} record{total === 1 ? "" : "s"} · page {page} of {totalPages}
       </span>
       <div className="flex gap-2">

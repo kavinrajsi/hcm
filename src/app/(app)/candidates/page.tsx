@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import { parseTableParams } from "@/lib/table-params";
@@ -13,9 +12,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import {
+  DesktopTable,
+  MobileList,
+  PageHeader,
+  PageShell,
+} from "@/components/page";
+import { Segmented } from "@/components/segmented";
 import { CandidateDialog, type CandidateDetail } from "./candidate-dialog";
 import { CandidateBoard } from "./candidate-board";
 import { AddCandidate } from "./add-candidate";
+import { CandidateCard } from "./candidate-card";
 import { FileOpenIcon } from "@/components/icons";
 import {
   BOARD_PAGE_SIZE,
@@ -75,28 +82,20 @@ export default async function CandidatesPage({
   };
 
   return (
-    <main
-      className={cn(
-        "mx-auto w-full flex-1 px-6 py-8",
-        view === "list" && "max-w-6xl",
-      )}
-    >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Candidates</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Applications from the madarth.com career form.
-          </p>
-        </div>
-        <AddCandidate />
-      </div>
+    <PageShell width={view === "list" ? "lg" : "full"}>
+      <PageHeader
+        title="Candidates"
+        description="Applications from the madarth.com career form."
+        actions={<AddCandidate />}
+      />
 
-      <div className="mt-6 flex flex-wrap gap-2">
+      {/* One swipeable row on phones, wrapping chips on desktop. */}
+      <div className="-mx-4 mt-5 flex gap-2 overflow-x-auto px-4 md:mx-0 md:mt-6 md:flex-wrap md:px-0">
         {CANDIDATE_STATUSES.map((s) => (
           <span
             key={s}
             className={cn(
-              "rounded-md px-2.5 py-1 text-sm",
+              "shrink-0 rounded-md px-2.5 py-1 text-sm",
               CANDIDATE_STATUS_CLASSES[s],
             )}
           >
@@ -108,7 +107,7 @@ export default async function CandidatesPage({
         ))}
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:flex-wrap md:items-center md:justify-between">
         {/* Board columns are the statuses, so no status filter there. */}
         <TableFilters
           dateFilters={false}
@@ -121,46 +120,24 @@ export default async function CandidatesPage({
           }
         />
         <div className="flex flex-wrap items-center gap-2">
-          <nav
-            className="inline-flex rounded-lg border border-zinc-200 p-0.5 text-sm dark:border-zinc-800"
-            aria-label="Position"
-          >
-            {([undefined, ...POSITIONS] as const).map((p) => (
-              <Link
-                key={p ?? "all"}
-                href={hrefWith("position", p)}
-                aria-current={position === p ? "page" : undefined}
-                className={cn(
-                  "rounded-md px-3 py-1",
-                  position === p
-                    ? "bg-muted font-medium"
-                    : "text-zinc-500 hover:text-foreground",
-                )}
-              >
-                {p ?? "All"}
-              </Link>
-            ))}
-          </nav>
-          <nav
-            className="inline-flex rounded-lg border border-zinc-200 p-0.5 text-sm dark:border-zinc-800"
-            aria-label="View"
-          >
-            {(["list", "board"] as const).map((v) => (
-              <Link
-                key={v}
-                href={hrefWith("view", v === "board" ? "board" : undefined)}
-                aria-current={view === v ? "page" : undefined}
-                className={cn(
-                  "rounded-md px-3 py-1 capitalize",
-                  view === v
-                    ? "bg-muted font-medium"
-                    : "text-zinc-500 hover:text-foreground",
-                )}
-              >
-                {v}
-              </Link>
-            ))}
-          </nav>
+          <Segmented
+            label="Position"
+            items={([undefined, ...POSITIONS] as const).map((p) => ({
+              key: p ?? "all",
+              href: hrefWith("position", p),
+              label: p ?? "All",
+              active: position === p,
+            }))}
+          />
+          <Segmented
+            label="View"
+            items={(["list", "board"] as const).map((v) => ({
+              key: v,
+              href: hrefWith("view", v === "board" ? "board" : undefined),
+              label: v === "list" ? "List" : "Board",
+              active: view === v,
+            }))}
+          />
         </div>
       </div>
 
@@ -178,7 +155,7 @@ export default async function CandidatesPage({
           />
         )}
       </div>
-    </main>
+    </PageShell>
   );
 }
 
@@ -242,9 +219,16 @@ async function ListView({
     db.candidate.count({ where }),
   ]);
 
+  const details = rows.map(toCandidateDetail);
+
   return (
     <>
-      <div className="rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <MobileList isEmpty={details.length === 0} empty="No candidates.">
+        {details.map((c) => (
+          <CandidateCard key={c.id} candidate={c} />
+        ))}
+      </MobileList>
+      <DesktopTable>
         <Table>
           <TableHeader>
             <TableRow>
@@ -265,8 +249,7 @@ async function ListView({
                 </TableCell>
               </TableRow>
             )}
-            {rows.map((row) => {
-              const c = toCandidateDetail(row);
+            {details.map((c) => {
               const st = c.status as CandidateStatus;
               return (
                 <TableRow key={c.id}>
@@ -318,7 +301,7 @@ async function ListView({
             })}
           </TableBody>
         </Table>
-      </div>
+      </DesktopTable>
 
       <div className="mt-4">
         <TablePagination

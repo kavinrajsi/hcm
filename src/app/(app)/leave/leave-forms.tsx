@@ -70,7 +70,7 @@ function LeaveHistoryDrawer({
       >
         History
       </SheetTrigger>
-      <SheetContent side="right" className="w-full sm:max-w-md">
+      <SheetContent side="right" className="w-full data-[side=right]:w-full sm:max-w-md">
         <SheetHeader>
           <SheetTitle>{name} — leave history</SheetTitle>
           <SheetDescription>

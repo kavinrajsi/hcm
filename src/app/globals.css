@@ -126,5 +126,14 @@
   }
   html {
     @apply font-sans;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* iOS zooms into form fields under 16px; keep phones at 16px. */
+  @media (width < 48rem) {
+    select,
+    input,
+    textarea {
+      font-size: 16px;
+    }
   }
 }

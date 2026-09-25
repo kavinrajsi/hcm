@@ -74,7 +74,7 @@ function CsvPreviewDrawer({
       >
         Preview file
       </SheetTrigger>
-      <SheetContent side="right" className="w-full sm:max-w-3xl">
+      <SheetContent side="right" className="w-full data-[side=right]:w-full sm:max-w-3xl">
         <SheetHeader>
           <SheetTitle>{file?.name ?? "Preview"}</SheetTitle>
           <SheetDescription>

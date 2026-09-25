@@ -134,7 +134,7 @@ function BoardColumn({
       ref={setNodeRef}
       aria-label={`${status} column`}
       className={cn(
-        "flex max-h-[calc(100vh-18rem)] min-h-40 w-72 shrink-0 flex-col rounded-xl border border-zinc-200 bg-muted/30 dark:border-zinc-800",
+        "flex max-h-[calc(100dvh-20rem)] min-h-40 w-[85vw] max-w-80 shrink-0 snap-start flex-col rounded-xl md:max-h-[calc(100vh-18rem)] md:w-72 border border-zinc-200 bg-muted/30 dark:border-zinc-800",
         isOver && "border-primary/60 bg-muted/60",
       )}
     >
@@ -281,7 +281,7 @@ export function CandidateBoard({
         onDragEnd={onDragEnd}
         onDragCancel={() => setActiveId(null)}
       >
-        <div className="flex gap-3 overflow-x-auto pb-2">
+        <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:snap-none md:px-0">
           {CANDIDATE_STATUSES.map((status) => (
             <BoardColumn
               key={status}

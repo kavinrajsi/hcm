@@ -164,7 +164,7 @@ function NotesLog({
                     if (!window.confirm("Delete this note?")) return;
                     startDelete(() => deleteCandidateNote(candidateId, n.id));
                   }}
-                  className="text-zinc-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-600 focus-visible:opacity-100"
+                  className="-m-2 p-2 text-zinc-400 transition-opacity hover:text-red-600 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
                 >
                   <DeleteIcon className="size-4" />
                 </button>
@@ -206,7 +206,7 @@ export function CandidateDialog({
           View
         </SheetTrigger>
       )}
-      <SheetContent side="right" className="w-full sm:max-w-lg">
+      <SheetContent side="right" className="w-full data-[side=right]:w-full sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>{candidate.name}</SheetTitle>
           <SheetDescription>

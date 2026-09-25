@@ -1,7 +1,16 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { TuneIcon } from "@/components/icons";
 import { useRef, useState } from "react";
 
 // URL-driven filter bar shared by Onboarding, Exit, Employees, Freelance.
@@ -53,18 +62,14 @@ export function TableFilters({
   const selectClass =
     "h-9 rounded-md border border-input bg-transparent px-2 text-sm dark:bg-input/30";
 
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Input
-        type="search"
-        placeholder={searchPlaceholder}
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setSearchDebounced(e.target.value);
-        }}
-        className="w-56"
-      />
+  const active = (dateFilters ? ["day", "month", "year"] : [])
+    .concat(typeOptions ? ["type"] : [])
+    .filter((k) => searchParams.get(k)).length;
+
+  // Rendered twice (inline on desktop, in a sheet on phones); only one is
+  // visible, and both just write the URL.
+  const selects = (
+    <>
       {dateFilters && (
         <>
           <select
@@ -125,6 +130,54 @@ export function TableFilters({
             </option>
           ))}
         </select>
+      )}
+    </>
+  );
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Input
+        type="search"
+        placeholder={searchPlaceholder}
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setSearchDebounced(e.target.value);
+        }}
+        className="h-10 min-w-0 flex-1 md:h-8 md:w-56 md:flex-none"
+      />
+      <div className="hidden md:contents">{selects}</div>
+      {(dateFilters || typeOptions) && (
+        <Sheet>
+          <SheetTrigger
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 md:hidden"
+              />
+            }
+          >
+            <TuneIcon className="size-5" />
+            Filters
+            {active > 0 && (
+              <span className="flex size-5 items-center justify-center rounded-full bg-foreground text-[11px] text-background">
+                {active}
+              </span>
+            )}
+          </SheetTrigger>
+          <SheetContent
+            side="bottom"
+            className="rounded-t-2xl pb-[max(1rem,env(safe-area-inset-bottom))]"
+          >
+            <SheetHeader>
+              <SheetTitle>Filters</SheetTitle>
+            </SheetHeader>
+            <div className="flex flex-col gap-3 px-4 [&_select]:h-11 [&_select]:w-full">
+              {selects}
+            </div>
+          </SheetContent>
+        </Sheet>
       )}
     </div>
   );
