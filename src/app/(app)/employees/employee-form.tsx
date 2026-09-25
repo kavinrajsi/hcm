@@ -136,10 +136,10 @@ export function EmployeeForm({
 
       <Section title="Contact">
         <Field label="Phone" name="phone" error={errors.phone}>
-          <Input id="phone" name="phone" type="tel" defaultValue={defaults.phone} required />
+          <Input id="phone" name="phone" type="tel" defaultValue={defaults.phone} />
         </Field>
         <Field label="Personal email" name="personalEmail" error={errors.personalEmail}>
-          <Input id="personalEmail" name="personalEmail" type="email" defaultValue={defaults.personalEmail} required />
+          <Input id="personalEmail" name="personalEmail" type="email" defaultValue={defaults.personalEmail} />
         </Field>
         <Field label="Work email" name="workEmail" error={errors.workEmail}>
           <Input id="workEmail" name="workEmail" type="email" defaultValue={defaults.workEmail} required />
@@ -179,6 +179,7 @@ export function EmployeeForm({
             <option value="INTERN">Intern</option>
             <option value="PROBATION">Probation</option>
             <option value="PERMANENT">Permanent</option>
+            <option value="CONTRACT">Contract</option>
           </select>
         </Field>
         <Field label="PF number" name="pfNumber" error={errors.pfNumber}>

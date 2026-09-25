@@ -29,6 +29,7 @@ const EMP_TYPE_OPTIONS = [
   { value: "INTERN", label: "Intern" },
   { value: "PROBATION", label: "Probation" },
   { value: "PERMANENT", label: "Permanent" },
+  { value: "CONTRACT", label: "Contract" },
 ];
 const EMP_TYPE_LABELS: Record<string, string> = Object.fromEntries(
   EMP_TYPE_OPTIONS.map((o) => [o.value, o.label]),

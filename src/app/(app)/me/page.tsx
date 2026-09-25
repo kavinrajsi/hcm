@@ -124,8 +124,8 @@ export default async function MePage() {
         <ContactForm
           action={updateAction}
           defaults={{
-            phone: employee.phone,
-            personalEmail: employee.personalEmail,
+            phone: employee.phone ?? "",
+            personalEmail: employee.personalEmail ?? "",
             emergencyContact: employee.emergencyContact ?? undefined,
             address: employee.address ?? undefined,
             city: employee.city ?? undefined,

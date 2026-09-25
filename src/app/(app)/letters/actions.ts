@@ -89,11 +89,12 @@ export async function sendLetter(
   });
   if (!employee) return { error: "Employee not found" };
 
-  // Offer/intern letters go to personal mail (work mail may not exist yet).
+  // Offer/intern letters go to personal mail (work mail may not exist yet);
+  // fall back to work mail when no personal address is on file.
   const to =
     parsed.data.type === "COMPENSATION"
       ? employee.workEmail
-      : employee.personalEmail;
+      : (employee.personalEmail ?? employee.workEmail);
 
   const result = await sendEmail({
     to,

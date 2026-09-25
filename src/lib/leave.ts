@@ -45,7 +45,11 @@ export function htmlToText(html: string): string {
 
 /** Builds a lowercase email → employee id lookup over work + personal emails. */
 export function buildEmailIndex(
-  employees: { id: string; workEmail: string; personalEmail: string }[],
+  employees: {
+    id: string;
+    workEmail: string;
+    personalEmail: string | null;
+  }[],
 ): Map<string, string> {
   const index = new Map<string, string>();
   for (const e of employees) {
