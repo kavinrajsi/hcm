@@ -17,10 +17,12 @@ export function TableFilters({
   typeOptions,
   typeLabel = "Type",
   dateFilters = true,
+  searchPlaceholder = "Search by name…",
 }: {
   typeOptions?: { value: string; label: string }[];
   typeLabel?: string;
   dateFilters?: boolean;
+  searchPlaceholder?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -55,7 +57,7 @@ export function TableFilters({
     <div className="flex flex-wrap items-center gap-2">
       <Input
         type="search"
-        placeholder="Search by name…"
+        placeholder={searchPlaceholder}
         value={search}
         onChange={(e) => {
           setSearch(e.target.value);

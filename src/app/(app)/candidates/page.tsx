@@ -112,6 +112,7 @@ export default async function CandidatesPage({
         {/* Board columns are the statuses, so no status filter there. */}
         <TableFilters
           dateFilters={false}
+          searchPlaceholder="Name, email, phone, role…"
           typeLabel="Status"
           typeOptions={
             view === "list"

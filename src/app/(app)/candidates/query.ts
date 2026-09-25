@@ -24,20 +24,33 @@ export function candidateWhere(
   f: CandidateFilters,
 ): Prisma.CandidateWhereInput[] {
   const and: Prisma.CandidateWhereInput[] = [NOT_SPAM];
-  if (f.q) {
-    and.push({
-      OR: [
-        { firstName: { contains: f.q, mode: "insensitive" } },
-        { lastName: { contains: f.q, mode: "insensitive" } },
-        { email: { contains: f.q, mode: "insensitive" } },
-        { jobRole: { contains: f.q, mode: "insensitive" } },
-        { location: { contains: f.q, mode: "insensitive" } },
-      ],
-    });
-  }
+  and.push(...searchWhere(f.q));
   const position = POSITIONS.find((p) => p === f.position);
   if (position) and.push({ position });
   return and;
+}
+
+/**
+ * Phone-looking input ("+91 99526 67427") matches mobile numbers, which are
+ * stored as 10 bare digits. Otherwise every word must match some field, so
+ * "rahul manoj" finds first + last name and "rahul copywriter" narrows by role.
+ */
+function searchWhere(q?: string): Prisma.CandidateWhereInput[] {
+  const query = q?.trim();
+  if (!query) return [];
+  if (/^[\d\s+()-]+$/.test(query)) {
+    const digits = query.replace(/\D/g, "").slice(-10);
+    if (digits) return [{ mobileNumber: { contains: digits } }];
+  }
+  return query.split(/\s+/).map((word) => ({
+    OR: [
+      { firstName: { contains: word, mode: "insensitive" } },
+      { lastName: { contains: word, mode: "insensitive" } },
+      { email: { contains: word, mode: "insensitive" } },
+      { jobRole: { contains: word, mode: "insensitive" } },
+      { location: { contains: word, mode: "insensitive" } },
+    ],
+  }));
 }
 
 /** Null or unrecognised statuses are shown as New (matches statusOf). */
