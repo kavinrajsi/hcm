@@ -86,17 +86,18 @@ enum LetterType {
 }
 
 model User {
-  id           String               @id @default(cuid())
-  email        String               @unique
-  name         String?
-  role         Role                 @default(EMPLOYEE)
-  passwordHash String? // credentials fallback; null for SSO-only accounts
-  googleId     String?              @unique
-  employee     Employee?
-  resetTokens  PasswordResetToken[]
-  leaveReviews LeaveEntry[]         @relation("LeaveReviews")
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
+  id                     String                  @id @default(cuid())
+  email                  String                  @unique
+  name                   String?
+  role                   Role                    @default(EMPLOYEE)
+  passwordHash           String? // credentials fallback; null for SSO-only accounts
+  googleId               String?                 @unique
+  employee               Employee?
+  resetTokens            PasswordResetToken[]
+  leaveReviews           LeaveEntry[]            @relation("LeaveReviews")
+  candidateStatusChanges CandidateStatusChange[]
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
 }
 
 model PasswordResetToken {
@@ -406,6 +407,23 @@ model Candidate {
   userAgent    String?  @map("user_agent")
   honeypot     String?  @default("")
 
+  statusChanges CandidateStatusChange[]
+
   @@index([createdAt(sort: Desc)])
   @@map("candidates")
+}
+
+/// One row per status move (New → Screening …), written by HCM only.
+model CandidateStatusChange {
+  id          String    @id @default(cuid())
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  candidateId BigInt    @map("candidate_id")
+  fromStatus  String?   @map("from_status") // null = created in HCM
+  toStatus    String    @map("to_status")
+  changedAt   DateTime  @default(now()) @map("changed_at") @db.Timestamptz(6)
+  changedBy   User?     @relation(fields: [changedById], references: [id], onDelete: SetNull)
+  changedById String?   @map("changed_by_id")
+
+  @@index([candidateId, changedAt(sort: Desc)])
+  @@map("candidate_status_changes")
 }

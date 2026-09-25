@@ -34,6 +34,7 @@ import {
   StickyNoteIcon,
 } from "@/components/icons";
 import type { CandidateNote } from "./notes";
+import { StatusHistory } from "./status-history";
 import { CANDIDATE_STATUSES } from "./statuses";
 
 export type CandidateDetail = {
@@ -311,6 +312,12 @@ export function CandidateDialog({
           </form>
 
           <NotesLog candidateId={candidate.id} notes={candidate.notes} />
+
+          {/* Re-keyed on status so a save/move reloads the log. */}
+          <StatusHistory
+            key={candidate.status}
+            candidateId={candidate.id}
+          />
         </div>
       </SheetContent>
     </Sheet>

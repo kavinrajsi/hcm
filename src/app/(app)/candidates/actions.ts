@@ -11,12 +11,13 @@ import {
   MANUAL_SOURCE,
   POSITIONS,
   candidateWhere,
+  statusOf,
   statusWhere,
   toCandidateDetail,
   type CandidateFilters,
 } from "./query";
 import type { CandidateDetail } from "./candidate-dialog";
-import { appendNote, removeNote } from "./notes";
+import { appendNote, formatNoteTime, removeNote } from "./notes";
 
 const updateSchema = z.object({
   id: z.string().regex(/^\d+$/),
@@ -29,11 +30,35 @@ export type CandidateFormState = {
   ok?: boolean;
 };
 
+/**
+ * Sets a candidate's status and logs the move (skipped when unchanged).
+ * Reads the old value inside the transaction so concurrent moves each log
+ * the status they actually replaced.
+ */
+async function moveCandidate(
+  id: bigint,
+  toStatus: CandidateStatus,
+  userId: string,
+): Promise<void> {
+  await db.$transaction(async (tx) => {
+    const { status } = await tx.candidate.findUniqueOrThrow({
+      where: { id },
+      select: { status: true },
+    });
+    const fromStatus = statusOf(status);
+    if (fromStatus === toStatus) return;
+    await tx.candidate.update({ where: { id }, data: { status: toStatus } });
+    await tx.candidateStatusChange.create({
+      data: { candidateId: id, fromStatus, toStatus, changedById: userId },
+    });
+  });
+}
+
 export async function updateCandidate(
   _prev: CandidateFormState,
   formData: FormData,
 ): Promise<CandidateFormState> {
-  await requireRole("HR_ADMIN");
+  const user = await requireRole("HR_ADMIN");
   const parsed = updateSchema.safeParse({
     id: formData.get("id"),
     status: formData.get("status"),
@@ -42,10 +67,7 @@ export async function updateCandidate(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  await db.candidate.update({
-    where: { id: BigInt(parsed.data.id) },
-    data: { status: parsed.data.status },
-  });
+  await moveCandidate(BigInt(parsed.data.id), parsed.data.status, user.id);
   revalidatePath("/candidates");
   return { ok: true };
 }
@@ -60,12 +82,9 @@ export async function setCandidateStatus(
   id: string,
   status: CandidateStatus,
 ): Promise<void> {
-  await requireRole("HR_ADMIN");
+  const user = await requireRole("HR_ADMIN");
   const parsed = moveSchema.parse({ id, status });
-  await db.candidate.update({
-    where: { id: BigInt(parsed.id) },
-    data: { status: parsed.status },
-  });
+  await moveCandidate(BigInt(parsed.id), parsed.status, user.id);
   revalidatePath("/candidates");
 }
 
@@ -178,7 +197,7 @@ export async function createCandidate(
   _prev: CandidateFormState,
   formData: FormData,
 ): Promise<CandidateFormState> {
-  await requireRole("HR_ADMIN");
+  const user = await requireRole("HR_ADMIN");
   const raw: Record<string, unknown> = {};
   for (const key of Object.keys(createSchema.shape)) {
     raw[key] = formData.get(key) ?? "";
@@ -204,8 +223,52 @@ export async function createCandidate(
   }
 
   await db.candidate.create({
-    data: { ...parsed.data, fileUrl, sourceUrl: MANUAL_SOURCE, honeypot: "" },
+    data: {
+      ...parsed.data,
+      fileUrl,
+      sourceUrl: MANUAL_SOURCE,
+      honeypot: "",
+      // First history entry: added in HCM with its starting status.
+      statusChanges: {
+        create: { toStatus: parsed.data.status, changedById: user.id },
+      },
+    },
   });
   revalidatePath("/candidates");
   return { ok: true };
+}
+
+export type StatusChange = {
+  id: string;
+  fromStatus: string | null;
+  toStatus: string;
+  when: string | null;
+  by: string | null;
+};
+
+/** Status history for the details drawer, newest first. */
+export async function getCandidateHistory(
+  candidateId: string,
+): Promise<StatusChange[]> {
+  await requireRole("HR_ADMIN");
+  const id = BigInt(z.string().regex(/^\d+$/).parse(candidateId));
+  const rows = await db.candidateStatusChange.findMany({
+    where: { candidateId: id },
+    orderBy: { changedAt: "desc" },
+    take: 100,
+    select: {
+      id: true,
+      fromStatus: true,
+      toStatus: true,
+      changedAt: true,
+      changedBy: { select: { name: true, email: true } },
+    },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    fromStatus: r.fromStatus,
+    toStatus: r.toStatus,
+    when: formatNoteTime(r.changedAt.toISOString()),
+    by: r.changedBy?.name ?? r.changedBy?.email ?? null,
+  }));
 }
