@@ -23,8 +23,12 @@ export default async function Home() {
   const user = await requireUser();
 
   const now = new Date();
-  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  const monthStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+  );
+  const monthEnd = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
+  );
 
   const [
     headcount,
@@ -52,7 +56,11 @@ export default async function Home() {
 
   const stats = [
     { label: "Active employees", value: headcount, href: "/employees" },
-    { label: "Joiners this month", value: joinersThisMonth, href: "/onboarding" },
+    {
+      label: "Joiners this month",
+      value: joinersThisMonth,
+      href: "/onboarding",
+    },
     { label: "Exits this month", value: exitsThisMonth, href: "/exit" },
     { label: "Probation due", value: probationDue, href: "/probation" },
     { label: "ID cards pending", value: cardsPending, href: "/id-cards" },
@@ -61,8 +69,8 @@ export default async function Home() {
   ];
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
-      <h1 className="text-3xl font-semibold tracking-tight">HRM</h1>
+    <main className="mx-auto w-full max-w-6xl flex-1 min-w-0 px-4 py-5 md:px-6 md:py-10">
+      <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">HRM</h1>
       <p className="mt-2 text-zinc-600 dark:text-zinc-400">
         Signed in as {user.email} · {user.role.replace("_", " ")}
       </p>

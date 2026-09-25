@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
@@ -19,6 +19,22 @@ export const metadata: Metadata = {
     template: "%s · HRM",
   },
   description: "Internal HR management tool",
+  applicationName: "HRM",
+  appleWebApp: {
+    capable: true,
+    title: "HRM",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  // Lets content use the full screen on notched phones; the app shell pads
+  // with env(safe-area-inset-*) where it matters (bottom tab bar).
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 export default function RootLayout({

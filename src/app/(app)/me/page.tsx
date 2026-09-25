@@ -41,11 +41,13 @@ export default async function MePage() {
 
   if (!employee) {
     return (
-      <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-10">
-        <h1 className="text-2xl font-semibold tracking-tight">My Profile</h1>
+      <main className="mx-auto w-full max-w-4xl flex-1 min-w-0 px-4 py-5 md:px-6 md:py-10">
+        <h1 className="text-xl font-semibold tracking-tight md:text-2xl">
+          My Profile
+        </h1>
         <p className="mt-4 rounded-md border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700">
-          No employee record is linked to {user.email}. Ask HR to set your
-          work email on your employee record.
+          No employee record is linked to {user.email}. Ask HR to set your work
+          email on your employee record.
         </p>
       </main>
     );
@@ -79,8 +81,8 @@ export default async function MePage() {
   const updateAction = updateOwnContact.bind(null, employee.id);
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
-      <h1 className="text-2xl font-semibold tracking-tight">
+    <main className="mx-auto w-full max-w-5xl flex-1 min-w-0 px-4 py-5 md:px-6 md:py-10">
+      <h1 className="text-xl font-semibold tracking-tight md:text-2xl">
         {employee.name}
         <span className="ml-3 text-base font-normal text-zinc-500">
           {employee.empId} · {employee.designation} · {employee.department}
@@ -105,7 +107,9 @@ export default async function MePage() {
         </div>
         <div>
           <dt className="text-zinc-500">ID card</dt>
-          <dd className="mt-0.5 font-medium">{employee.idCard?.status ?? "—"}</dd>
+          <dd className="mt-0.5 font-medium">
+            {employee.idCard?.status ?? "—"}
+          </dd>
         </div>
         <div>
           <dt className="text-zinc-500">PAN / Aadhaar / Bank</dt>

@@ -24,10 +24,10 @@ export function ContactForm({
     pincode?: string;
   };
 }) {
-  const [state, formAction, pending] = useActionState<SelfUpdateState, FormData>(
-    action,
-    {},
-  );
+  const [state, formAction, pending] = useActionState<
+    SelfUpdateState,
+    FormData
+  >(action, {});
 
   const fields = [
     ["phone", "Phone", defaults.phone, true],
@@ -55,7 +55,7 @@ export function ContactForm({
           />
         </div>
       ))}
-      <div className="flex items-end gap-3">
+      <div className="flex flex-wrap items-end gap-3">
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : "Update contact info"}
         </Button>

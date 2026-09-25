@@ -52,11 +52,11 @@ export default async function EmployeePage({
   const update = updateEmployee.bind(null, employee.id);
 
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-8">
-      <div className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">
+    <main className="mx-auto w-full max-w-4xl flex-1 min-w-0 px-4 py-5 md:px-6 md:py-8">
+      <div className="flex flex-col-reverse gap-2 md:flex-row md:items-baseline md:justify-between">
+        <h1 className="text-xl font-semibold tracking-tight md:text-2xl">
           {employee.name}
-          <span className="ml-3 text-base font-normal text-zinc-500">
+          <span className="block text-base font-normal text-zinc-500 md:ml-3 md:inline">
             {employee.empId} · {employee.designation}
           </span>
         </h1>

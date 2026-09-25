@@ -20,9 +20,7 @@ async function credentialsSignIn(formData: FormData) {
   }
 }
 
-export default async function LoginPage({
-  searchParams,
-}: PageProps<"/login">) {
+export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const session = await auth();
   if (session?.user) redirect("/");
   const { error } = await searchParams;
@@ -31,7 +29,7 @@ export default async function LoginPage({
     "w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900";
 
   return (
-    <main className="flex flex-1 items-center justify-center px-6">
+    <main className="flex flex-1 items-center justify-center px-4 md:px-6">
       <div className="w-full max-w-sm">
         <h1 className="text-2xl font-semibold tracking-tight">HRM</h1>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
@@ -61,7 +59,7 @@ export default async function LoginPage({
           <p className="text-right text-xs">
             <a
               href="/forgot-password"
-              className="text-zinc-500 underline underline-offset-4 hover:text-zinc-900 dark:hover:text-zinc-100"
+              className="inline-block py-2 text-zinc-500 underline underline-offset-4 hover:text-zinc-900 md:py-0 dark:hover:text-zinc-100"
             >
               Forgot password?
             </a>
