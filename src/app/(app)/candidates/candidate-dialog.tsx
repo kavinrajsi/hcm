@@ -32,7 +32,7 @@ import {
   LocationOnIcon,
   MailIcon,
   StickyNoteIcon,
-} from "./icons";
+} from "@/components/icons";
 import type { CandidateNote } from "./notes";
 import { CANDIDATE_STATUSES } from "./statuses";
 

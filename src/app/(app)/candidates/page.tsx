@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { CandidateDialog, type CandidateDetail } from "./candidate-dialog";
 import { CandidateBoard } from "./candidate-board";
 import { AddCandidate } from "./add-candidate";
-import { FileOpenIcon } from "./icons";
+import { FileOpenIcon } from "@/components/icons";
 import {
   BOARD_PAGE_SIZE,
   NOT_SPAM,

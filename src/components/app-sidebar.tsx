@@ -4,6 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Building2 } from "lucide-react";
+import type { Role } from "@/generated/prisma/enums";
+import { findCurrent, navFor } from "@/lib/nav";
 
 import {
   Sidebar,
@@ -17,6 +19,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   Breadcrumb,
@@ -26,70 +29,25 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 
-const nav = [
-  {
-    title: "Overview",
-    items: [
-      { title: "Dashboard", url: "/" },
-      { title: "Me", url: "/me" },
-      { title: "Profile", url: "/profile" },
-    ],
-  },
-  {
-    title: "People",
-    items: [
-      { title: "Candidates", url: "/candidates" },
-      { title: "Employees", url: "/employees" },
-      { title: "Onboarding", url: "/onboarding" },
-      { title: "Probation", url: "/probation" },
-      { title: "Exit", url: "/exit" },
-      { title: "ID Cards", url: "/id-cards" },
-      { title: "Leave", url: "/leave" },
-    ],
-  },
-  {
-    title: "Work",
-    items: [
-      { title: "Quantum", url: "/quantum" },
-      { title: "Sessions", url: "/sessions" },
-      { title: "Session Attendance", url: "/sessions/attended" },
-      { title: "Freelancers", url: "/freelancers" },
-    ],
-  },
-  {
-    title: "Documents",
-    items: [
-      { title: "Letters", url: "/letters" },
-      { title: "Reviews", url: "/reviews" },
-    ],
-  },
-] as const;
-
-function findCurrent(pathname: string) {
-  for (const group of nav) {
-    // Longest match first so /sessions/attended beats /sessions.
-    const item = [...group.items]
-      .sort((a, b) => b.url.length - a.url.length)
-      .find((i) =>
-        i.url === "/" ? pathname === "/" : pathname.startsWith(i.url),
-      );
-    if (item) return { group: group.title, item };
-  }
-  return undefined;
-}
-
 export function AppSidebar({
+  role,
   ...props
-}: React.ComponentProps<typeof Sidebar>) {
+}: React.ComponentProps<typeof Sidebar> & { role: Role }) {
   const pathname = usePathname();
   const current = findCurrent(pathname);
+  const { setOpenMobile } = useSidebar();
+  // On phones the sidebar is a sheet; close it once a page is chosen.
+  const close = () => setOpenMobile(false);
 
   return (
     <Sidebar {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/" />}>
+            <SidebarMenuButton
+              size="lg"
+              render={<Link href="/" onClick={close} />}
+            >
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                 <Building2 className="size-4" />
               </div>
@@ -106,7 +64,7 @@ export function AppSidebar({
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            {nav.map((group) => (
+            {navFor(role).map((group) => (
               <SidebarMenuItem key={group.title}>
                 <SidebarMenuButton className="font-medium">
                   {group.title}
@@ -116,7 +74,7 @@ export function AppSidebar({
                     <SidebarMenuSubItem key={item.title}>
                       <SidebarMenuSubButton
                         isActive={current?.item.url === item.url}
-                        render={<Link href={item.url} />}
+                        render={<Link href={item.url} onClick={close} />}
                       >
                         {item.title}
                       </SidebarMenuSubButton>
