@@ -188,21 +188,21 @@ export function CandidateDialog({
             </Row>
             <Row label="Location">{candidate.location}</Row>
             <Row label="Resume">
-              {candidate.resumeHref && (
-                <span className="flex flex-wrap items-center gap-3">
-                  {isPdf(candidate.resumeHref) && (
-                    <a
-                      href={`${candidate.resumeHref}?inline=1`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={buttonVariants({
-                        variant: "outline",
-                        size: "sm",
-                      })}
-                    >
-                      Preview resume
-                    </a>
-                  )}
+              {candidate.resumeHref &&
+                // PDFs preview in a new tab; other formats can only download.
+                (isPdf(candidate.resumeHref) ? (
+                  <a
+                    href={`${candidate.resumeHref}?inline=1`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={buttonVariants({
+                      variant: "outline",
+                      size: "sm",
+                    })}
+                  >
+                    Preview resume
+                  </a>
+                ) : (
                   <a
                     href={candidate.resumeHref}
                     target="_blank"
@@ -211,8 +211,7 @@ export function CandidateDialog({
                   >
                     Download
                   </a>
-                </span>
-              )}
+                ))}
             </Row>
             <Row label="Portfolio">
               {candidate.portfolio && (
