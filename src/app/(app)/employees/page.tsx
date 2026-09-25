@@ -56,7 +56,8 @@ export default async function EmployeesPage({
   const [employees, total] = await Promise.all([
     db.employee.findMany({
       where,
-      orderBy: { dateOfJoining: "desc" },
+      // IDs are prefix + zero-padded number, so text order is ID order.
+      orderBy: { empId: "desc" },
       skip: params.skip,
       take: params.take,
       select: {
