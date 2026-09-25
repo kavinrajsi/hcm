@@ -12,6 +12,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ListCard } from "@/components/list-card";
+import { CollapsibleForm } from "@/components/collapsible-form";
+import {
+  DesktopTable,
+  MobileList,
+  PageHeader,
+  PageShell,
+} from "@/components/page";
 import { ExitForm } from "./exit-form";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -22,6 +30,9 @@ const EMP_TYPE_OPTIONS = [
   { value: "PROBATION", label: "Probation" },
   { value: "PERMANENT", label: "Permanent" },
 ];
+const EMP_TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  EMP_TYPE_OPTIONS.map((o) => [o.value, o.label]),
+);
 
 export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
   await requireRole("HR_ADMIN", "MANAGER");
@@ -30,9 +41,7 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
 
   const where: Prisma.EmployeeWhereInput = {
     dateOfExit: { not: null },
-    ...(params.q
-      ? { name: { contains: params.q, mode: "insensitive" } }
-      : {}),
+    ...(params.q ? { name: { contains: params.q, mode: "insensitive" } } : {}),
     ...(params.type ? { empType: params.type as never } : {}),
   };
   const dateRange = datePartsToRange(params);
@@ -63,20 +72,47 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Exit / Offboarding
-      </h1>
+    <PageShell>
+      <PageHeader title="Exit / Offboarding" />
 
-      <div className="mt-6">
-        <ExitForm activeEmployees={activeEmployees} />
+      <div className="mt-5 md:mt-6">
+        <CollapsibleForm label="Record exit">
+          <ExitForm activeEmployees={activeEmployees} />
+        </CollapsibleForm>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-5 md:mt-6">
         <TableFilters typeOptions={EMP_TYPE_OPTIONS} typeLabel="Emp type" />
       </div>
 
-      <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="mt-4">
+        <MobileList isEmpty={exits.length === 0} empty="No exits recorded.">
+          {exits.map((e) => (
+            <ListCard
+              key={e.id}
+              href={`/employees/${e.id}`}
+              title={e.name}
+              subtitle={e.designation}
+              badge={
+                <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium">
+                  {EMP_TYPE_LABELS[e.empType] ?? e.empType}
+                </span>
+              }
+              meta={
+                <>
+                  <span>{e.empId}</span>
+                  <span>
+                    Joined {e.dateOfJoining.toISOString().slice(0, 10)}
+                  </span>
+                  <span>Exited {e.dateOfExit?.toISOString().slice(0, 10)}</span>
+                </>
+              }
+            />
+          ))}
+        </MobileList>
+      </div>
+
+      <DesktopTable>
         <Table>
           <TableHeader>
             <TableRow>
@@ -107,15 +143,19 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
                   </Link>
                 </TableCell>
                 <TableCell>{e.name}</TableCell>
-                <TableCell>{e.dateOfJoining.toISOString().slice(0, 10)}</TableCell>
-                <TableCell>{e.dateOfExit?.toISOString().slice(0, 10)}</TableCell>
+                <TableCell>
+                  {e.dateOfJoining.toISOString().slice(0, 10)}
+                </TableCell>
+                <TableCell>
+                  {e.dateOfExit?.toISOString().slice(0, 10)}
+                </TableCell>
                 <TableCell>{e.designation}</TableCell>
                 <TableCell>{e.empType}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </div>
+      </DesktopTable>
 
       <div className="mt-4">
         <TablePagination
@@ -125,6 +165,6 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
           pathname="/exit"
         />
       </div>
-    </main>
+    </PageShell>
   );
 }

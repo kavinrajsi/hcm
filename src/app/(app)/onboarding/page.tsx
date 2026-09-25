@@ -13,6 +13,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { ListCard } from "@/components/list-card";
+import {
+  DesktopTable,
+  MobileList,
+  PageHeader,
+  PageShell,
+} from "@/components/page";
 import type { Prisma } from "@/generated/prisma/client";
 
 export const metadata = { title: "Onboarding" };
@@ -22,6 +29,9 @@ const EMP_TYPE_OPTIONS = [
   { value: "PROBATION", label: "Probation" },
   { value: "PERMANENT", label: "Permanent" },
 ];
+const EMP_TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  EMP_TYPE_OPTIONS.map((o) => [o.value, o.label]),
+);
 
 export default async function OnboardingPage({
   searchParams,
@@ -53,17 +63,48 @@ export default async function OnboardingPage({
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Onboarding</h1>
-        <Button nativeButton={false} render={<Link href="/employees/new" />}>New joiner</Button>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Onboarding"
+        actions={
+          <Button nativeButton={false} render={<Link href="/employees/new" />}>
+            New joiner
+          </Button>
+        }
+      />
 
-      <div className="mt-6">
+      <div className="mt-5 md:mt-6">
         <TableFilters typeOptions={EMP_TYPE_OPTIONS} typeLabel="Emp type" />
       </div>
 
-      <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="mt-4">
+        <MobileList
+          isEmpty={records.length === 0}
+          empty="No onboarding records found."
+        >
+          {records.map((r) => (
+            <ListCard
+              key={r.id}
+              href={`/employees/${r.employee.id}`}
+              title={r.employee.name}
+              subtitle={r.designation}
+              badge={
+                <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium">
+                  {EMP_TYPE_LABELS[r.empType] ?? r.empType}
+                </span>
+              }
+              meta={
+                <>
+                  <span>{r.employee.empId}</span>
+                  <span>Joined {r.joinDate.toISOString().slice(0, 10)}</span>
+                </>
+              }
+            />
+          ))}
+        </MobileList>
+      </div>
+
+      <DesktopTable>
         <Table>
           <TableHeader>
             <TableRow>
@@ -100,7 +141,7 @@ export default async function OnboardingPage({
             ))}
           </TableBody>
         </Table>
-      </div>
+      </DesktopTable>
 
       <div className="mt-4">
         <TablePagination
@@ -110,6 +151,6 @@ export default async function OnboardingPage({
           pathname="/onboarding"
         />
       </div>
-    </main>
+    </PageShell>
   );
 }

@@ -4,11 +4,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  generateLetter,
-  sendLetter,
-  type LetterFormState,
-} from "./actions";
+import { generateLetter, sendLetter, type LetterFormState } from "./actions";
 
 const selectClass =
   "h-9 rounded-md border border-input bg-transparent px-2 text-sm dark:bg-input/30";
@@ -39,7 +35,7 @@ export function LetterComposer({
     <div className="flex flex-col gap-4">
       <form
         action={genAction}
-        className="flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+        className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 md:flex-row md:flex-wrap md:items-end dark:border-zinc-800"
       >
         <div className="flex flex-col gap-1.5">
           <label htmlFor="l-emp" className="text-sm font-medium">
@@ -49,7 +45,7 @@ export function LetterComposer({
             id="l-emp"
             name="employeeId"
             required
-            className={`${selectClass} w-56`}
+            className={`${selectClass} w-full md:w-56`}
           >
             <option value="">Select…</option>
             {employees.map((e) => (
@@ -63,7 +59,11 @@ export function LetterComposer({
           <label htmlFor="l-type" className="text-sm font-medium">
             Letter type
           </label>
-          <select id="l-type" name="type" className={`${selectClass} w-52`}>
+          <select
+            id="l-type"
+            name="type"
+            className={`${selectClass} w-full md:w-52`}
+          >
             {TYPES.map(([v, l]) => (
               <option key={v} value={v}>
                 {l}
@@ -110,12 +110,14 @@ export function LetterComposer({
               className="font-mono text-xs"
             />
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" disabled={sendPending}>
               {sendPending ? "Sending…" : "Send letter"}
             </Button>
             {sendState.ok && !sendState.error && (
-              <p className="text-sm text-green-600">Letter sent and archived.</p>
+              <p className="text-sm text-green-600">
+                Letter sent and archived.
+              </p>
             )}
             {sendState.error && (
               <p className="text-sm text-amber-600">{sendState.error}</p>

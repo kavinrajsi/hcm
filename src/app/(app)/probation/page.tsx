@@ -13,6 +13,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { ListCard } from "@/components/list-card";
+import {
+  DesktopTable,
+  MobileList,
+  PageHeader,
+  PageShell,
+} from "@/components/page";
 import { ProbationRowActions } from "./probation-row-actions";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -79,28 +86,57 @@ export default async function ProbationPage({
   });
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-      <div className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Probation & Confirmation
-        </h1>
-        <p className="text-sm text-zinc-500">
-          {monthLabel}:{" "}
-          <span
-            className={
-              pendingCount > 0 ? "font-medium text-amber-600" : "font-medium"
-            }
-          >
-            {pendingCount} awaiting confirmation
-          </span>
-        </p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Probation & Confirmation"
+        actions={
+          <p className="text-sm text-zinc-500">
+            {monthLabel}:{" "}
+            <span
+              className={
+                pendingCount > 0 ? "font-medium text-amber-600" : "font-medium"
+              }
+            >
+              {pendingCount} awaiting confirmation
+            </span>
+          </p>
+        }
+      />
 
-      <div className="mt-6">
+      <div className="mt-5 md:mt-6">
         <TableFilters typeOptions={STATUS_OPTIONS} typeLabel="Status" />
       </div>
 
-      <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="mt-4">
+        <MobileList
+          isEmpty={records.length === 0}
+          empty={`No probation confirmations due in ${monthLabel}.`}
+        >
+          {records.map((r) => (
+            <ListCard
+              key={r.id}
+              href={`/employees/${r.employee.id}`}
+              title={r.employee.name}
+              subtitle={r.employee.department}
+              badge={<Badge variant={badgeVariant[r.status]}>{r.status}</Badge>}
+              meta={
+                <>
+                  <span>{r.employee.empId}</span>
+                  <span>Due {r.dueDate.toISOString().slice(0, 10)}</span>
+                  {r.notes && <span>{r.notes}</span>}
+                </>
+              }
+              actions={
+                r.status === "CONFIRMED" ? undefined : (
+                  <ProbationRowActions id={r.id} status={r.status} />
+                )
+              }
+            />
+          ))}
+        </MobileList>
+      </div>
+
+      <DesktopTable>
         <Table>
           <TableHeader>
             <TableRow>
@@ -136,7 +172,9 @@ export default async function ProbationPage({
                 <TableCell>
                   <Badge variant={badgeVariant[r.status]}>{r.status}</Badge>
                   {r.notes && (
-                    <span className="ml-2 text-xs text-zinc-500">{r.notes}</span>
+                    <span className="ml-2 text-xs text-zinc-500">
+                      {r.notes}
+                    </span>
                   )}
                 </TableCell>
                 <TableCell>
@@ -146,7 +184,7 @@ export default async function ProbationPage({
             ))}
           </TableBody>
         </Table>
-      </div>
+      </DesktopTable>
 
       <div className="mt-4">
         <TablePagination
@@ -156,6 +194,6 @@ export default async function ProbationPage({
           pathname="/probation"
         />
       </div>
-    </main>
+    </PageShell>
   );
 }

@@ -12,6 +12,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ListCard } from "@/components/list-card";
+import {
+  DesktopTable,
+  MobileList,
+  PageHeader,
+  PageShell,
+} from "@/components/page";
 import { IdCardStatusSelect } from "./status-select";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -56,16 +63,40 @@ export default async function IdCardsPage({
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        ID Card Issued List
-      </h1>
+    <PageShell>
+      <PageHeader title="ID Card Issued List" />
 
-      <div className="mt-6">
+      <div className="mt-5 md:mt-6">
         <TableFilters typeOptions={STATUS_OPTIONS} typeLabel="Status" />
       </div>
 
-      <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="mt-4">
+        <MobileList
+          isEmpty={cards.length === 0}
+          empty="No ID card records found."
+        >
+          {cards.map((c) => (
+            <ListCard
+              key={c.id}
+              href={`/employees/${c.employee.id}`}
+              title={c.employee.name}
+              subtitle={c.employee.department}
+              meta={
+                <>
+                  <span>{c.employee.empId}</span>
+                  <span>
+                    Issued{" "}
+                    {c.issuedAt ? c.issuedAt.toISOString().slice(0, 10) : "—"}
+                  </span>
+                </>
+              }
+              actions={<IdCardStatusSelect id={c.id} status={c.status} />}
+            />
+          ))}
+        </MobileList>
+      </div>
+
+      <DesktopTable>
         <Table>
           <TableHeader>
             <TableRow>
@@ -106,7 +137,7 @@ export default async function IdCardsPage({
             ))}
           </TableBody>
         </Table>
-      </div>
+      </DesktopTable>
 
       <div className="mt-4">
         <TablePagination
@@ -116,6 +147,6 @@ export default async function IdCardsPage({
           pathname="/id-cards"
         />
       </div>
-    </main>
+    </PageShell>
   );
 }

@@ -128,7 +128,7 @@ export function LeaveCalendar({
 
   return (
     <section>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-medium">
           {month.toLocaleString("en-IN", {
             month: "long",
@@ -140,20 +140,20 @@ export function LeaveCalendar({
           <Link
             href={monthHref(-1)}
             aria-label="Previous month"
-            className="rounded-md p-1.5 hover:bg-muted"
+            className="flex size-10 items-center justify-center rounded-md hover:bg-muted md:size-auto md:p-1.5"
           >
             <ChevronLeft className="size-4" />
           </Link>
           <Link
             href={monthHref(todayOffset)}
-            className="rounded-md px-2 py-1 text-sm hover:bg-muted"
+            className="flex min-h-10 items-center rounded-md px-3 text-sm hover:bg-muted md:min-h-0 md:px-2 md:py-1"
           >
             Today
           </Link>
           <Link
             href={monthHref(1)}
             aria-label="Next month"
-            className="rounded-md p-1.5 hover:bg-muted"
+            className="flex size-10 items-center justify-center rounded-md hover:bg-muted md:size-auto md:p-1.5"
           >
             <ChevronRight className="size-4" />
           </Link>
@@ -179,7 +179,8 @@ export function LeaveCalendar({
         </span>
       </div>
 
-      <div className="mt-3 overflow-x-auto">
+      {/* The grid scrolls sideways inside this box; the page itself doesn't. */}
+      <div className="mt-3 max-w-full overflow-x-auto">
         <div className="grid min-w-[640px] grid-cols-7 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
           {WEEKDAYS.map((w) => (
             <div
@@ -204,7 +205,7 @@ export function LeaveCalendar({
               >
                 <div
                   className={cn(
-                    "mb-1 flex size-6 items-center justify-center rounded-full text-xs tabular-nums",
+                    "mb-1 flex size-8 items-center justify-center rounded-full text-sm tabular-nums md:size-6 md:text-xs",
                     k === todayKey &&
                       "bg-primary font-semibold text-primary-foreground",
                   )}
@@ -230,7 +231,7 @@ export function LeaveCalendar({
                     <li>
                       <Link
                         href={`/leave?day=${d.getUTCDate()}&month=${d.getUTCMonth() + 1}&year=${d.getUTCFullYear()}`}
-                        className="px-1.5 text-xs text-zinc-500 hover:text-foreground hover:underline"
+                        className="inline-flex min-h-8 items-center px-1.5 text-xs text-zinc-500 hover:text-foreground md:min-h-0 md:hover:underline"
                         title={list
                           .slice(MAX_CHIPS)
                           .map(

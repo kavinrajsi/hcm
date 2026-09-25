@@ -12,6 +12,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ListCard } from "@/components/list-card";
+import {
+  DesktopTable,
+  MobileList,
+  PageHeader,
+  PageShell,
+} from "@/components/page";
+import { CollapsibleForm } from "@/components/collapsible-form";
 import { AttendanceForm } from "../session-forms";
 import { importAttendance } from "../actions";
 import { BulkImportForm } from "@/components/bulk-import-form";
@@ -64,43 +72,82 @@ export default async function SessionAttendedPage({
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Session Attended
-        </h1>
-        <div className="flex items-center gap-3">
-          <BulkImportForm
-            action={importAttendance}
-            columns={ATTENDANCE_IMPORT_COLUMNS}
-            title="Import attendance"
-          />
-          <Link
-            href="/sessions"
-            className="text-sm underline underline-offset-4"
-          >
-            ← Session calendar
-          </Link>
-        </div>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Session Attended"
+        actions={
+          <>
+            <BulkImportForm
+              action={importAttendance}
+              columns={ATTENDANCE_IMPORT_COLUMNS}
+              title="Import attendance"
+            />
+            <Link
+              href="/sessions"
+              className="inline-flex min-h-10 items-center text-sm underline underline-offset-4 md:min-h-0"
+            >
+              ← Session calendar
+            </Link>
+          </>
+        }
+      />
 
-      <div className="mt-6">
-        <AttendanceForm
-          employees={employees}
-          sessions={sessions.map((s) => ({
-            id: s.id,
-            name: s.name,
-            trainer: s.trainer,
-            date: s.date.toISOString().slice(0, 10),
-          }))}
-        />
+      <div className="mt-5 md:mt-6">
+        <CollapsibleForm label="Log attendance">
+          <AttendanceForm
+            employees={employees}
+            sessions={sessions.map((s) => ({
+              id: s.id,
+              name: s.name,
+              trainer: s.trainer,
+              date: s.date.toISOString().slice(0, 10),
+            }))}
+          />
+        </CollapsibleForm>
       </div>
 
       <div className="mt-6">
         <TableFilters />
       </div>
 
-      <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="mt-4">
+        <MobileList isEmpty={rows.length === 0} empty="No attendance logged.">
+          {rows.map((r) => (
+            <ListCard
+              key={r.id}
+              href={`/employees/${r.employee.id}`}
+              title={r.employee.name}
+              subtitle={
+                <>
+                  {r.sessionName}
+                  {r.notes && (
+                    <span className="mt-1 line-clamp-3 block">{r.notes}</span>
+                  )}
+                </>
+              }
+              badge={
+                <span
+                  className={
+                    r.attended
+                      ? "rounded bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-950 dark:text-green-300"
+                      : "rounded bg-muted px-1.5 py-0.5 text-xs font-medium"
+                  }
+                >
+                  {r.attended ? "Attended" : "Not attended"}
+                </span>
+              }
+              meta={
+                <>
+                  <span>{r.date.toISOString().slice(0, 10)}</span>
+                  {r.trainer && <span>{r.trainer}</span>}
+                </>
+              }
+            />
+          ))}
+        </MobileList>
+      </div>
+
+      <DesktopTable>
         <Table>
           <TableHeader>
             <TableRow>
@@ -141,7 +188,7 @@ export default async function SessionAttendedPage({
             ))}
           </TableBody>
         </Table>
-      </div>
+      </DesktopTable>
 
       <div className="mt-4">
         <TablePagination
@@ -151,6 +198,6 @@ export default async function SessionAttendedPage({
           pathname="/sessions/attended"
         />
       </div>
-    </main>
+    </PageShell>
   );
 }

@@ -12,6 +12,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ListCard } from "@/components/list-card";
+import {
+  DesktopTable,
+  MobileList,
+  PageHeader,
+  PageShell,
+} from "@/components/page";
+import { CollapsibleForm } from "@/components/collapsible-form";
+import { DeleteIcon } from "@/components/icons";
 import { FreelancerAddForm } from "./freelancer-forms";
 import { deleteFreelancer, importFreelancers } from "./actions";
 import { BulkImportForm } from "@/components/bulk-import-form";
@@ -65,30 +75,79 @@ export default async function FreelancersPage({
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Freelance Resource Pool
-        </h1>
-        <BulkImportForm
-          action={importFreelancers}
-          columns={FREELANCER_IMPORT_COLUMNS}
-          title="Import freelancers"
-        />
+    <PageShell>
+      <PageHeader
+        title="Freelance Resource Pool"
+        actions={
+          <BulkImportForm
+            action={importFreelancers}
+            columns={FREELANCER_IMPORT_COLUMNS}
+            title="Import freelancers"
+          />
+        }
+      />
+
+      <div className="mt-5 md:mt-6">
+        <CollapsibleForm label="Add freelancer">
+          <FreelancerAddForm />
+        </CollapsibleForm>
       </div>
 
-      <div className="mt-6">
-        <FreelancerAddForm />
-      </div>
-
-      <div className="mt-6">
+      <div className="mt-5 md:mt-6">
         <TableFilters
           typeOptions={AVAILABILITY_FILTER}
           typeLabel="Availability"
         />
       </div>
 
-      <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="mt-4">
+        <MobileList
+          isEmpty={freelancers.length === 0}
+          empty="No freelancers found."
+        >
+          {freelancers.map((f) => (
+            <ListCard
+              key={f.id}
+              title={f.name}
+              subtitle={
+                <>
+                  {f.skillset}
+                  {f.notes && (
+                    <span className="mt-1 line-clamp-3 block">{f.notes}</span>
+                  )}
+                </>
+              }
+              badge={
+                <Badge variant={badgeVariant[f.availability]}>
+                  {f.availability}
+                </Badge>
+              }
+              meta={
+                <>
+                  {f.email && <span className="break-all">{f.email}</span>}
+                  {f.phone && <span>{f.phone}</span>}
+                  {f.rate && <span>Rate {f.rate}</span>}
+                </>
+              }
+              actions={
+                <form action={deleteFreelancer} className="ml-auto">
+                  <input type="hidden" name="id" value={f.id} />
+                  <Button
+                    type="submit"
+                    variant="ghost"
+                    className="h-10 text-zinc-500 active:text-red-600"
+                  >
+                    <DeleteIcon className="size-4" />
+                    Delete
+                  </Button>
+                </form>
+              }
+            />
+          ))}
+        </MobileList>
+      </div>
+
+      <DesktopTable>
         <Table>
           <TableHeader>
             <TableRow>
@@ -140,7 +199,7 @@ export default async function FreelancersPage({
             ))}
           </TableBody>
         </Table>
-      </div>
+      </DesktopTable>
 
       <div className="mt-4">
         <TablePagination
@@ -150,6 +209,6 @@ export default async function FreelancersPage({
           pathname="/freelancers"
         />
       </div>
-    </main>
+    </PageShell>
   );
 }

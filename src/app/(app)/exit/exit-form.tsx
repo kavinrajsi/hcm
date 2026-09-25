@@ -18,7 +18,7 @@ export function ExitForm({
   return (
     <form
       action={formAction}
-      className="flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+      className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 md:flex-row md:flex-wrap md:items-end dark:border-zinc-800"
     >
       <div className="flex flex-col gap-1.5">
         <label htmlFor="employeeId" className="text-sm font-medium">
@@ -28,7 +28,7 @@ export function ExitForm({
           id="employeeId"
           name="employeeId"
           required
-          className="h-9 w-64 rounded-md border border-input bg-transparent px-2 text-sm dark:bg-input/30"
+          className="h-10 w-full rounded-md border border-input bg-transparent px-2 text-base md:h-9 md:w-64 md:text-sm dark:bg-input/30"
         >
           <option value="">Select employee…</option>
           {activeEmployees.map((e) => (
@@ -42,7 +42,13 @@ export function ExitForm({
         <label htmlFor="dateOfExit" className="text-sm font-medium">
           Date of exit
         </label>
-        <Input id="dateOfExit" name="dateOfExit" type="date" required className="w-44" />
+        <Input
+          id="dateOfExit"
+          name="dateOfExit"
+          type="date"
+          required
+          className="md:w-44"
+        />
       </div>
       <Button type="submit" disabled={pending}>
         {pending ? "Recording…" : "Record exit"}

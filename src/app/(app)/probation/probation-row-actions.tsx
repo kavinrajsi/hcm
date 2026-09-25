@@ -9,7 +9,12 @@ import { confirmProbation, extendProbation } from "./actions";
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" size="sm" disabled={pending}>
+    <Button
+      type="submit"
+      size="sm"
+      disabled={pending}
+      className="h-10 w-full md:h-7 md:w-auto"
+    >
       {pending ? "…" : label}
     </Button>
   );
@@ -28,26 +33,40 @@ export function ProbationRowActions({
 
   if (extending) {
     return (
-      <form action={extendProbation} className="flex items-center gap-2">
+      <form
+        action={extendProbation}
+        className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center"
+      >
         <input type="hidden" name="id" value={id} />
-        <Input name="extendedTo" type="date" required className="h-8 w-38" />
-        <Input name="notes" placeholder="Reason" className="h-8 w-36" />
-        <SubmitButton label="Save" />
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => setExtending(false)}
-        >
-          Cancel
-        </Button>
+        <Input
+          name="extendedTo"
+          type="date"
+          required
+          aria-label="Extend to"
+          className="md:h-8 md:w-38"
+        />
+        <Input name="notes" placeholder="Reason" className="md:h-8 md:w-36" />
+        <div className="flex items-center gap-2">
+          <div className="flex-1 md:flex-none">
+            <SubmitButton label="Save" />
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-10 flex-1 md:h-7 md:flex-none"
+            onClick={() => setExtending(false)}
+          >
+            Cancel
+          </Button>
+        </div>
       </form>
     );
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <form action={confirmProbation}>
+    <div className="flex w-full items-center gap-2 md:w-auto">
+      <form action={confirmProbation} className="flex-1 md:flex-none">
         <input type="hidden" name="id" value={id} />
         <SubmitButton label="Confirm" />
       </form>
@@ -55,6 +74,7 @@ export function ProbationRowActions({
         type="button"
         size="sm"
         variant="outline"
+        className="h-10 flex-1 md:h-7 md:flex-none"
         onClick={() => setExtending(true)}
       >
         Extend

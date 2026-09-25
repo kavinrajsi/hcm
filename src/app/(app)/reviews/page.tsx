@@ -9,6 +9,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ListCard } from "@/components/list-card";
+import {
+  DesktopTable,
+  MobileList,
+  PageHeader,
+  PageShell,
+} from "@/components/page";
 
 export const metadata = { title: "Review Meetings" };
 
@@ -25,47 +32,71 @@ export default async function ReviewsPage() {
   });
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Review Meetings</h1>
+    <PageShell>
+      <PageHeader title="Review Meetings" />
       <p className="mt-2 rounded-md border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700">
         Planning in progress — fields for this module are still being worked
         out. Records will appear below once the module is finalized.
       </p>
 
-      <div className="mt-6 rounded-lg border border-zinc-200 dark:border-zinc-800">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Notes</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {meetings.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={3} className="text-center text-zinc-500">
-                  No review meetings recorded.
-                </TableCell>
-              </TableRow>
-            )}
-            {meetings.map((m) => (
-              <TableRow key={m.id}>
-                <TableCell>
-                  <Link
-                    href={`/employees/${m.employee.id}`}
-                    className="font-medium underline-offset-4 hover:underline"
-                  >
-                    {m.employee.name}
-                  </Link>
-                </TableCell>
-                <TableCell>{m.date.toISOString().slice(0, 10)}</TableCell>
-                <TableCell>{m.notes ?? "—"}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <div className="mt-5 md:hidden">
+        <MobileList
+          isEmpty={meetings.length === 0}
+          empty="No review meetings recorded."
+        >
+          {meetings.map((m) => (
+            <ListCard
+              key={m.id}
+              href={`/employees/${m.employee.id}`}
+              title={m.employee.name}
+              subtitle={m.notes ?? "—"}
+              meta={
+                <>
+                  <span>{m.employee.empId}</span>
+                  <span>{m.date.toISOString().slice(0, 10)}</span>
+                </>
+              }
+            />
+          ))}
+        </MobileList>
       </div>
-    </main>
+
+      <div className="mt-6">
+        <DesktopTable>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Employee</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Notes</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {meetings.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center text-zinc-500">
+                    No review meetings recorded.
+                  </TableCell>
+                </TableRow>
+              )}
+              {meetings.map((m) => (
+                <TableRow key={m.id}>
+                  <TableCell>
+                    <Link
+                      href={`/employees/${m.employee.id}`}
+                      className="font-medium underline-offset-4 hover:underline"
+                    >
+                      {m.employee.name}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{m.date.toISOString().slice(0, 10)}</TableCell>
+                  <TableCell>{m.notes ?? "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </DesktopTable>
+      </div>
+    </PageShell>
   );
 }

@@ -16,6 +16,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ListCard } from "@/components/list-card";
+import {
+  DesktopTable,
+  MobileList,
+  PageHeader,
+  PageShell,
+} from "@/components/page";
+import { CollapsibleForm } from "@/components/collapsible-form";
+import { Button } from "@/components/ui/button";
+import { ArrowOutwardIcon, DeleteIcon } from "@/components/icons";
 import { QuantumEntryForm } from "./quantum-entry-form";
 import { BasecampImportForm } from "./import-form";
 import { deleteQuantumEntry, importQuantumEntries } from "./actions";
@@ -24,6 +34,10 @@ import { QUANTUM_IMPORT_COLUMNS } from "@/lib/import-columns";
 import type { Prisma } from "@/generated/prisma/client";
 
 export const metadata = { title: "Quantum Sheet" };
+
+function formatDuration(mins: number) {
+  return mins > 0 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : "—";
+}
 
 export default async function QuantumPage({
   searchParams,
@@ -83,18 +97,22 @@ export default async function QuantumPage({
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Quantum Sheet</h1>
-        <BulkImportForm
-          action={importQuantumEntries}
-          columns={QUANTUM_IMPORT_COLUMNS}
-          title="Import quantum entries"
-        />
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Quantum Sheet"
+        actions={
+          <BulkImportForm
+            action={importQuantumEntries}
+            columns={QUANTUM_IMPORT_COLUMNS}
+            title="Import quantum entries"
+          />
+        }
+      />
 
-      <div className="mt-6">
-        <QuantumEntryForm showEmployeePicker employees={employees} />
+      <div className="mt-5 md:mt-6">
+        <CollapsibleForm label="Add entry">
+          <QuantumEntryForm showEmployeePicker employees={employees} />
+        </CollapsibleForm>
       </div>
 
       <div className="mt-4 rounded-lg border border-dashed border-zinc-300 p-4 text-sm dark:border-zinc-700">
@@ -123,7 +141,67 @@ export default async function QuantumPage({
         )}
       </div>
 
-      <div className="mt-6 rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="mt-6">
+        <MobileList isEmpty={entries.length === 0} empty="No entries yet.">
+          {entries.map((e) => (
+            <ListCard
+              key={e.id}
+              title={
+                <>
+                  {e.workName}
+                  {e.source === "BASECAMP" && (
+                    <span className="ml-1.5 text-xs font-normal text-zinc-400">
+                      (imported)
+                    </span>
+                  )}
+                </>
+              }
+              href={`/employees/${e.employee.id}`}
+              subtitle={[e.employee.name, e.brand].filter(Boolean).join(" · ")}
+              badge={
+                <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium tabular-nums">
+                  {formatDuration(e.durationMins)}
+                </span>
+              }
+              meta={<span>{e.date.toISOString().slice(0, 10)}</span>}
+              actions={
+                <>
+                  {e.link && (
+                    <Button
+                      variant="outline"
+                      className="h-10"
+                      nativeButton={false}
+                      render={
+                        <a
+                          href={e.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        />
+                      }
+                    >
+                      <ArrowOutwardIcon className="size-4" />
+                      Open link
+                    </Button>
+                  )}
+                  <form action={deleteQuantumEntry} className="ml-auto">
+                    <input type="hidden" name="id" value={e.id} />
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      className="h-10 text-zinc-500 active:text-red-600"
+                    >
+                      <DeleteIcon className="size-4" />
+                      Delete
+                    </Button>
+                  </form>
+                </>
+              }
+            />
+          ))}
+        </MobileList>
+      </div>
+
+      <DesktopTable>
         <Table>
           <TableHeader>
             <TableRow>
@@ -178,11 +256,7 @@ export default async function QuantumPage({
                     "—"
                   )}
                 </TableCell>
-                <TableCell>
-                  {e.durationMins > 0
-                    ? `${Math.floor(e.durationMins / 60)}h ${e.durationMins % 60}m`
-                    : "—"}
-                </TableCell>
+                <TableCell>{formatDuration(e.durationMins)}</TableCell>
                 <TableCell>
                   <form action={deleteQuantumEntry}>
                     <input type="hidden" name="id" value={e.id} />
@@ -198,7 +272,7 @@ export default async function QuantumPage({
             ))}
           </TableBody>
         </Table>
-      </div>
+      </DesktopTable>
 
       <div className="mt-4">
         <TablePagination
@@ -208,6 +282,6 @@ export default async function QuantumPage({
           pathname="/quantum"
         />
       </div>
-    </main>
+    </PageShell>
   );
 }

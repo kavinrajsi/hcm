@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { addFreelancer, type FreelancerFormState } from "./actions";
 
 const selectClass =
-  "h-9 rounded-md border border-input bg-transparent px-2 text-sm dark:bg-input/30";
+  "h-10 w-full rounded-md border border-input bg-transparent px-2 text-base md:h-9 md:text-sm dark:bg-input/30";
 
 export const AVAILABILITY_OPTIONS = [
   ["AVAILABLE", "Available"],
@@ -37,22 +37,42 @@ export function FreelancerAddForm() {
       ref={formRef}
       id="fl-add-form"
       action={formAction}
-      className="flex flex-wrap items-end gap-2 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+      className="flex flex-col gap-2 rounded-lg border border-zinc-200 p-4 md:flex-row md:flex-wrap md:items-end dark:border-zinc-800"
     >
-      <Input id="fl-name" name="name" placeholder="Name *" required className="w-44" />
-      <Input name="email" type="email" placeholder="Email" className="w-48" />
-      <Input name="phone" placeholder="Phone" className="w-36" />
-      <Input name="skillset" placeholder="Skillset *" required className="w-48" />
-      <Input name="rate" placeholder="Rate" className="w-28" />
-      <select name="availability" className={selectClass} defaultValue="UNKNOWN">
+      <Input
+        id="fl-name"
+        name="name"
+        placeholder="Name *"
+        required
+        className="w-full md:w-44"
+      />
+      <Input
+        name="email"
+        type="email"
+        placeholder="Email"
+        className="w-full md:w-48"
+      />
+      <Input name="phone" placeholder="Phone" className="w-full md:w-36" />
+      <Input
+        name="skillset"
+        placeholder="Skillset *"
+        required
+        className="w-full md:w-48"
+      />
+      <Input name="rate" placeholder="Rate" className="w-full md:w-28" />
+      <select
+        name="availability"
+        className={`${selectClass} md:w-auto`}
+        defaultValue="UNKNOWN"
+      >
         {AVAILABILITY_OPTIONS.map(([v, l]) => (
           <option key={v} value={v}>
             {l}
           </option>
         ))}
       </select>
-      <Input name="notes" placeholder="Notes" className="w-48" />
-      <Button type="submit" disabled={pending}>
+      <Input name="notes" placeholder="Notes" className="w-full md:w-48" />
+      <Button type="submit" disabled={pending} className="w-full md:w-auto">
         {pending ? "Adding…" : "Add"}
       </Button>
       {state.error && <p className="text-sm text-red-600">{state.error}</p>}

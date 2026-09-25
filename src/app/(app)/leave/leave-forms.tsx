@@ -40,8 +40,8 @@ const STATUS_TEXT: Record<LeaveHistory["entries"][number]["status"], string> = {
   REJECTED: "text-rose-600 dark:text-rose-400",
 };
 
-/** Drawer opened from inside the edit modal: the poster's recent leave. */
-function LeaveHistoryDrawer({
+/** Drawer opened from the edit modal (and phone cards): the poster's recent leave. */
+export function LeaveHistoryDrawer({
   entryId,
   name,
 }: {
@@ -66,11 +66,21 @@ function LeaveHistoryDrawer({
   return (
     <Sheet onOpenChange={load}>
       <SheetTrigger
-        render={<Button type="button" variant="outline" size="sm" />}
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-10 md:h-8"
+          />
+        }
       >
         History
       </SheetTrigger>
-      <SheetContent side="right" className="w-full data-[side=right]:w-full sm:max-w-md">
+      <SheetContent
+        side="right"
+        className="w-full data-[side=right]:w-full sm:max-w-md"
+      >
         <SheetHeader>
           <SheetTitle>{name} — leave history</SheetTitle>
           <SheetDescription>
@@ -130,7 +140,13 @@ export function LeaveSyncButton() {
   );
   return (
     <form action={formAction} className="flex flex-wrap items-center gap-3">
-      <Button type="submit" variant="outline" size="sm" disabled={pending}>
+      <Button
+        type="submit"
+        variant="outline"
+        size="sm"
+        className="h-10 md:h-8"
+        disabled={pending}
+      >
         <RefreshCw className={pending ? "size-4 animate-spin" : "size-4"} />
         {pending ? "Syncing…" : "Sync from Basecamp"}
       </Button>
@@ -146,7 +162,10 @@ export function LeaveSyncButton() {
 
 export function LeaveEditDialog({
   entry,
+  asButton = false,
 }: {
+  /** Phone cards render the trigger as a full-size outline button. */
+  asButton?: boolean;
   entry: {
     id: string;
     creatorName: string;
@@ -166,9 +185,24 @@ export function LeaveEditDialog({
 
   return (
     <Dialog>
-      <DialogTrigger className="text-xs text-zinc-400 hover:text-foreground">
-        Edit
-      </DialogTrigger>
+      {asButton ? (
+        <DialogTrigger
+          render={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-10 md:h-8"
+            />
+          }
+        >
+          Edit
+        </DialogTrigger>
+      ) : (
+        <DialogTrigger className="text-xs text-zinc-400 hover:text-foreground">
+          Edit
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Correct leave entry</DialogTitle>
@@ -179,9 +213,12 @@ export function LeaveEditDialog({
             <LeaveHistoryDrawer entryId={entry.id} name={entry.creatorName} />
           </div>
         </DialogHeader>
-        <form action={formAction} className="grid grid-cols-2 gap-3 text-sm">
+        <form
+          action={formAction}
+          className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2"
+        >
           <input type="hidden" name="id" value={entry.id} />
-          <label className="col-span-2 flex flex-col gap-1">
+          <label className="flex flex-col gap-1 sm:col-span-2">
             Type
             <select
               name="type"
@@ -219,7 +256,7 @@ export function LeaveEditDialog({
               required
             />
           </label>
-          <div className="col-span-2 flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
             <Button type="submit" disabled={pending}>
               {pending ? "Saving…" : "Save"}
             </Button>

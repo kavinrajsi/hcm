@@ -17,11 +17,14 @@ export function BasecampImportForm({
   >(importFromBasecamp, {});
 
   const selectClass =
-    "h-9 rounded-md border border-input bg-transparent px-2 text-sm dark:bg-input/30";
+    "h-10 w-full rounded-md border border-input bg-transparent px-2 text-base md:h-9 md:text-sm dark:bg-input/30";
 
   return (
-    <form action={formAction} className="flex flex-wrap items-center gap-3">
-      <select name="employeeId" required className={`${selectClass} w-52`}>
+    <form
+      action={formAction}
+      className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center"
+    >
+      <select name="employeeId" required className={`${selectClass} md:w-52`}>
         <option value="">Import for employee…</option>
         {employees.map((e) => (
           <option key={e.id} value={e.id}>
@@ -29,7 +32,7 @@ export function BasecampImportForm({
           </option>
         ))}
       </select>
-      <select name="projectId" required className={`${selectClass} w-52`}>
+      <select name="projectId" required className={`${selectClass} md:w-52`}>
         <option value="">Basecamp project…</option>
         {projects.map((p) => (
           <option key={p.id} value={p.id}>
@@ -37,7 +40,12 @@ export function BasecampImportForm({
           </option>
         ))}
       </select>
-      <Button type="submit" variant="outline" disabled={pending}>
+      <Button
+        type="submit"
+        variant="outline"
+        disabled={pending}
+        className="w-full md:w-auto"
+      >
         {pending ? "Importing…" : "Import todos"}
       </Button>
       {state.error && <p className="text-sm text-red-600">{state.error}</p>}
