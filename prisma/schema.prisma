@@ -34,9 +34,10 @@ enum Gender {
 
 enum IdCardStatus {
   PHOTO_TAKEN
-  CORRECTION
+  ASSIGNED_TO_DESIGNER
   PENDING
   ISSUED
+  RE_ISSUE
   RETURN_PENDING // set automatically when the employee exits
   RETURNED
 }
@@ -96,6 +97,7 @@ model User {
   resetTokens            PasswordResetToken[]
   leaveReviews           LeaveEntry[]            @relation("LeaveReviews")
   candidateStatusChanges CandidateStatusChange[]
+  idCardStatusChanges    IdCardStatusChange[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 }
@@ -210,7 +212,23 @@ model IdCard {
   issuedAt   DateTime?
   updatedAt  DateTime     @updatedAt
 
+  statusChanges IdCardStatusChange[]
+
   @@index([status])
+}
+
+/// One row per ID card status move (Photo Taken → Assigned to Designer …).
+model IdCardStatusChange {
+  id          String   @id @default(cuid())
+  idCard      IdCard   @relation(fields: [idCardId], references: [id], onDelete: Cascade)
+  idCardId    String
+  fromStatus  String? // null = card created; text so retired statuses stay readable
+  toStatus    String
+  changedAt   DateTime @default(now())
+  changedBy   User?    @relation(fields: [changedById], references: [id], onDelete: SetNull)
+  changedById String?
+
+  @@index([idCardId, changedAt(sort: Desc)])
 }
 
 model ProbationRecord {

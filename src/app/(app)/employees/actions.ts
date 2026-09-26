@@ -166,7 +166,7 @@ export async function createEmployee(
   _prev: EmployeeFormState,
   formData: FormData,
 ): Promise<EmployeeFormState> {
-  await requireRole("HR_ADMIN");
+  const user = await requireRole("HR_ADMIN");
 
   const parsed = parseForm(formData);
   if (!parsed.success) {
@@ -223,7 +223,14 @@ export async function createEmployee(
           empType: data.empType,
         },
       },
-      idCard: { create: {} },
+      // First history entry: card starts at Photo Taken.
+      idCard: {
+        create: {
+          statusChanges: {
+            create: { toStatus: "PHOTO_TAKEN", changedById: user.id },
+          },
+        },
+      },
       ...(data.empType === "PROBATION"
         ? { probation: { create: { dueDate: probationDue } } }
         : {}),
@@ -240,7 +247,7 @@ export async function importEmployees(
   _prev: ImportState,
   formData: FormData,
 ): Promise<ImportState> {
-  await requireRole("HR_ADMIN");
+  const user = await requireRole("HR_ADMIN");
 
   const parsed = await parseCsvFile(formData);
   if ("error" in parsed) return { error: parsed.error };
@@ -347,7 +354,13 @@ export async function importEmployees(
               empType: data.empType,
             },
           },
-          idCard: { create: {} },
+          idCard: {
+            create: {
+              statusChanges: {
+                create: { toStatus: "PHOTO_TAKEN", changedById: user.id },
+              },
+            },
+          },
           ...(data.empType === "PROBATION"
             ? { probation: { create: { dueDate: probationDue } } }
             : {}),

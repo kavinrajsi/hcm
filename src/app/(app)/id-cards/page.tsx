@@ -19,19 +19,16 @@ import {
   PageHeader,
   PageShell,
 } from "@/components/page";
+import { ID_CARD_STATUSES } from "@/lib/id-card-status";
 import { IdCardStatusSelect } from "./status-select";
 import type { Prisma } from "@/generated/prisma/client";
 
 export const metadata = { title: "ID Cards" };
 
-const STATUS_OPTIONS = [
-  { value: "PHOTO_TAKEN", label: "Photo Taken" },
-  { value: "CORRECTION", label: "Correction" },
-  { value: "PENDING", label: "Pending" },
-  { value: "ISSUED", label: "Issued" },
-  { value: "RETURN_PENDING", label: "Return Pending" },
-  { value: "RETURNED", label: "Returned" },
-];
+const STATUS_OPTIONS = ID_CARD_STATUSES.map(([value, label]) => ({
+  value,
+  label,
+}));
 
 export default async function IdCardsPage({
   searchParams,

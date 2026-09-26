@@ -5,6 +5,8 @@ import { requireRole } from "@/lib/rbac";
 import { decryptField, maskValue } from "@/lib/crypto";
 import { updateEmployee } from "../actions";
 import { EmployeeForm, type SensitiveMasks } from "../employee-form";
+import { IdCardHistory } from "./id-card-history";
+import { idCardStatusLabel } from "@/lib/id-card-status";
 
 export const metadata = { title: "Employee" };
 
@@ -31,7 +33,19 @@ export default async function EmployeePage({
   const [employee, managers] = await Promise.all([
     db.employee.findUnique({
       where: { id },
-      include: { idCard: true, probation: true, onboarding: true },
+      include: {
+        idCard: {
+          include: {
+            statusChanges: {
+              orderBy: { changedAt: "desc" },
+              take: 50,
+              include: { changedBy: { select: { name: true, email: true } } },
+            },
+          },
+        },
+        probation: true,
+        onboarding: true,
+      },
     }),
     db.employee.findMany({
       where: { dateOfExit: null, NOT: { id } },
@@ -72,7 +86,7 @@ export default async function EmployeePage({
         <div>
           <dt className="text-zinc-500">ID card</dt>
           <dd className="mt-0.5 font-medium">
-            {employee.idCard?.status ?? "—"}
+            {employee.idCard ? idCardStatusLabel(employee.idCard.status) : "—"}
           </dd>
         </div>
         <div>
@@ -107,6 +121,10 @@ export default async function EmployeePage({
           </dd>
         </div>
       </dl>
+
+      {employee.idCard && (
+        <IdCardHistory changes={employee.idCard.statusChanges} />
+      )}
 
       <div className="mt-8">
         <EmployeeForm

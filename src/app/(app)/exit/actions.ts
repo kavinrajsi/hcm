@@ -17,7 +17,7 @@ export async function markExit(
   _prev: ExitFormState,
   formData: FormData,
 ): Promise<ExitFormState> {
-  await requireRole("HR_ADMIN");
+  const user = await requireRole("HR_ADMIN");
 
   const parsed = exitSchema.safeParse({
     employeeId: formData.get("employeeId"),
@@ -42,7 +42,16 @@ export async function markExit(
       ? [
           db.idCard.update({
             where: { id: employee.idCard.id },
-            data: { status: "RETURN_PENDING" },
+            data: {
+              status: "RETURN_PENDING",
+              statusChanges: {
+                create: {
+                  fromStatus: employee.idCard.status,
+                  toStatus: "RETURN_PENDING",
+                  changedById: user.id,
+                },
+              },
+            },
           }),
         ]
       : []),
