@@ -13,6 +13,7 @@ import {
 import {
   DarkModeIcon,
   InstallMobileIcon,
+  IosShareIcon,
   LightModeIcon,
   LogoutIcon,
 } from "@/components/icons";
@@ -42,8 +43,11 @@ function InstallRow() {
         <p className="px-3 pb-2 text-sm text-zinc-500">
           {platform === "ios" ? (
             <>
-              Tap the Share button <span aria-hidden>⎋</span> in Safari, then{" "}
+              Tap Share{" "}
+              <IosShareIcon className="inline size-4 -translate-y-0.5 text-foreground" />{" "}
+              in your browser&apos;s toolbar, then{" "}
               <strong className="text-foreground">Add to Home Screen</strong>.
+              Not listed? Open this page in Safari and try there.
             </>
           ) : (
             <>
