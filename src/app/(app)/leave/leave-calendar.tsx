@@ -3,12 +3,14 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { LEAVE_TYPE_LABELS, type LeaveTypeValue } from "@/lib/leave";
 import { cn } from "@/lib/utils";
 
-// Month grid for /leave. Server-rendered; month navigation is plain links
-// that keep the current filters (?view=calendar&month=YYYY-MM).
+// Month grid for /leave (desktop). Server-rendered; month navigation is
+// plain links that keep the current filters and view (?month=YYYY-MM).
+// The phone day strip (leave-day-strip.tsx) shares the helpers below.
 
 export type CalendarEntry = {
   id: string;
   name: string;
+  employeeId: string | null;
   type: LeaveTypeValue | null;
   startDate: Date | null;
   endDate: Date | null;
@@ -18,7 +20,7 @@ export type CalendarEntry = {
   status: "PENDING" | "APPROVED" | "REJECTED";
 };
 
-const TYPE_CLASSES: Record<LeaveTypeValue | "UNCLASSIFIED", string> = {
+export const TYPE_CLASSES: Record<LeaveTypeValue | "UNCLASSIFIED", string> = {
   FULL_DAY: "bg-rose-100 text-rose-900 dark:bg-rose-500/20 dark:text-rose-200",
   HALF_DAY:
     "bg-amber-100 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200",
@@ -35,11 +37,11 @@ const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MAX_CHIPS = 4;
 const DAY_MS = 86_400_000;
 
-function key(d: Date): string {
+export function key(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-function isWeekend(d: Date): boolean {
+export function isWeekend(d: Date): boolean {
   const day = d.getUTCDay();
   return day === 0 || day === 6;
 }
@@ -72,6 +74,42 @@ function entryDays(e: CalendarEntry): string[] {
   return all.map(key);
 }
 
+/** Entries keyed by each YYYY-MM-DD they occupy. */
+export function groupByDay(
+  entries: CalendarEntry[],
+): Record<string, CalendarEntry[]> {
+  const byDay: Record<string, CalendarEntry[]> = {};
+  for (const e of entries) {
+    for (const k of entryDays(e)) (byDay[k] ??= []).push(e);
+  }
+  return byDay;
+}
+
+/** Previous / current / next month links, keeping filters and the view. */
+export function monthLinks(
+  month: Date,
+  searchParams: Record<string, string | string[] | undefined>,
+): { prev: string; today: string; next: string } {
+  const now = new Date();
+  const todayOffset =
+    now.getUTCFullYear() * 12 +
+    now.getUTCMonth() -
+    (month.getUTCFullYear() * 12 + month.getUTCMonth());
+  const href = (offset: number) => {
+    const d = new Date(
+      Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + offset, 1),
+    );
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(searchParams)) {
+      if (typeof v === "string" && k !== "month" && k !== "page")
+        params.set(k, v);
+    }
+    params.set("month", key(d).slice(0, 7));
+    return `/leave?${params}`;
+  };
+  return { prev: href(-1), today: href(todayOffset), next: href(1) };
+}
+
 export function LeaveCalendar({
   month,
   entries,
@@ -81,14 +119,7 @@ export function LeaveCalendar({
   entries: CalendarEntry[];
   searchParams: Record<string, string | string[] | undefined>;
 }) {
-  const byDay = new Map<string, CalendarEntry[]>();
-  for (const e of entries) {
-    for (const k of entryDays(e)) {
-      const list = byDay.get(k) ?? [];
-      list.push(e);
-      byDay.set(k, list);
-    }
-  }
+  const byDay = groupByDay(entries);
 
   // Grid starts on the Monday on/before the 1st, ends on the Sunday on/after month end.
   const first = month;
@@ -106,25 +137,8 @@ export function LeaveCalendar({
     cells.push(new Date(t));
   }
 
-  const now = new Date();
-  const todayKey = key(now);
-  const todayOffset =
-    now.getUTCFullYear() * 12 +
-    now.getUTCMonth() -
-    (month.getUTCFullYear() * 12 + month.getUTCMonth());
-  const monthHref = (offset: number) => {
-    const d = new Date(
-      Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + offset, 1),
-    );
-    const params = new URLSearchParams();
-    for (const [k, v] of Object.entries(searchParams)) {
-      if (typeof v === "string" && k !== "month" && k !== "page")
-        params.set(k, v);
-    }
-    params.set("view", "calendar");
-    params.set("month", key(d).slice(0, 7));
-    return `/leave?${params}`;
-  };
+  const todayKey = key(new Date());
+  const links = monthLinks(month, searchParams);
 
   return (
     <section>
@@ -138,20 +152,20 @@ export function LeaveCalendar({
         </h2>
         <div className="flex items-center gap-1">
           <Link
-            href={monthHref(-1)}
+            href={links.prev}
             aria-label="Previous month"
             className="flex size-10 items-center justify-center rounded-md hover:bg-muted md:size-auto md:p-1.5"
           >
             <ChevronLeft className="size-4" />
           </Link>
           <Link
-            href={monthHref(todayOffset)}
+            href={links.today}
             className="flex min-h-10 items-center rounded-md px-3 text-sm hover:bg-muted md:min-h-0 md:px-2 md:py-1"
           >
             Today
           </Link>
           <Link
-            href={monthHref(1)}
+            href={links.next}
             aria-label="Next month"
             className="flex size-10 items-center justify-center rounded-md hover:bg-muted md:size-auto md:p-1.5"
           >
@@ -193,7 +207,7 @@ export function LeaveCalendar({
           {cells.map((d) => {
             const k = key(d);
             const inMonth = d.getUTCMonth() === month.getUTCMonth();
-            const list = byDay.get(k) ?? [];
+            const list = byDay[k] ?? [];
             return (
               <div
                 key={k}

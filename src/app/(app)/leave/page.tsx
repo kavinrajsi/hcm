@@ -33,7 +33,16 @@ import {
   LeaveSyncButton,
 } from "./leave-forms";
 import { reviewLeave } from "./actions";
-import { LeaveCalendar, parseMonth } from "./leave-calendar";
+import {
+  LeaveCalendar,
+  groupByDay,
+  isWeekend,
+  key,
+  monthLinks,
+  parseMonth,
+  type CalendarEntry,
+} from "./leave-calendar";
+import { LeaveDayStrip, type StripDay } from "./leave-day-strip";
 import { cn } from "@/lib/utils";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -183,7 +192,11 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
   const status = STATUSES.find((st) => st === raw.status);
   if (status) and.push({ status });
 
-  const view = raw.view === "calendar" ? "calendar" : "list";
+  // No ?view: day strip on phones, list on desktop. ?view=list / calendar
+  // pick one explicitly (calendar = strip on phones, month grid on desktop).
+  const view =
+    raw.view === "calendar" ? "calendar" : raw.view === "list" ? "list" : "";
+  const stripOnPhone = view !== "list";
   const month = parseMonth(
     typeof raw.month === "string" ? raw.month : undefined,
   );
@@ -240,7 +253,7 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
         orderBy: { _sum: { days: "desc" } },
         take: 10,
       }),
-      view === "calendar"
+      view !== "list"
         ? db.leaveEntry.findMany({
             where: calendarWhere,
             orderBy: [{ employee: { name: "asc" } }, { creatorName: "asc" }],
@@ -254,7 +267,7 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
               days: true,
               message: true,
               status: true,
-              employee: { select: { name: true } },
+              employee: { select: { id: true, name: true } },
             },
           })
         : Promise.resolve([]),
@@ -278,6 +291,38 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
     if (value) qs.set(key, value);
     return `/leave${qs.size ? `?${qs}` : ""}`;
   };
+
+  const calendar: CalendarEntry[] = calendarEntries.map((e) => ({
+    id: e.id,
+    name: e.employee?.name ?? e.creatorName,
+    employeeId: e.employee?.id ?? null,
+    type: e.type,
+    startDate: e.startDate,
+    endDate: e.endDate,
+    postedOn: e.postedOn,
+    days: e.days !== null ? Number(e.days) : null,
+    message: e.message,
+    status: e.status,
+  }));
+
+  const todayKey = key(new Date());
+  const stripDays: StripDay[] = [];
+  for (let t = month.getTime(); t < monthEnd.getTime(); t += 86_400_000) {
+    const d = new Date(t);
+    stripDays.push({
+      key: key(d),
+      weekday: "SMTWTFS"[d.getUTCDay()],
+      date: d.getUTCDate(),
+      label: d.toLocaleDateString("en-IN", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        timeZone: "UTC",
+      }),
+      isWeekend: isWeekend(d),
+      isToday: key(d) === todayKey,
+    });
+  }
 
   const isHr = user.role === "HR_ADMIN";
   const configured = basecampConfigured();
@@ -342,38 +387,66 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
       )}
 
       <div className="mt-6 flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
-        <TableFilters typeOptions={TYPE_OPTIONS} />
-        <Segmented
-          label="View"
-          items={(["list", "calendar"] as const).map((v) => ({
-            key: v,
-            href: hrefWith("view", v === "calendar" ? "calendar" : undefined),
-            label: v === "list" ? "List" : "Calendar",
-            active: view === v,
-          }))}
-        />
-      </div>
-
-      {view === "calendar" ? (
-        <div className="mt-4">
-          <LeaveCalendar
-            month={month}
-            searchParams={raw}
-            entries={calendarEntries.map((e) => ({
-              id: e.id,
-              name: e.employee?.name ?? e.creatorName,
-              type: e.type,
-              startDate: e.startDate,
-              endDate: e.endDate,
-              postedOn: e.postedOn,
-              days: e.days !== null ? Number(e.days) : null,
-              message: e.message,
-              status: e.status,
+        <div className={cn(stripOnPhone && "hidden md:block")}>
+          <TableFilters typeOptions={TYPE_OPTIONS} />
+        </div>
+        <div className="hidden md:block">
+          <Segmented
+            label="View"
+            items={(["list", "calendar"] as const).map((v) => ({
+              key: v,
+              href: hrefWith("view", v === "calendar" ? "calendar" : undefined),
+              label: v === "list" ? "List" : "Calendar",
+              active:
+                v === "calendar" ? view === "calendar" : view !== "calendar",
             }))}
           />
         </div>
+        <div className="md:hidden">
+          <Segmented
+            label="View"
+            items={(["calendar", "list"] as const).map((v) => ({
+              key: v,
+              href: hrefWith("view", v === "list" ? "list" : undefined),
+              label: v === "list" ? "List" : "Calendar",
+              active: v === "list" ? view === "list" : view !== "list",
+            }))}
+          />
+        </div>
+      </div>
+
+      {stripOnPhone && (
+        <div className="mt-4 md:hidden">
+          <LeaveDayStrip
+            key={key(month)}
+            monthLabel={month.toLocaleString("en-IN", {
+              month: "long",
+              year: "numeric",
+              timeZone: "UTC",
+            })}
+            days={stripDays}
+            byDay={groupByDay(calendar)}
+            initialKey={
+              stripDays.some((d) => d.isToday) ? todayKey : stripDays[0].key
+            }
+            links={monthLinks(month, raw)}
+            filters={
+              <TableFilters
+                typeOptions={TYPE_OPTIONS}
+                dateFilters={false}
+                mobileSummary
+              />
+            }
+          />
+        </div>
+      )}
+
+      {view === "calendar" ? (
+        <div className="mt-4 hidden md:block">
+          <LeaveCalendar month={month} searchParams={raw} entries={calendar} />
+        </div>
       ) : (
-        <>
+        <div className={cn(stripOnPhone && "hidden md:block")}>
           <div className="mt-4">
             <Segmented
               label="Status"
@@ -621,7 +694,7 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
               pathname="/leave"
             />
           </div>
-        </>
+        </div>
       )}
     </PageShell>
   );

@@ -27,11 +27,14 @@ export function TableFilters({
   typeLabel = "Type",
   dateFilters = true,
   searchPlaceholder = "Search by name…",
+  mobileSummary = false,
 }: {
   typeOptions?: { value: string; label: string }[];
   typeLabel?: string;
   dateFilters?: boolean;
   searchPlaceholder?: string;
+  /** Phones: one "All types, Anyone · Filter" line instead of the search bar. */
+  mobileSummary?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -134,18 +137,76 @@ export function TableFilters({
     </>
   );
 
+  const searchInput = (className: string) => (
+    <Input
+      type="search"
+      placeholder={searchPlaceholder}
+      value={search}
+      onChange={(e) => {
+        setSearch(e.target.value);
+        setSearchDebounced(e.target.value);
+      }}
+      className={className}
+    />
+  );
+
+  if (mobileSummary) {
+    const type = searchParams.get("type");
+    const q = searchParams.get("q");
+    const summary = [
+      type
+        ? (typeOptions?.find((o) => o.value === type)?.label ?? type)
+        : `All ${typeLabel.toLowerCase()}s`,
+      dateFilters &&
+        ["day", "month", "year"]
+          .map((k) => searchParams.get(k))
+          .filter(Boolean)
+          .join("/"),
+      q ? `“${q}”` : "Anyone",
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    return (
+      <>
+        <div className="flex items-center justify-between gap-3 md:hidden">
+          <p className="min-w-0 truncate">{summary}</p>
+          <Sheet>
+            <SheetTrigger
+              render={
+                <button
+                  type="button"
+                  className="min-h-10 shrink-0 text-blue-600 underline underline-offset-4 dark:text-blue-400"
+                />
+              }
+            >
+              Filter
+            </SheetTrigger>
+            <SheetContent
+              side="bottom"
+              className="rounded-t-2xl pb-[max(1rem,env(safe-area-inset-bottom))]"
+            >
+              <SheetHeader>
+                <SheetTitle>Filter</SheetTitle>
+              </SheetHeader>
+              <div className="flex flex-col gap-3 px-4 [&_select]:h-11 [&_select]:w-full">
+                {searchInput("h-11")}
+                {selects}
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+        <div className="hidden flex-wrap items-center gap-2 md:flex">
+          {searchInput("h-8 w-56")}
+          {selects}
+        </div>
+      </>
+    );
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Input
-        type="search"
-        placeholder={searchPlaceholder}
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setSearchDebounced(e.target.value);
-        }}
-        className="h-10 min-w-0 flex-1 md:h-8 md:w-56 md:flex-none"
-      />
+      {searchInput("h-10 min-w-0 flex-1 md:h-8 md:w-56 md:flex-none")}
       <div className="hidden md:contents">{selects}</div>
       {(dateFilters || typeOptions) && (
         <Sheet>
