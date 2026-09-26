@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTheme } from "next-themes";
 import {
   Sheet,
@@ -9,12 +10,55 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { DarkModeIcon, LightModeIcon, LogoutIcon } from "@/components/icons";
+import {
+  DarkModeIcon,
+  InstallMobileIcon,
+  LightModeIcon,
+  LogoutIcon,
+} from "@/components/icons";
+import { promptInstall, useInstallPrompt } from "@/lib/use-install-prompt";
 
 const rowClass =
   "flex min-h-12 w-full items-center gap-3 rounded-lg px-3 text-left text-sm hover:bg-muted";
 
-/** Phone header: initial avatar → bottom sheet with theme + sign out. */
+/** "Install app" row; hidden once running as the installed app. */
+function InstallRow() {
+  const { installed, canPrompt, platform } = useInstallPrompt();
+  const [showSteps, setShowSteps] = useState(false);
+  if (installed) return null;
+
+  return (
+    <>
+      <button
+        type="button"
+        className={rowClass}
+        aria-expanded={canPrompt ? undefined : showSteps}
+        onClick={() => (canPrompt ? promptInstall() : setShowSteps((v) => !v))}
+      >
+        <InstallMobileIcon className="size-5 text-zinc-500" />
+        Install app
+      </button>
+      {showSteps && !canPrompt && (
+        <p className="px-3 pb-2 text-sm text-zinc-500">
+          {platform === "ios" ? (
+            <>
+              Tap the Share button <span aria-hidden>⎋</span> in Safari, then{" "}
+              <strong className="text-foreground">Add to Home Screen</strong>.
+            </>
+          ) : (
+            <>
+              Open the browser menu <span aria-hidden>⋮</span>, then{" "}
+              <strong className="text-foreground">Install app</strong> or{" "}
+              <strong className="text-foreground">Add to Home screen</strong>.
+            </>
+          )}
+        </p>
+      )}
+    </>
+  );
+}
+
+/** Phone header: initial avatar → bottom sheet with install, theme, sign out. */
 export function AccountMenu({
   email,
   signOutAction,
@@ -46,6 +90,7 @@ export function AccountMenu({
           <SheetDescription className="truncate">{email}</SheetDescription>
         </SheetHeader>
         <div className="flex flex-col gap-1 px-2">
+          <InstallRow />
           <button
             type="button"
             className={rowClass}
