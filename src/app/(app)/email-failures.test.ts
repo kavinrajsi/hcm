@@ -113,10 +113,12 @@ describe("markExit", () => {
 });
 
 describe("probation reminder cron", () => {
-  const req = { headers: new Headers() } as never;
+  const req = {
+    headers: new Headers({ authorization: "Bearer test-secret" }),
+  } as never;
 
   beforeEach(() => {
-    delete process.env.CRON_SECRET;
+    process.env.CRON_SECRET = "test-secret";
     db.probationRecord.findMany.mockResolvedValue([
       {
         dueDate: new Date("2026-10-05"),
@@ -125,6 +127,14 @@ describe("probation reminder cron", () => {
       },
     ]);
     db.user.findMany.mockResolvedValue([{ email: "hr@madarth.com" }]);
+  });
+
+  it("refuses requests without the right secret", async () => {
+    const res = await probationCron({ headers: new Headers() } as never);
+    expect(res.status).toBe(401);
+    delete process.env.CRON_SECRET; // unset secret must not open the route
+    expect((await probationCron(req)).status).toBe(401);
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 
   it("emails only active HR admins", async () => {

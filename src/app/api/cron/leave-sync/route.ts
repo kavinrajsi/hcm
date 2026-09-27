@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { isAuthorizedCron } from "@/lib/cron-auth";
 import { db } from "@/lib/db";
 import { syncLeaveFromBasecamp } from "@/lib/leave-sync";
 
@@ -8,8 +9,7 @@ export const maxDuration = 300;
 // Uses the Basecamp token of the most recently connected HR admin.
 // Protected by CRON_SECRET (Vercel sends it as a Bearer token).
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!isAuthorizedCron(req)) {
     return new Response("Unauthorized", { status: 401 });
   }
 

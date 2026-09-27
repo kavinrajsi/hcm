@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { isAuthorizedCron } from "@/lib/cron-auth";
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { probationReminderEmail } from "@/lib/emails";
@@ -6,8 +7,7 @@ import { probationReminderEmail } from "@/lib/emails";
 // Daily Vercel cron: reminds HR of probation confirmations due within 14
 // days. Protected by CRON_SECRET (Vercel sends it as a Bearer token).
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!isAuthorizedCron(req)) {
     return new Response("Unauthorized", { status: 401 });
   }
 

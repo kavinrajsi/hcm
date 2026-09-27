@@ -1,10 +1,14 @@
 import type { NextRequest } from "next/server";
 import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/rbac";
+import { currentUser } from "@/lib/rbac";
 import { exchangeCode, fetchAccountId, saveToken } from "@/lib/basecamp";
 
 export async function GET(req: NextRequest) {
-  const user = await requireRole("HR_ADMIN");
+  // Signed out → login page; signed in without HR → 403 (not a 500).
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  if (user.role !== "HR_ADMIN")
+    return new Response("Forbidden", { status: 403 });
 
   const code = req.nextUrl.searchParams.get("code");
   if (!code) return new Response("Missing code", { status: 400 });
