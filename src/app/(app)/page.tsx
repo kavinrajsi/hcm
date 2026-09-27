@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { getRecruitmentStats } from "@/lib/recruitment-stats";
+import { RecruitmentSection } from "./recruitment-section";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/rbac";
 
@@ -56,6 +58,9 @@ export default async function Home() {
     db.trainingSession.count({ where: { date: { gte: now } } }),
     db.freelancer.count(),
   ]);
+  // Recruitment charts use candidate data, which only HR admins can see.
+  const recruitment =
+    user.role === "HR_ADMIN" ? await getRecruitmentStats() : null;
 
   const stats = [
     { label: "Active employees", value: headcount, href: "/employees" },
@@ -90,6 +95,8 @@ export default async function Home() {
           </Link>
         ))}
       </div>
+
+      {recruitment && <RecruitmentSection stats={recruitment} />}
 
       <h2 className="mt-12 text-lg font-medium">Modules</h2>
       <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">

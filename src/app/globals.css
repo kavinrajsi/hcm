@@ -182,3 +182,29 @@
     border-radius: 0;
   }
 }
+
+/*
+ * Chart colours (dashboard). Categorical slots in fixed order from the
+ * validated reference palette; dark mode uses its own dark-surface steps.
+ * "Other" is a neutral gray, never a generated hue.
+ */
+.viz-root {
+  --viz-grid: #e4e4e7;
+  --viz-series-1: #2a78d6;
+  --viz-series-2: #eb6834;
+  --viz-series-3: #1baf7a;
+  --viz-series-4: #eda100;
+  --viz-series-5: #e87ba4;
+  --viz-other: #a1a1aa;
+  --viz-bar: #2a78d6;
+}
+.dark .viz-root {
+  --viz-grid: #3f3f46;
+  --viz-series-1: #3987e5;
+  --viz-series-2: #d95926;
+  --viz-series-3: #199e70;
+  --viz-series-4: #c98500;
+  --viz-series-5: #d55181;
+  --viz-other: #71717a;
+  --viz-bar: #3987e5;
+}
