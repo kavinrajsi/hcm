@@ -7,10 +7,12 @@ import { EmployeeSelect, type Employee } from "@/components/employee-select";
 import type { Role } from "@/generated/prisma/enums";
 import {
   createLoginForEmployee,
+  createLoginsForAll,
   inviteUser,
   newPasswordLink,
   setUserDisabled,
   setUserRole,
+  type BulkLoginResult,
   type LinkState,
 } from "./actions";
 
@@ -244,6 +246,78 @@ export function CreateLoginButton({ employeeId }: { employeeId: string }) {
         </Button>
       )}
       <LinkResult state={state} />
+    </div>
+  );
+}
+
+/** Users & roles: logins + invites for every current employee without one. */
+export function BulkCreateLogins({ count }: { count: number }) {
+  const [pending, startTransition] = useTransition();
+  const [confirming, setConfirming] = useState(false);
+  const [result, setResult] = useState<BulkLoginResult>();
+
+  if (result) {
+    return (
+      <p className="rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800">
+        Created {result.created} login{result.created === 1 ? "" : "s"}
+        {result.emailed
+          ? `, ${result.emailed} invite${result.emailed === 1 ? "" : "s"} emailed`
+          : ""}
+        {result.linked ? `, ${result.linked} linked to existing accounts` : ""}.
+        {result.failed?.length ? (
+          <span className="block text-red-600">
+            Couldn&apos;t create: {result.failed.join(", ")}
+          </span>
+        ) : null}
+        {result.created && result.emailed !== result.created ? (
+          <span className="block text-zinc-500">
+            Some invites weren&apos;t emailed — use &ldquo;New password
+            link&rdquo; on those rows.
+          </span>
+        ) : null}
+      </p>
+    );
+  }
+  if (count === 0) return null;
+  if (!confirming) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className="h-10 md:h-8"
+        onClick={() => setConfirming(true)}
+      >
+        Create logins for all {count}
+      </Button>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
+      <p>
+        This creates {count} Employee login{count === 1 ? "" : "s"} and emails
+        each person an invite to set their password. Continue?
+      </p>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          className="h-10 md:h-8"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => setResult(await createLoginsForAll()))
+          }
+        >
+          {pending ? `Creating ${count}…` : `Yes, create ${count} logins`}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-10 md:h-8"
+          disabled={pending}
+          onClick={() => setConfirming(false)}
+        >
+          Cancel
+        </Button>
+      </div>
     </div>
   );
 }

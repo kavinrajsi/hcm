@@ -18,7 +18,12 @@ import {
   PageShell,
 } from "@/components/page";
 import { cn } from "@/lib/utils";
-import { InviteForm, RoleSelect, UserActions } from "./user-controls";
+import {
+  BulkCreateLogins,
+  InviteForm,
+  RoleSelect,
+  UserActions,
+} from "./user-controls";
 
 export const metadata = { title: "Users & roles" };
 
@@ -86,10 +91,13 @@ export default async function UsersPage() {
         <CollapsibleForm label="Create login">
           <InviteForm employees={withoutLogin} />
         </CollapsibleForm>
-        <p className="mt-2 text-xs text-zinc-500">
-          {withoutLogin.length} current employee
-          {withoutLogin.length === 1 ? "" : "s"} without a login.
-        </p>
+        <div className="mt-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <p className="text-xs text-zinc-500">
+            {withoutLogin.length} current employee
+            {withoutLogin.length === 1 ? "" : "s"} without a login.
+          </p>
+          <BulkCreateLogins count={withoutLogin.length} />
+        </div>
       </div>
 
       <div className="mt-4">
