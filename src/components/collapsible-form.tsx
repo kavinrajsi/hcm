@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -10,23 +10,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { AddIcon } from "@/components/icons";
-
-const PHONE_QUERY = "(width < 48rem)";
-
-function subscribePhone(onChange: () => void) {
-  const mq = window.matchMedia(PHONE_QUERY);
-  mq.addEventListener("change", onChange);
-  return () => mq.removeEventListener("change", onChange);
-}
-
-/** True below md; false on the server (desktop markup is the SSR default). */
-function useIsPhone(): boolean {
-  return useSyncExternalStore(
-    subscribePhone,
-    () => window.matchMedia(PHONE_QUERY).matches,
-    () => false,
-  );
-}
+import { useIsMobile } from "@/hooks/use-mobile";
 
 /**
  * Inline "add" forms stay open on desktop; on phones a full-width button
@@ -42,7 +26,7 @@ export function CollapsibleForm({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const isPhone = useIsPhone();
+  const isPhone = useIsMobile();
 
   return (
     <div>
