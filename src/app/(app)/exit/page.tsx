@@ -77,7 +77,7 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
       <PageHeader title="Exit / Offboarding" />
 
       <div className="mt-5 md:mt-6">
-        <CollapsibleForm label="Record exit" mobileSheet>
+        <CollapsibleForm label="Record exit">
           <ExitForm activeEmployees={activeEmployees} />
         </CollapsibleForm>
       </div>
