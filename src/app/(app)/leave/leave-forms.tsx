@@ -3,6 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EditIcon } from "@/components/icons";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -187,20 +188,26 @@ export function LeaveEditDialog({
     <Dialog>
       {asButton ? (
         <DialogTrigger
+          aria-label="Edit"
+          title="Edit"
           render={
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              className="h-10 md:h-8"
+              size="icon"
+              className="size-10 md:size-8"
             />
           }
         >
-          Edit
+          <EditIcon className="size-5" />
         </DialogTrigger>
       ) : (
-        <DialogTrigger className="text-xs text-zinc-400 hover:text-foreground">
-          Edit
+        <DialogTrigger
+          aria-label="Edit"
+          title="Edit"
+          className="inline-flex size-7 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-foreground dark:hover:bg-zinc-800"
+        >
+          <EditIcon className="size-4" />
         </DialogTrigger>
       )}
       <DialogContent className="sm:max-w-md">

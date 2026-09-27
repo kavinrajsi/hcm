@@ -17,6 +17,7 @@ import {
 import { TableFilters } from "@/components/data-table/filters";
 import { TablePagination } from "@/components/data-table/pagination";
 import { Badge } from "@/components/ui/badge";
+import { CheckIcon, CloseIcon, UndoIcon } from "@/components/icons";
 import {
   Table,
   TableBody,
@@ -104,7 +105,7 @@ function editEntry(
   };
 }
 
-/** Approve / Reject (pending) or Undo — link-style in the table, buttons on cards. */
+/** Approve / Reject (pending) or Undo — icon buttons; bigger on phone cards. */
 function ReviewForm({
   id,
   status,
@@ -115,10 +116,11 @@ function ReviewForm({
   large?: boolean;
 }) {
   const btn = large
-    ? "inline-flex h-10 items-center rounded-md border border-zinc-200 px-3 text-sm font-medium dark:border-zinc-800"
-    : "text-xs font-medium hover:underline";
+    ? "inline-flex size-10 items-center justify-center rounded-md border border-zinc-200 dark:border-zinc-800"
+    : "inline-flex size-7 items-center justify-center rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800";
+  const icon = large ? "size-5" : "size-4";
   return (
-    <form action={reviewLeave} className="flex gap-2">
+    <form action={reviewLeave} className="flex gap-1">
       <input type="hidden" name="id" value={id} />
       {status === "PENDING" ? (
         <>
@@ -126,17 +128,21 @@ function ReviewForm({
             type="submit"
             name="decision"
             value="APPROVED"
+            aria-label="Approve"
+            title="Approve"
             className={cn(btn, "text-emerald-600 dark:text-emerald-400")}
           >
-            Approve
+            <CheckIcon className={icon} />
           </button>
           <button
             type="submit"
             name="decision"
             value="REJECTED"
+            aria-label="Reject"
+            title="Reject"
             className={cn(btn, "text-rose-600 dark:text-rose-400")}
           >
-            Reject
+            <CloseIcon className={icon} />
           </button>
         </>
       ) : (
@@ -144,13 +150,11 @@ function ReviewForm({
           type="submit"
           name="decision"
           value="PENDING"
-          className={
-            large
-              ? "inline-flex h-10 items-center rounded-md border border-zinc-200 px-3 text-sm text-zinc-500 dark:border-zinc-800"
-              : "text-xs text-zinc-400 hover:text-foreground"
-          }
+          aria-label="Undo review"
+          title="Undo review"
+          className={cn(btn, "text-zinc-500 hover:text-foreground")}
         >
-          Undo
+          <UndoIcon className={icon} />
         </button>
       )}
     </form>
@@ -340,7 +344,7 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
         description={
           <>
             Imported from the Basecamp &ldquo;Post your leave here&rdquo;
-            check-in and classified automatically. Use Edit to correct an entry.
+            check-in and classified automatically. Use the pencil icon to correct an entry.
           </>
         }
         actions={isHr && connected ? <LeaveSyncButton /> : undefined}
