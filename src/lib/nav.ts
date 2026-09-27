@@ -28,12 +28,14 @@ export const NAV: NavGroup[] = [
       { title: "Probation", url: "/probation", roles: HR_OR_MANAGER },
       { title: "Exit", url: "/exit", roles: HR_OR_MANAGER },
       { title: "ID Cards", url: "/id-cards", roles: HR },
-      { title: "Leave", url: "/leave", roles: HR_OR_MANAGER },
+      // Birthdays & work anniversaries.
+      { title: "Wish", url: "/birthdays", roles: HR_OR_MANAGER },
     ],
   },
   {
     title: "Work",
     items: [
+      { title: "Leave", url: "/leave", roles: HR_OR_MANAGER },
       { title: "Quantum", url: "/quantum", roles: HR_OR_MANAGER },
       { title: "Sessions", url: "/sessions" },
       {
