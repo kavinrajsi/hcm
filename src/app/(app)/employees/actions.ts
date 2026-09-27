@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import { blindIndex, encryptField, normalizeIdentifier } from "@/lib/crypto";
 import { uploadDocument } from "@/lib/blob";
+import { encryptPii } from "@/lib/employee-pii";
 import {
   cell,
   collectRows,
@@ -130,7 +131,31 @@ function sensitiveColumns(data: z.infer<typeof employeeSchema>) {
     bankAccountEnc: data.bankAccount
       ? encryptField(data.bankAccount)
       : undefined,
+    bankAccountHash: data.bankAccount
+      ? blindIndex(data.bankAccount)
+      : undefined,
     ifscEnc: data.ifsc ? encryptField(data.ifsc) : undefined,
+  };
+}
+
+/** YYYY-MM-DD for a parseable date (CSV imports vary); undefined if blank. */
+function isoDate(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) throw new Error(`Invalid dateOfBirth: ${value}`);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Form fields that are stored encrypted (see lib/employee-pii.ts). */
+function piiInput(data: z.infer<typeof employeeSchema>) {
+  return {
+    phone: data.phone,
+    personalEmail: data.personalEmail,
+    emergencyContact: data.emergencyContact,
+    address: data.address,
+    dateOfBirth: isoDate(data.dateOfBirth),
+    pfNumber: data.pfNumber,
+    uanNumber: data.uanNumber,
   };
 }
 
@@ -145,10 +170,18 @@ async function findDuplicate(
   ];
   if (data.pan) or.push({ panHash: blindIndex(data.pan) });
   if (data.aadhaar) or.push({ aadhaarHash: blindIndex(data.aadhaar) });
+  if (data.bankAccount)
+    or.push({ bankAccountHash: blindIndex(data.bankAccount) });
 
   const existing = await db.employee.findFirst({
     where: { OR: or, ...(excludeId ? { NOT: { id: excludeId } } : {}) },
-    select: { empId: true, workEmail: true, panHash: true, aadhaarHash: true },
+    select: {
+      empId: true,
+      workEmail: true,
+      panHash: true,
+      aadhaarHash: true,
+      bankAccountHash: true,
+    },
   });
   if (!existing) return undefined;
   if (existing.empId === data.empId) return "Employee ID already exists";
@@ -156,7 +189,9 @@ async function findDuplicate(
     return "Work email already exists";
   if (data.pan && existing.panHash === blindIndex(data.pan))
     return "An employee with this PAN already exists";
-  return "An employee with this Aadhaar already exists";
+  if (data.aadhaar && existing.aadhaarHash === blindIndex(data.aadhaar))
+    return "An employee with this Aadhaar already exists";
+  return "An employee with this bank account already exists";
 }
 
 // Default probation length; HR can extend from the probation module.
@@ -199,14 +234,9 @@ export async function createEmployee(
       empId: data.empId,
       name: data.name,
       gender: data.gender,
-      dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
       bloodGroup: data.bloodGroup,
       tshirtSize: data.tshirtSize,
-      phone: data.phone,
-      personalEmail: data.personalEmail,
       workEmail: data.workEmail.toLowerCase(),
-      emergencyContact: data.emergencyContact,
-      address: data.address,
       city: data.city,
       state: data.state,
       pincode: data.pincode,
@@ -215,11 +245,10 @@ export async function createEmployee(
       dateOfJoining: joinDate,
       empType: data.empType,
       isFresher: data.isFresher,
-      pfNumber: data.pfNumber,
-      uanNumber: data.uanNumber,
       linkedinId: data.isFresher ? undefined : data.linkedinId,
       managerId: data.managerId,
       ...sensitiveColumns(data),
+      ...encryptPii(piiInput(data)),
       ...blobKeys,
       // Onboarding completion auto-creates the linked lifecycle records.
       onboarding: {
@@ -291,13 +320,22 @@ export async function importEmployees(
 
   // One query instead of a findDuplicate round-trip per row.
   const existing = await db.employee.findMany({
-    select: { empId: true, workEmail: true, panHash: true, aadhaarHash: true },
+    select: {
+      empId: true,
+      workEmail: true,
+      panHash: true,
+      aadhaarHash: true,
+      bankAccountHash: true,
+    },
   });
   const seenEmpIds = new Set(existing.map((e) => e.empId));
   const seenEmails = new Set(existing.map((e) => e.workEmail));
   const seenPans = new Set(existing.map((e) => e.panHash).filter(Boolean));
   const seenAadhaars = new Set(
     existing.map((e) => e.aadhaarHash).filter(Boolean),
+  );
+  const seenBanks = new Set(
+    existing.map((e) => e.bankAccountHash).filter(Boolean),
   );
 
   const managerLinks: { empId: string; managerEmpId: string; row: number }[] =
@@ -308,6 +346,9 @@ export async function importEmployees(
     const workEmail = data.workEmail.toLowerCase();
     const panHash = data.pan ? blindIndex(data.pan) : undefined;
     const aadhaarHash = data.aadhaar ? blindIndex(data.aadhaar) : undefined;
+    const bankHash = data.bankAccount
+      ? blindIndex(data.bankAccount)
+      : undefined;
 
     const duplicate =
       (seenEmpIds.has(data.empId) && "Employee ID already exists") ||
@@ -315,7 +356,8 @@ export async function importEmployees(
       (panHash && seenPans.has(panHash) && "PAN already exists") ||
       (aadhaarHash &&
         seenAadhaars.has(aadhaarHash) &&
-        "Aadhaar already exists");
+        "Aadhaar already exists") ||
+      (bankHash && seenBanks.has(bankHash) && "Bank account already exists");
     if (duplicate) {
       failures.push({ row: rowNumber, message: duplicate });
       continue;
@@ -330,16 +372,9 @@ export async function importEmployees(
           empId: data.empId,
           name: data.name,
           gender: data.gender,
-          dateOfBirth: data.dateOfBirth
-            ? new Date(data.dateOfBirth)
-            : undefined,
           bloodGroup: data.bloodGroup,
           tshirtSize: data.tshirtSize,
-          phone: data.phone,
-          personalEmail: data.personalEmail,
           workEmail,
-          emergencyContact: data.emergencyContact,
-          address: data.address,
           city: data.city,
           state: data.state,
           pincode: data.pincode,
@@ -348,8 +383,7 @@ export async function importEmployees(
           dateOfJoining: joinDate,
           empType: data.empType,
           isFresher: data.isFresher,
-          pfNumber: data.pfNumber,
-          uanNumber: data.uanNumber,
+          ...encryptPii(piiInput(data)),
           linkedinId: data.isFresher ? undefined : data.linkedinId,
           ...sensitiveColumns(data),
           onboarding: {
@@ -384,6 +418,7 @@ export async function importEmployees(
     seenEmails.add(workEmail);
     if (panHash) seenPans.add(panHash);
     if (aadhaarHash) seenAadhaars.add(aadhaarHash);
+    if (bankHash) seenBanks.add(bankHash);
     if (managerEmpId) {
       managerLinks.push({
         empId: data.empId,
@@ -477,14 +512,9 @@ export async function updateEmployee(
       empId: data.empId,
       name: data.name,
       gender: data.gender,
-      dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
       bloodGroup: data.bloodGroup,
       tshirtSize: data.tshirtSize,
-      phone: data.phone,
-      personalEmail: data.personalEmail,
       workEmail: data.workEmail.toLowerCase(),
-      emergencyContact: data.emergencyContact,
-      address: data.address,
       city: data.city,
       state: data.state,
       pincode: data.pincode,
@@ -493,12 +523,11 @@ export async function updateEmployee(
       dateOfJoining: joinDate,
       empType: data.empType,
       isFresher: data.isFresher,
-      pfNumber: data.pfNumber,
-      uanNumber: data.uanNumber,
       linkedinId: data.isFresher ? null : data.linkedinId,
       // Never allow an employee to manage themselves.
       managerId: data.managerId === employeeId ? null : (data.managerId ?? null),
       ...sensitive,
+      ...encryptPii(piiInput(data)),
       ...blobKeys,
       ...openProbation,
     },

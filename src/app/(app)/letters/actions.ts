@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { PII_SELECT, readPii } from "@/lib/employee-pii";
 import { requireRole } from "@/lib/rbac";
 import { sendEmail } from "@/lib/email";
 import { fillTemplate, LETTER_TEMPLATES } from "@/lib/letter-templates";
@@ -85,7 +86,7 @@ export async function sendLetter(
 
   const employee = await db.employee.findUnique({
     where: { id: parsed.data.employeeId },
-    select: { personalEmail: true, workEmail: true },
+    select: { workEmail: true, ...PII_SELECT },
   });
   if (!employee) return { error: "Employee not found" };
 
@@ -94,7 +95,7 @@ export async function sendLetter(
   const to =
     parsed.data.type === "COMPENSATION"
       ? employee.workEmail
-      : (employee.personalEmail ?? employee.workEmail);
+      : (readPii(employee).personalEmail ?? employee.workEmail);
 
   const result = await sendEmail({
     to,

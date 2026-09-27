@@ -154,9 +154,21 @@ model Employee {
   bankAccountEnc String?
   ifscEnc        String?
 
+  // Encrypted contact / personal / statutory fields (same iv:tag:ciphertext
+  // format). The plaintext columns above are being retired: new writes go
+  // here only; scripts/encrypt-pii.ts moves existing rows.
+  phoneEnc            String?
+  personalEmailEnc    String?
+  emergencyContactEnc String?
+  addressEnc          String?
+  dateOfBirthEnc      String? // ISO date (YYYY-MM-DD)
+  pfNumberEnc         String?
+  uanNumberEnc        String?
+
   // Blind indexes (HMAC-SHA256) for uniqueness without decryption
-  panHash     String? @unique
-  aadhaarHash String? @unique
+  panHash         String? @unique
+  aadhaarHash     String? @unique
+  bankAccountHash String? @unique
 
   // Document uploads — Vercel Blob keys, not bytes
   photoBlobKey            String?

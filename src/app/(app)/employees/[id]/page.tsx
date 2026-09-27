@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import { decryptField, maskValue } from "@/lib/crypto";
+import { readPii } from "@/lib/employee-pii";
+import { EMPLOYEE_DOCUMENTS } from "@/lib/employee-documents";
 import { updateEmployee } from "../actions";
 import { EmployeeForm, type SensitiveMasks } from "../employee-form";
 import { IdCardHistory } from "./id-card-history";
@@ -10,14 +12,7 @@ import { idCardStatusLabel } from "@/lib/id-card-status";
 
 export const metadata = { title: "Employee" };
 
-const DOCUMENTS = [
-  ["photoBlobKey", "Photo"],
-  ["panBlobKey", "PAN"],
-  ["aadhaarBlobKey", "Aadhaar"],
-  ["offerLetterBlobKey", "Offer letter"],
-  ["experienceLetterBlobKey", "Experience letter"],
-  ["relievingLetterBlobKey", "Relieving letter"],
-] as const;
+const DOCUMENTS = EMPLOYEE_DOCUMENTS;
 
 function mask(enc: string | null): string | undefined {
   if (!enc) return undefined;
@@ -64,6 +59,7 @@ export default async function EmployeePage({
   };
 
   const update = updateEmployee.bind(null, employee.id);
+  const pii = readPii(employee);
 
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 min-w-0 px-4 py-5 md:px-6 md:py-8">
@@ -136,14 +132,14 @@ export default async function EmployeePage({
             empId: employee.empId,
             name: employee.name,
             gender: employee.gender ?? undefined,
-            dateOfBirth: employee.dateOfBirth?.toISOString().slice(0, 10),
+            dateOfBirth: pii.dateOfBirth ?? undefined,
             bloodGroup: employee.bloodGroup ?? undefined,
             tshirtSize: employee.tshirtSize ?? undefined,
-            phone: employee.phone ?? undefined,
-            personalEmail: employee.personalEmail ?? undefined,
+            phone: pii.phone ?? undefined,
+            personalEmail: pii.personalEmail ?? undefined,
             workEmail: employee.workEmail,
-            emergencyContact: employee.emergencyContact ?? undefined,
-            address: employee.address ?? undefined,
+            emergencyContact: pii.emergencyContact ?? undefined,
+            address: pii.address ?? undefined,
             city: employee.city ?? undefined,
             state: employee.state ?? undefined,
             pincode: employee.pincode ?? undefined,
@@ -152,8 +148,8 @@ export default async function EmployeePage({
             dateOfJoining: employee.dateOfJoining.toISOString().slice(0, 10),
             empType: employee.empType,
             isFresher: employee.isFresher,
-            pfNumber: employee.pfNumber ?? undefined,
-            uanNumber: employee.uanNumber ?? undefined,
+            pfNumber: pii.pfNumber ?? undefined,
+            uanNumber: pii.uanNumber ?? undefined,
             linkedinId: employee.linkedinId ?? undefined,
             managerId: employee.managerId ?? undefined,
           }}

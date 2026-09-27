@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireSelfOrRole } from "@/lib/rbac";
+import { encryptPii } from "@/lib/employee-pii";
 
 export type SelfUpdateState = { error?: string; ok?: boolean };
 
@@ -44,7 +45,11 @@ export async function updateOwnContact(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  await db.employee.update({ where: { id: employeeId }, data: parsed.data });
+  const { city, state, pincode, ...pii } = parsed.data;
+  await db.employee.update({
+    where: { id: employeeId },
+    data: { city, state, pincode, ...encryptPii(pii) },
+  });
   revalidatePath("/me");
   return { ok: true };
 }

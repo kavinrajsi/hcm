@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { readPii } from "@/lib/employee-pii";
 import {
   getAccessToken,
   leaveCheckinConfig,
@@ -50,9 +51,21 @@ export async function syncLeaveFromBasecamp(
     sinceDay,
   );
 
-  const employees = await db.employee.findMany({
-    select: { id: true, workEmail: true, personalEmail: true },
-  });
+  // Personal emails are encrypted at rest; decrypt in memory for matching.
+  const employees = (
+    await db.employee.findMany({
+      select: {
+        id: true,
+        workEmail: true,
+        personalEmail: true,
+        personalEmailEnc: true,
+      },
+    })
+  ).map((e) => ({
+    id: e.id,
+    workEmail: e.workEmail,
+    personalEmail: readPii(e).personalEmail,
+  }));
   const emailIndex = buildEmailIndex(employees);
 
   const existing = new Map(
