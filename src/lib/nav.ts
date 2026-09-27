@@ -60,7 +60,10 @@ export const NAV: NavGroup[] = [
   },
   {
     title: "Admin",
-    items: [{ title: "Users & roles", url: "/users", roles: HR }],
+    items: [
+      { title: "Users & roles", url: "/users", roles: HR },
+      { title: "AI usage", url: "/ai-usage", roles: HR },
+    ],
   },
 ];
 

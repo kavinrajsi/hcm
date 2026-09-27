@@ -12,6 +12,7 @@ import {
 } from "@/lib/basecamp";
 import { buildEmailIndex, htmlToText } from "@/lib/leave";
 import { classifyLeavePosts } from "@/lib/leave-classify";
+import type { AiTrigger } from "@/lib/ai-usage";
 
 // Pulls the Basecamp leave and WFH check-ins into LeaveEntry and
 // AI-classifies new rows. A check-in's first run imports its full history;
@@ -38,6 +39,7 @@ export type LeaveSyncResult = {
 
 export async function syncLeaveFromBasecamp(
   userId: string,
+  trigger: AiTrigger,
 ): Promise<LeaveSyncResult> {
   const auth = await getAccessToken(userId);
   if (!auth) throw new Error("Basecamp not connected — connect it first");
@@ -64,7 +66,11 @@ export async function syncLeaveFromBasecamp(
     updated += r.updated;
   }
 
-  const classified = await classifyPending(CLASSIFY_PER_RUN);
+  const classified = await classifyPending(
+    CLASSIFY_PER_RUN,
+    CLASSIFY_BUDGET_MS,
+    trigger,
+  );
   const remaining = await db.leaveEntry.count({ where: { type: null } });
   return { fetched, created, updated, classified, remaining };
 }
@@ -219,6 +225,7 @@ function toDate(value: string): Date | null {
 export async function classifyPending(
   limit: number,
   budgetMs = CLASSIFY_BUDGET_MS,
+  trigger: AiTrigger = "script",
 ): Promise<number> {
   const deadline = Date.now() + budgetMs;
   const pending = await db.leaveEntry.findMany({
@@ -254,6 +261,7 @@ export async function classifyPending(
           postedAt: toIST(p.postedAt),
           message: p.message,
         })),
+        trigger,
       );
     } catch (err) {
       if (isRateLimit(err)) {

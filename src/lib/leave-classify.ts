@@ -1,6 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { LEAVE_TYPES } from "@/lib/leave";
+import { gatewayCost, recordAiUsage, type AiTrigger } from "@/lib/ai-usage";
 
 // Classifies free-text leave posts via Vercel AI Gateway. Auth comes from
 // AI_GATEWAY_API_KEY or the Vercel OIDC token (VERCEL_OIDC_TOKEN).
@@ -55,15 +56,30 @@ Return one item per post, using the same id.`;
 
 export async function classifyLeavePosts(
   posts: LeavePost[],
+  trigger?: AiTrigger,
 ): Promise<LeaveClassification[]> {
   if (posts.length === 0) return [];
-  const { output } = await generateText({
-    model: MODEL,
-    maxRetries: 0, // caller paces requests and handles rate limits
-    system: SYSTEM,
-    output: Output.object({ schema: resultSchema }),
-    prompt: JSON.stringify(posts),
+  const usage = { feature: "leave-classify", trigger, model: MODEL, items: posts.length };
+  let result;
+  try {
+    result = await generateText({
+      model: MODEL,
+      maxRetries: 0, // caller paces requests and handles rate limits
+      system: SYSTEM,
+      output: Output.object({ schema: resultSchema }),
+      prompt: JSON.stringify(posts),
+    });
+  } catch (err) {
+    await recordAiUsage({ ...usage, ok: false });
+    throw err;
+  }
+  await recordAiUsage({
+    ...usage,
+    inputTokens: result.usage.inputTokens,
+    outputTokens: result.usage.outputTokens,
+    ...gatewayCost(result.providerMetadata),
   });
+  const { output } = result;
   const ids = new Set(posts.map((p) => p.id));
   return output.items.filter((i) => ids.has(i.id));
 }

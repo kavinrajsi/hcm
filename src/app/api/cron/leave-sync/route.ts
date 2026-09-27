@@ -20,6 +20,6 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const result = await syncLeaveFromBasecamp(userId);
+  const result = await syncLeaveFromBasecamp(userId, "cron");
   return Response.json(result);
 }

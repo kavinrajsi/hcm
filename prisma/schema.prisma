@@ -465,3 +465,21 @@ model CandidateStatusChange {
   @@index([candidateId, changedAt(sort: Desc)])
   @@map("candidate_status_changes")
 }
+
+// One row per AI Gateway call (tokens + cost as the Gateway reports them),
+// for Admin → AI usage. Written best-effort; never blocks the caller.
+model AiUsage {
+  id           String   @id @default(cuid())
+  feature      String // "leave-classify"
+  trigger      String? // "webhook" | "cron" | "manual-sync" | "script"
+  model        String
+  items        Int // posts in the request
+  inputTokens  Int
+  outputTokens Int
+  costUsd      Decimal? @db.Decimal(12, 8) // null when the Gateway sent no cost
+  generationId String?
+  ok           Boolean  @default(true) // false = request failed
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+}

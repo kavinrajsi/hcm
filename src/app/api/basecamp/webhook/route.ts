@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
   // Reply now; AI-classify the new/edited post after the response.
   after(async () => {
     try {
-      await classifyPending(10, 45_000);
+      await classifyPending(10, 45_000, "webhook");
     } catch (e) {
       console.error("[basecamp-webhook] classify failed", e);
     }

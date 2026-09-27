@@ -29,7 +29,7 @@ export type LeaveSyncState = { error?: string; ok?: string };
 export async function syncLeave(): Promise<LeaveSyncState> {
   const user = await requireRole("HR_ADMIN");
   try {
-    const r = await syncLeaveFromBasecamp(user.id);
+    const r = await syncLeaveFromBasecamp(user.id, "manual-sync");
     revalidatePath("/leave");
     revalidatePath("/me");
     return {
