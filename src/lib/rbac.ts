@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/generated/prisma/enums";
@@ -32,9 +33,16 @@ export const currentUser = cache(async (): Promise<SessionUser | null> => {
   return { id: user.id, role: user.role, email: user.email };
 });
 
+/**
+ * The signed-in user, or a redirect to /login. Redirecting (instead of
+ * throwing) matters because Next renders layout and page in parallel: the
+ * layout already sends signed-out visitors to /login, and a throw here would
+ * only surface as a false "Not signed in" error in the server logs. Wrong
+ * role is still an AuthorizationError (see requireRole).
+ */
 export async function requireUser(): Promise<SessionUser> {
   const user = await currentUser();
-  if (!user) throw new AuthorizationError("Not signed in");
+  if (!user) redirect("/login");
   return user;
 }
 

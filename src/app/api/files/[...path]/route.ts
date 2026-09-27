@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { readDocument } from "@/lib/blob";
 import { db } from "@/lib/db";
 import { EMPLOYEE_DOCUMENTS } from "@/lib/employee-documents";
-import { AuthorizationError, requireUser } from "@/lib/rbac";
+import { requireUser } from "@/lib/rbac";
 
 // Streams private employee documents after an access check: HR admins read
 // any document; everyone else only the files on their own employee record.
@@ -25,16 +25,10 @@ export async function GET(
   const { path } = await ctx.params;
   const key = path.join("/");
 
-  try {
-    const user = await requireUser();
-    if (user.role !== "HR_ADMIN" && !(await ownsDocument(user.id, key))) {
-      return new Response("Forbidden", { status: 403 });
-    }
-  } catch (e) {
-    if (e instanceof AuthorizationError) {
-      return new Response("Forbidden", { status: 403 });
-    }
-    throw e;
+  // Signed out → /login (requireUser); signed in without access → 403.
+  const user = await requireUser();
+  if (user.role !== "HR_ADMIN" && !(await ownsDocument(user.id, key))) {
+    return new Response("Forbidden", { status: 403 });
   }
 
   const result = await readDocument(key);
