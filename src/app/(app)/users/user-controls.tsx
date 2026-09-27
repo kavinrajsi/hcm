@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { EmployeeSelect, type Employee } from "@/components/employee-select";
 import type { Role } from "@/generated/prisma/enums";
 import {
+  createLoginForEmployee,
   inviteUser,
   newPasswordLink,
   setUserDisabled,
@@ -23,7 +24,7 @@ const selectClass =
   "h-10 rounded-md border border-input bg-transparent px-2 text-base md:h-9 md:text-sm dark:bg-input/30";
 
 /** The set-password link, with copy button and whether it was emailed. */
-function LinkResult({ state }: { state: LinkState }) {
+export function LinkResult({ state }: { state: LinkState }) {
   const [copied, setCopied] = useState(false);
   if (state.error) return <p className="text-sm text-red-600">{state.error}</p>;
   if (!state.link) return null;
@@ -217,6 +218,32 @@ export function UserActions({
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
       <LinkResult state={link} />
+    </div>
+  );
+}
+
+/** Employee page: create an Employee-role login for someone without one. */
+export function CreateLoginButton({ employeeId }: { employeeId: string }) {
+  const [pending, startTransition] = useTransition();
+  const [state, setState] = useState<LinkState>({});
+  return (
+    <div className="flex flex-col gap-2">
+      {!state.link && (
+        <Button
+          type="button"
+          variant="outline"
+          className="h-10 w-fit md:h-8"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () =>
+              setState(await createLoginForEmployee(employeeId)),
+            )
+          }
+        >
+          {pending ? "Creating…" : "Create login"}
+        </Button>
+      )}
+      <LinkResult state={state} />
     </div>
   );
 }

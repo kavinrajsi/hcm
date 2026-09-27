@@ -8,6 +8,11 @@ import { EMPLOYEE_DOCUMENTS } from "@/lib/employee-documents";
 import { updateEmployee } from "../actions";
 import { EmployeeForm, type SensitiveMasks } from "../employee-form";
 import { IdCardHistory } from "./id-card-history";
+import {
+  CreateLoginButton,
+  RoleSelect,
+  UserActions,
+} from "../../users/user-controls";
 import { idCardStatusLabel } from "@/lib/id-card-status";
 
 export const metadata = { title: "Employee" };
@@ -22,7 +27,7 @@ function mask(enc: string | null): string | undefined {
 export default async function EmployeePage({
   params,
 }: PageProps<"/employees/[id]">) {
-  await requireRole("HR_ADMIN");
+  const me = await requireRole("HR_ADMIN");
   const { id } = await params;
 
   const [employee, managers] = await Promise.all([
@@ -40,6 +45,14 @@ export default async function EmployeePage({
         },
         probation: true,
         onboarding: true,
+        user: {
+          select: {
+            id: true,
+            role: true,
+            disabledAt: true,
+            passwordHash: true,
+          },
+        },
       },
     }),
     db.employee.findMany({
@@ -121,6 +134,41 @@ export default async function EmployeePage({
       {employee.idCard && (
         <IdCardHistory changes={employee.idCard.statusChanges} />
       )}
+
+      <section className="mt-6 rounded-lg border border-zinc-200 p-5 text-sm dark:border-zinc-800">
+        <div className="flex items-center gap-2">
+          <h2 className="font-medium">Login</h2>
+          {employee.user && (
+            <span className="text-xs text-zinc-500">
+              {employee.user.disabledAt
+                ? "Disabled"
+                : employee.user.passwordHash
+                  ? "Active"
+                  : "Invited — password not set yet"}
+            </span>
+          )}
+        </div>
+        {employee.user ? (
+          <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-start">
+            <RoleSelect userId={employee.user.id} role={employee.user.role} />
+            <UserActions
+              userId={employee.user.id}
+              disabled={!!employee.user.disabledAt}
+              isSelf={employee.user.id === me.id}
+            />
+          </div>
+        ) : (
+          <div className="mt-3">
+            <p className="mb-2 text-zinc-500">
+              No login yet — {employee.workEmail}
+              {" can't sign in."}
+            </p>
+            {!employee.dateOfExit && (
+              <CreateLoginButton employeeId={employee.id} />
+            )}
+          </div>
+        )}
+      </section>
 
       <div className="mt-8">
         <EmployeeForm

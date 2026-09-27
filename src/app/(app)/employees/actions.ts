@@ -8,6 +8,7 @@ import { requireRole } from "@/lib/rbac";
 import { blindIndex, encryptField, normalizeIdentifier } from "@/lib/crypto";
 import { uploadDocument } from "@/lib/blob";
 import { encryptPii } from "@/lib/employee-pii";
+import { provisionLogin } from "@/lib/logins";
 import {
   cell,
   collectRows,
@@ -272,9 +273,19 @@ export async function createEmployee(
     },
   });
 
+  // Every new joiner gets an Employee login; the set-password link is
+  // emailed, and HR can copy a fresh one from the employee page.
+  await provisionLogin({
+    email: employee.workEmail,
+    name: employee.name,
+    role: "EMPLOYEE",
+    employeeId: employee.id,
+  });
+
   revalidatePath("/employees");
   revalidatePath("/onboarding");
   revalidatePath("/id-cards");
+  revalidatePath("/users");
   redirect(`/employees/${employee.id}`);
 }
 
@@ -366,8 +377,9 @@ export async function importEmployees(
     const joinDate = new Date(data.dateOfJoining);
     const probationDue = probationDueFrom(joinDate);
 
+    let created: { id: string; workEmail: string; name: string };
     try {
-      await db.employee.create({
+      created = await db.employee.create({
         data: {
           empId: data.empId,
           name: data.name,
@@ -413,6 +425,14 @@ export async function importEmployees(
       continue;
     }
 
+    // Same as Add employee: each imported joiner gets an Employee login.
+    await provisionLogin({
+      email: created.workEmail,
+      name: created.name,
+      role: "EMPLOYEE",
+      employeeId: created.id,
+    });
+
     imported++;
     seenEmpIds.add(data.empId);
     seenEmails.add(workEmail);
@@ -455,6 +475,7 @@ export async function importEmployees(
   revalidatePath("/onboarding");
   revalidatePath("/id-cards");
   revalidatePath("/probation");
+  revalidatePath("/users");
   return importSummary(imported, parsed.rows.length, failures);
 }
 
