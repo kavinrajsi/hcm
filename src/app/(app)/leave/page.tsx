@@ -9,6 +9,8 @@ import {
   LEAVE_STATUS_LABELS,
   LEAVE_TYPES,
   LEAVE_TYPE_LABELS,
+  leaveTotalsConditions,
+  leaveTotalsPeriod,
   type LeaveStatusValue,
   type LeaveTypeValue,
 } from "@/lib/leave";
@@ -221,6 +223,15 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
   if (and.length) where.AND = and;
 
   const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
+  // "Most leave days" follows the same filters as the list (name, type, status,
+  // day/month/year); null = the type filter has no per-employee day totals.
+  const totalsConditions = leaveTotalsConditions({
+    q: params.q,
+    type: params.type,
+    status,
+    range,
+    yearStart,
+  });
   const [entries, total, yearTotals, calendarEntries, pendingCount] =
     await Promise.all([
       db.leaveEntry.findMany({
@@ -234,19 +245,18 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
         },
       }),
       db.leaveEntry.count({ where }),
-      db.leaveEntry.groupBy({
-        by: ["employeeId"],
-        where: {
-          ...scope,
-          employeeId: { not: null },
-          type: { in: ["FULL_DAY", "HALF_DAY"] },
-          status: { not: "REJECTED" },
-          startDate: { gte: yearStart },
-        },
-        _sum: { days: true },
-        orderBy: { _sum: { days: "desc" } },
-        take: 10,
-      }),
+      totalsConditions
+        ? db.leaveEntry.groupBy({
+            by: ["employeeId"],
+            where: {
+              ...scope,
+              AND: totalsConditions as Prisma.LeaveEntryWhereInput[],
+            },
+            _sum: { days: true },
+            orderBy: { _sum: { days: "desc" } },
+            take: 10,
+          })
+        : Promise.resolve([]),
       view !== "list"
         ? db.leaveEntry.findMany({
             where: calendarWhere,
@@ -360,7 +370,13 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
       {yearTotals.length > 0 && (
         <section className="mt-6">
           <h2 className="text-sm font-medium text-zinc-500">
-            Most leave days in {yearStart.getUTCFullYear()} (full + half days)
+            Most leave days {leaveTotalsPeriod(params)} (
+            {params.type === "FULL_DAY"
+              ? "full days"
+              : params.type === "HALF_DAY"
+                ? "half days"
+                : "full + half days"}
+            )
           </h2>
           {/* One swipeable row on phones, wrapping chips on desktop. */}
           <div className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0">

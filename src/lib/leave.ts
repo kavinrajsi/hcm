@@ -81,3 +81,63 @@ export function parseNextLink(header: string | null): string | null {
   const match = header.match(/<([^>]+)>;\s*rel="next"/);
   return match ? match[1] : null;
 }
+
+type DateRange = { gte: Date; lt: Date };
+
+/**
+ * Where-fragments for the "Most leave days" leaderboard on /leave, mirroring the page's
+ * filters so the chips update with them: name search (`q`, same fields as the list),
+ * type, status, and the day/month/year range (default: `yearStart` onward). Returns
+ * null when the type filter can't produce full/half-day totals per employee
+ * (UNCLASSIFIED / UNMATCHED / a non-day type) — the page hides the chips then.
+ * Plain objects so this file stays import-free; the page ANDs them with its scope.
+ */
+export function leaveTotalsConditions({
+  q,
+  type,
+  status,
+  range,
+  yearStart,
+}: {
+  q?: string;
+  type?: string;
+  status?: LeaveStatusValue;
+  range?: DateRange;
+  yearStart: Date;
+}): Record<string, unknown>[] | null {
+  const dayTypes = ["FULL_DAY", "HALF_DAY"];
+  if (type && !dayTypes.includes(type)) return null;
+  const conditions: Record<string, unknown>[] = [
+    { employeeId: { not: null } },
+    { type: type ? type : { in: dayTypes } },
+    status ? { status } : { status: { not: "REJECTED" } },
+    range
+      ? { OR: [{ startDate: range }, { startDate: null, postedOn: range }] }
+      : { startDate: { gte: yearStart } },
+  ];
+  if (q) {
+    conditions.push({
+      OR: [
+        { creatorName: { contains: q, mode: "insensitive" } },
+        { employee: { name: { contains: q, mode: "insensitive" } } },
+        { message: { contains: q, mode: "insensitive" } },
+      ],
+    });
+  }
+  return conditions;
+}
+
+/** "in 2026", "in March 2026", "on 12 Mar 2026" — the period the leaderboard covers. */
+export function leaveTotalsPeriod(
+  { day, month, year }: { day?: number; month?: number; year?: number },
+  now: Date = new Date(),
+): string {
+  const y = year ?? now.getUTCFullYear();
+  if (!day && !month) return `in ${y}`;
+  const m = month ?? now.getUTCMonth() + 1;
+  const date = new Date(Date.UTC(y, m - 1, day ?? 1));
+  if (!day) {
+    return `in ${date.toLocaleString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" })}`;
+  }
+  return `on ${date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
+}
