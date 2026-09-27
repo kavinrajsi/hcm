@@ -34,7 +34,11 @@ const optionalTrimmed = z
 const employeeSchema = z.object({
   empId: z.string().trim().min(1, "Employee ID is required"),
   name: z.string().trim().min(1, "Name is required"),
-  gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
+  // The form's "—" option posts "" — treat it as not set.
+  gender: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
+  ),
   dateOfBirth: optionalTrimmed,
   bloodGroup: optionalTrimmed,
   tshirtSize: optionalTrimmed,
