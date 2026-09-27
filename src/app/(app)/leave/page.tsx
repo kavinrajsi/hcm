@@ -4,8 +4,12 @@ import { requireRole } from "@/lib/rbac";
 import { basecampConfigured, getAccessToken } from "@/lib/basecamp";
 import { datePartsToRange, parseTableParams } from "@/lib/table-params";
 import {
+  LEAVE_STATUSES,
+  LEAVE_STATUS_CLASSES,
+  LEAVE_STATUS_LABELS,
   LEAVE_TYPES,
   LEAVE_TYPE_LABELS,
+  type LeaveStatusValue,
   type LeaveTypeValue,
 } from "@/lib/leave";
 import { TableFilters } from "@/components/data-table/filters";
@@ -58,20 +62,10 @@ const TYPE_OPTIONS = [
   { value: "UNMATCHED", label: "No employee match" },
 ];
 
-const STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const;
-type Status = (typeof STATUSES)[number];
-const STATUS_LABELS: Record<Status, string> = {
-  PENDING: "Pending",
-  APPROVED: "Approved",
-  REJECTED: "Rejected",
-};
-const STATUS_CLASSES: Record<Status, string> = {
-  PENDING:
-    "bg-amber-100 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200",
-  APPROVED:
-    "bg-emerald-100 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-200",
-  REJECTED: "bg-rose-100 text-rose-900 dark:bg-rose-500/20 dark:text-rose-200",
-};
+const STATUSES = LEAVE_STATUSES;
+type Status = LeaveStatusValue;
+const STATUS_LABELS = LEAVE_STATUS_LABELS;
+const STATUS_CLASSES = LEAVE_STATUS_CLASSES;
 
 function day(d: Date | null): string {
   return d ? d.toISOString().slice(0, 10) : "";
