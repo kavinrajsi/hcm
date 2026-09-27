@@ -267,23 +267,24 @@ export async function classifyPending(
       continue;
     }
 
-    await db.$transaction(
-      results.map((r) => {
-        const startDate = toDate(r.startDate);
-        return db.leaveEntry.update({
-          where: { id: r.id },
-          data: {
-            type: r.type,
-            startDate,
-            endDate: toDate(r.endDate) ?? startDate,
-            days: Math.max(0, Math.min(r.days, 99)),
-            reason: r.reason || null,
-            classifiedBy: "ai",
-          },
-        });
-      }),
-    );
-    classified += results.length;
+    // One update per row, no transaction: rows are independent, and a batch
+    // of 40 in one transaction can outlast Prisma's 5s transaction timeout.
+    // `type: null` skips rows HR corrected while the request was running.
+    for (const r of results) {
+      const startDate = toDate(r.startDate);
+      const { count } = await db.leaveEntry.updateMany({
+        where: { id: r.id, type: null },
+        data: {
+          type: r.type,
+          startDate,
+          endDate: toDate(r.endDate) ?? startDate,
+          days: Math.max(0, Math.min(r.days, 99)),
+          reason: r.reason || null,
+          classifiedBy: "ai",
+        },
+      });
+      classified += count;
+    }
     i += BATCH_SIZE;
   }
   return classified;
