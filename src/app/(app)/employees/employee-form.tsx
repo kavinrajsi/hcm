@@ -84,6 +84,7 @@ export function EmployeeForm({
   masks = {},
   managers = [],
   submitLabel,
+  hidden = {},
 }: {
   action: (
     prev: EmployeeFormState,
@@ -93,6 +94,8 @@ export function EmployeeForm({
   masks?: SensitiveMasks;
   managers?: { id: string; name: string; empId: string }[];
   submitLabel: string;
+  /** Extra hidden fields posted with the form (e.g. candidateId). */
+  hidden?: Record<string, string>;
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [isFresher, setIsFresher] = useState(defaults.isFresher ?? true);
@@ -103,6 +106,9 @@ export function EmployeeForm({
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
+      {Object.entries(hidden).map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
+      ))}
       <Section title="Identity">
         <Field label="Employee ID" name="empId" error={errors.empId}>
           <Input id="empId" name="empId" defaultValue={defaults.empId} required />

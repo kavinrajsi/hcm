@@ -272,3 +272,15 @@ export async function getCandidateHistory(
     by: r.changedBy?.name ?? r.changedBy?.email ?? null,
   }));
 }
+
+/** The employee a candidate was converted to, if any (details drawer). */
+export async function getConvertedEmployee(
+  candidateId: string,
+): Promise<{ id: string; empId: string; name: string } | null> {
+  await requireRole("HR_ADMIN");
+  const id = BigInt(z.string().regex(/^\d+$/).parse(candidateId));
+  return db.employee.findUnique({
+    where: { candidateId: id },
+    select: { id: true, empId: true, name: true },
+  });
+}

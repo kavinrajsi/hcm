@@ -9,6 +9,7 @@ import { blindIndex, encryptField, normalizeIdentifier } from "@/lib/crypto";
 import { uploadDocument } from "@/lib/blob";
 import { encryptPii } from "@/lib/employee-pii";
 import { provisionLogin } from "@/lib/logins";
+import { appendNote } from "../candidates/notes";
 import {
   cell,
   collectRows,
@@ -220,6 +221,19 @@ export async function createEmployee(
   const duplicate = await findDuplicate(data);
   if (duplicate) return { error: duplicate };
 
+  // Converting a candidate (Candidates → Convert to employee).
+  const rawCandidateId = formData.get("candidateId");
+  const candidateId =
+    typeof rawCandidateId === "string" && /^\d+$/.test(rawCandidateId)
+      ? BigInt(rawCandidateId)
+      : undefined;
+  if (
+    candidateId !== undefined &&
+    (await db.employee.findUnique({ where: { candidateId }, select: { id: true } }))
+  ) {
+    return { error: "This candidate has already been converted to an employee" };
+  }
+
   let blobKeys;
   try {
     blobKeys = await uploadFiles(data.empId, formData);
@@ -248,6 +262,7 @@ export async function createEmployee(
       isFresher: data.isFresher,
       linkedinId: data.isFresher ? undefined : data.linkedinId,
       managerId: data.managerId,
+      candidateId,
       ...sensitiveColumns(data),
       ...encryptPii(piiInput(data)),
       ...blobKeys,
@@ -272,6 +287,29 @@ export async function createEmployee(
         : {}),
     },
   });
+
+  if (candidateId !== undefined) {
+    // Leave a trail on the candidate (notes are shared with the website).
+    try {
+      const candidate = await db.candidate.findUnique({
+        where: { id: candidateId },
+        select: { notes: true },
+      });
+      if (candidate) {
+        await db.candidate.update({
+          where: { id: candidateId },
+          data: {
+            notes: appendNote(
+              candidate.notes,
+              `Converted to employee ${employee.empId}`,
+            ),
+          },
+        });
+      }
+    } catch (e) {
+      console.error("[employees] candidate note failed", e);
+    }
+  }
 
   // Every new joiner gets an Employee login; the set-password link is
   // emailed, and HR can copy a fresh one from the employee page.

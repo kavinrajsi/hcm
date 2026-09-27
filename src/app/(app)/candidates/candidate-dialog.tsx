@@ -35,6 +35,7 @@ import {
 } from "@/components/icons";
 import type { CandidateNote } from "./notes";
 import { StatusHistory } from "./status-history";
+import { ConvertToEmployee } from "./convert-to-employee";
 import { CANDIDATE_STATUSES } from "./statuses";
 
 export type CandidateDetail = {
@@ -217,6 +218,11 @@ export function CandidateDialog({
         </SheetHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+          <ConvertToEmployee
+            key={`${candidate.id}-${candidate.status}`}
+            candidateId={candidate.id}
+            status={candidate.status}
+          />
           <dl className="grid grid-cols-[8.5rem_1fr] gap-x-3 gap-y-1.5 text-sm">
             <Row icon={MailIcon} label="Email">
               {candidate.email && (

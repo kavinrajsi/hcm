@@ -181,6 +181,10 @@ model Employee {
   relievingLetterBlobKey  String?
   linkedinId              String?
 
+  // Candidate this employee was converted from (candidates.id). No foreign
+  // key: the candidates table belongs to the website.
+  candidateId BigInt? @unique
+
   // Manager for team-scoped views (MANAGER role sees direct reports)
   manager   Employee?  @relation("Reports", fields: [managerId], references: [id])
   managerId String?
