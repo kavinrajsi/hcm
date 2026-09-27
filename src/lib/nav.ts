@@ -37,13 +37,18 @@ export const NAV: NavGroup[] = [
     items: [
       { title: "Leave", url: "/leave", roles: HR_OR_MANAGER },
       { title: "Quantum", url: "/quantum", roles: HR_OR_MANAGER },
+      { title: "Freelancers", url: "/freelancers", roles: HR_OR_MANAGER },
+    ],
+  },
+  {
+    title: "Learning",
+    items: [
       { title: "Sessions", url: "/sessions" },
       {
         title: "Session Attendance",
         url: "/sessions/attended",
         roles: HR_OR_MANAGER,
       },
-      { title: "Freelancers", url: "/freelancers", roles: HR_OR_MANAGER },
     ],
   },
   {
