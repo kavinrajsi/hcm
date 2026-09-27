@@ -1,6 +1,6 @@
 import { appUrl, escapeHtml, renderEmail } from "@/lib/email-template";
 
-// Subject + HTML for every email HRM sends. Keep wording here so it can be
+// Subject + HTML for every email HCM sends. Keep wording here so it can be
 // reviewed in one place; senders only pass data in.
 
 export type Email = { subject: string; html: string };
@@ -25,11 +25,11 @@ export function inviteEmail({
 }): Email {
   const hello = name ? `Hi ${escapeHtml(name.split(" ")[0])},` : "Hi,";
   return {
-    subject: "Your HRM account is ready — set your password",
+    subject: "Your HCM account is ready — set your password",
     html: renderEmail({
-      preheader: "Set your password to sign in to HRM.",
-      heading: "Welcome to HRM",
-      body: `${hello}<br><br>An HRM account has been created for you. Use it to see your profile, leave and documents.<br><br>Your sign-in email is <strong>${escapeHtml(email)}</strong>. Choose a password to get started.`,
+      preheader: "Set your password to sign in to HCM.",
+      heading: "Welcome to HCM",
+      body: `${hello}<br><br>An HCM account has been created for you. Use it to see your profile, leave and documents.<br><br>Your sign-in email is <strong>${escapeHtml(email)}</strong>. Choose a password to get started.`,
       button: { label: "Set your password", url: link },
       footnote:
         "This link works once and expires in 7 days. If it expires, ask HR for a new one.",
@@ -40,11 +40,11 @@ export function inviteEmail({
 /** Forgot password, or HR's "New password link" for an active account. */
 export function resetEmail({ link }: { link: string }): Email {
   return {
-    subject: "Reset your HRM password",
+    subject: "Reset your HCM password",
     html: renderEmail({
-      preheader: "Use this link to choose a new HRM password.",
+      preheader: "Use this link to choose a new HCM password.",
       heading: "Reset your password",
-      body: "We received a request to reset the password for your HRM account.",
+      body: "We received a request to reset the password for your HCM account.",
       button: { label: "Choose a new password", url: link },
       footnote:
         "This link works once and expires in 1 hour. If you didn't ask for this, you can ignore this email — your password won't change.",

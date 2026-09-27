@@ -1,11 +1,11 @@
 import type { MetadataRoute } from "next";
 
-// Makes HRM installable ("Add to Home Screen") and open full-screen.
+// Makes HCM installable ("Add to Home Screen") and open full-screen.
 // No service worker: the app needs the network, offline isn't a goal.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "HRM · Internal HR",
-    short_name: "HRM",
+    name: "HCM · Internal HR",
+    short_name: "HCM",
     description: "Internal HR management tool",
     start_url: "/",
     scope: "/",

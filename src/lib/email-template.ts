@@ -1,8 +1,8 @@
-// One branded, mobile-friendly layout for every email HRM sends. Table-based
+// One branded, mobile-friendly layout for every email HCM sends. Table-based
 // with inline styles because many mail clients ignore <style> blocks.
 // Interpolate user data through escapeHtml; `html` parts are trusted markup.
 
-const BRAND = "HRM · Madarth";
+const BRAND = "HCM · Madarth";
 
 export function escapeHtml(value: string): string {
   return value
@@ -69,7 +69,7 @@ export function renderEmail({
         </table>
       </td></tr>
       <tr><td style="padding:16px 4px;font-size:12px;line-height:18px;color:#a1a1aa">
-        Sent by HRM, Madarth's internal HR system. This is an automated message — replies aren't monitored.
+        Sent by HCM, Madarth's internal HR system. This is an automated message — replies aren't monitored.
       </td></tr>
     </table>
   </td></tr>

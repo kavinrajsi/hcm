@@ -12,7 +12,7 @@ beforeEach(() => {
   );
   process.env.ZEPTOMAIL_TOKEN = "Zoho-enczapikey abc123";
   delete process.env.ZEPTOMAIL_API_URL;
-  process.env.EMAIL_FROM = "HRM <noreply@madarth.com>";
+  process.env.EMAIL_FROM = "HCM <noreply@madarth.com>";
 });
 
 afterEach(() => {
@@ -27,8 +27,8 @@ function sentBody() {
 
 describe("parseSender", () => {
   it("splits 'Name <address>'", () => {
-    expect(parseSender("HRM <noreply@madarth.com>")).toEqual({
-      name: "HRM",
+    expect(parseSender("HCM <noreply@madarth.com>")).toEqual({
+      name: "HCM",
       address: "noreply@madarth.com",
     });
   });
@@ -63,7 +63,7 @@ describe("sendEmail (ZeptoMail)", () => {
     expect(init.method).toBe("POST");
     expect(init.headers.Authorization).toBe("Zoho-enczapikey abc123");
     expect(sentBody()).toEqual({
-      from: { address: "noreply@madarth.com", name: "HRM" },
+      from: { address: "noreply@madarth.com", name: "HCM" },
       to: [
         { email_address: { address: "a@x.com" } },
         { email_address: { address: "b@x.com" } },

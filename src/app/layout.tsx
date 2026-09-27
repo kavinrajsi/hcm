@@ -15,14 +15,14 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "HRM",
-    template: "%s · HRM",
+    default: "HCM",
+    template: "%s · HCM",
   },
   description: "Internal HR management tool",
-  applicationName: "HRM",
+  applicationName: "HCM",
   appleWebApp: {
     capable: true,
-    title: "HRM",
+    title: "HCM",
     statusBarStyle: "default",
   },
 };

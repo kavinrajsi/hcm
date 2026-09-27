@@ -138,7 +138,7 @@ async function api<T>(
   const res = await fetch(`https://3.basecampapi.com/${accountId}${path}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      "User-Agent": "HRM Quantum Sheet (internal)",
+      "User-Agent": "HCM Quantum Sheet (internal)",
     },
   });
   if (!res.ok) throw new Error(`Basecamp API ${path} failed: ${res.status}`);
@@ -231,7 +231,7 @@ export async function listCheckinAnswers(
     const res: Response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        "User-Agent": "HRM Leave Sync (internal)",
+        "User-Agent": "HCM Leave Sync (internal)",
       },
     });
     if (res.status === 429) {

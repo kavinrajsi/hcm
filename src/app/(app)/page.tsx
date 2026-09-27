@@ -78,7 +78,7 @@ export default async function Home() {
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 min-w-0 px-4 py-5 md:px-6 md:py-10">
-      <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">HRM</h1>
+      <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">HCM</h1>
       <p className="mt-2 text-zinc-600 dark:text-zinc-400">
         Signed in as {user.email} · {user.role.replace("_", " ")}
       </p>

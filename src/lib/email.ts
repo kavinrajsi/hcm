@@ -7,10 +7,10 @@
 //   ZEPTOMAIL_TOKEN    Send Mail token ("Zoho-enczapikey …"; the prefix is
 //                      added if you paste only the key)
 //   ZEPTOMAIL_API_URL  optional, defaults to the Zoho endpoint below
-//   EMAIL_FROM         sender, e.g. "HRM <noreply@madarth.com>"
+//   EMAIL_FROM         sender, e.g. "HCM <noreply@madarth.com>"
 
 const DEFAULT_API_URL = "https://cpaas.zoho.com/v1.1/email";
-const DEFAULT_FROM = "HRM <noreply@madarth.com>";
+const DEFAULT_FROM = "HCM <noreply@madarth.com>";
 
 const MIME_TYPES: Record<string, string> = {
   pdf: "application/pdf",

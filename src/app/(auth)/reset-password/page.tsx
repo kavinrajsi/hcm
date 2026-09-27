@@ -17,7 +17,7 @@ export default async function ResetPasswordPage({
         </h1>
         {isInvite && (
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Welcome to HRM. Choose a password to finish setting up your
+            Welcome to HCM. Choose a password to finish setting up your
             account.
           </p>
         )}

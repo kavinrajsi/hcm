@@ -69,7 +69,7 @@ describe("sendLetter", () => {
     expect(mail.to).toBe("asha@madarth.com");
     expect(mail.subject).toBe("Revised compensation");
     expect(mail.html).toContain("<p>Dear Asha</p>");
-    expect(mail.html).toContain("HRM · Madarth");
+    expect(mail.html).toContain("HCM · Madarth");
     expect(db.letter.create.mock.calls[0][0].data.sentTo).toBe(
       "asha@madarth.com",
     );

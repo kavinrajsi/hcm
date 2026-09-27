@@ -26,7 +26,7 @@ describe("renderEmail", () => {
     });
     expect(html).toContain('href="https://app/x?a=1&amp;b=2"');
     expect(html).toContain("Button not working?");
-    expect(html).toContain("HRM · Madarth");
+    expect(html).toContain("HCM · Madarth");
   });
 });
 
@@ -57,7 +57,7 @@ describe("inviteEmail", () => {
 describe("resetEmail", () => {
   it("says the link expires in 1 hour", () => {
     const e = resetEmail({ link: "https://app/reset-password?token=t" });
-    expect(e.subject).toBe("Reset your HRM password");
+    expect(e.subject).toBe("Reset your HCM password");
     expect(e.html).toContain("expires in 1 hour");
   });
 });
