@@ -9,6 +9,7 @@ const MODEL = process.env.LEAVE_AI_MODEL ?? "google/gemini-2.5-flash-lite";
 
 export type LeavePost = {
   id: string;
+  checkin: "leave" | "wfh"; // which check-in it was posted in
   postedOn: string; // YYYY-MM-DD check-in day
   postedAt: string; // ISO timestamp
   message: string;
@@ -31,7 +32,8 @@ const resultSchema = z.object({
 
 export type LeaveClassification = z.infer<typeof resultSchema>["items"][number];
 
-const SYSTEM = `You classify posts from an Indian company's "Post your leave here" check-in.
+const SYSTEM = `You classify posts from an Indian company's Basecamp check-ins:
+"Post your leave here" (checkin "leave") and "Post your WFH here" (checkin "wfh").
 Timezone Asia/Kolkata. Work week Monday–Friday.
 Types:
 - FULL_DAY: not working one or more whole days (leave, sick, day off, not available today).
@@ -40,6 +42,8 @@ Types:
 - EARLY_LOGOUT: leaving early, logging out early, hard stop.
 - WFH: working from home / remote.
 - OTHER: anything else (announcements, greetings, unclear).
+Posts in the "wfh" check-in are WFH unless the text clearly says otherwise
+(e.g. taking leave, or leaving early and not working the rest of the day).
 Someone who says they are unavailable, at a hospital, or caring for family, without
 saying they will join later, is FULL_DAY.
 Resolve relative dates ("today", "tomorrow", "Monday", "6th Oct") against the post's

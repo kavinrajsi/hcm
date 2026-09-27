@@ -1,14 +1,14 @@
 import { timingSafeEqual } from "node:crypto";
 import { after, type NextRequest } from "next/server";
-import { leaveCheckinConfig } from "@/lib/basecamp";
+import { checkinKind, leaveCheckinConfig } from "@/lib/basecamp";
 import {
   classifyPending,
   leaveSyncUserId,
   syncOneAnswer,
 } from "@/lib/leave-sync";
 
-// Basecamp webhook for the "Post your leave here" check-in: a new or edited
-// answer lands on the Leave page within seconds instead of at the next daily
+// Basecamp webhook for the "Post your leave here" and "Post your WFH here"
+// check-ins: a new or edited answer lands on the Leave page within seconds instead of at the next daily
 // sync. Basecamp doesn't sign webhooks, so the payload URL carries a secret
 // (?token=BASECAMP_WEBHOOK_SECRET) and the answer itself is re-fetched from
 // the API rather than trusted. Registered by scripts/register-leave-webhook.ts.
@@ -50,14 +50,14 @@ export async function POST(req: NextRequest) {
 
   const payload = (await req.json().catch(() => null)) as Payload | null;
   const rec = payload?.recording;
-  const { bucketId, questionId } = leaveCheckinConfig();
+  const { bucketId } = leaveCheckinConfig();
   const relevant =
     payload?.kind &&
     UPSERT_KINDS.has(payload.kind) &&
     rec?.type === "Question::Answer" &&
     rec.id &&
     String(rec.bucket?.id) === bucketId &&
-    String(rec.parent?.id) === questionId;
+    checkinKind(rec.parent?.id) !== null;
   // Anything else is acknowledged, so Basecamp doesn't retry or deactivate.
   if (!relevant) return Response.json({ ignored: true });
 

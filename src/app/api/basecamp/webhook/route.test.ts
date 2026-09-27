@@ -18,7 +18,7 @@ vi.mock("next/server", async (importOriginal) => ({
 
 const { POST } = await import("./route");
 
-// Default leave check-in: bucket 1710547, question 2113472792.
+// Default leave check-in: bucket 1710547, question 2113472792 (WFH: 7274378266).
 const answerEvent = (kind = "question_answer_created", overrides = {}) => ({
   kind,
   recording: {
@@ -68,6 +68,14 @@ describe("Basecamp leave webhook", () => {
     expect(await res.json()).toEqual({ created: 1, updated: 0 });
     expect(syncOneAnswer).toHaveBeenCalledWith("hr1", "555");
     expect(after).toHaveBeenCalledOnce();
+  });
+
+  it("ingests answers from the WFH check-in", async () => {
+    const res = await call(
+      answerEvent("question_answer_created", { parent: { id: 7274378266 } }),
+    );
+    expect(res.status).toBe(200);
+    expect(syncOneAnswer).toHaveBeenCalledWith("hr1", "555");
   });
 
   it("handles edits too", async () => {

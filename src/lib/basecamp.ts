@@ -187,19 +187,41 @@ export async function listProjectTodos(
   return todos;
 }
 
-// --- Leave check-in ("Post your leave here") ---
+// --- Leave check-ins ("Post your leave here", "Post your WFH here") ---
+
+/** Which check-in a post came from; stored on LeaveEntry.checkin. */
+export type CheckinKind = "leave" | "wfh";
 
 export function leaveCheckinConfig(): {
   accountId: string;
   bucketId: string;
   questionId: string;
+  wfhQuestionId: string;
 } {
   return {
     // Fixed account — the HR admin's login may belong to several accounts.
     accountId: process.env.BASECAMP_LEAVE_ACCOUNT_ID ?? "3251537",
     bucketId: process.env.BASECAMP_LEAVE_BUCKET_ID ?? "1710547",
     questionId: process.env.BASECAMP_LEAVE_QUESTION_ID ?? "2113472792",
+    wfhQuestionId: process.env.BASECAMP_WFH_QUESTION_ID ?? "7274378266",
   };
+}
+
+/** The synced check-ins, keyed by kind. */
+export function syncedCheckins(): { kind: CheckinKind; questionId: string }[] {
+  const { questionId, wfhQuestionId } = leaveCheckinConfig();
+  return [
+    { kind: "leave", questionId },
+    { kind: "wfh", questionId: wfhQuestionId },
+  ];
+}
+
+/** The kind of a synced check-in question, or null for any other question. */
+export function checkinKind(questionId: string | number | undefined) {
+  return (
+    syncedCheckins().find((c) => c.questionId === String(questionId))?.kind ??
+    null
+  );
 }
 
 export type BasecampAnswer = {
@@ -270,7 +292,8 @@ export type BasecampWebhook = {
 };
 
 /**
- * Registers a webhook for check-in answers on the leave project, unless one
+ * Registers a webhook for check-in answers on the leave project (covers both
+ * the leave and WFH check-ins), unless one
  * already points at `payloadUrl` (compared without the query string, so a
  * rotated secret replaces the old hook instead of adding a second one).
  */

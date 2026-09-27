@@ -1,5 +1,5 @@
 // One-time (idempotent) setup: tells Basecamp to call HCM whenever someone
-// answers the "Post your leave here" check-in, so leave posts show up within
+// answers the leave or WFH check-in, so leave posts show up within
 // seconds. Re-run after rotating BASECAMP_WEBHOOK_SECRET.
 //
 //   BASECAMP_WEBHOOK_SECRET=… npx tsx scripts/register-leave-webhook.ts https://connect.madarth.com

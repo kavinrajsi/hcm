@@ -343,8 +343,9 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
         title="Leave"
         description={
           <>
-            Imported from the Basecamp &ldquo;Post your leave here&rdquo;
-            check-in and classified automatically. Use the pencil icon to correct an entry.
+            Imported from the Basecamp &ldquo;Post your leave here&rdquo; and
+            &ldquo;Post your WFH here&rdquo; check-ins and classified
+            automatically. Use the pencil icon to correct an entry.
           </>
         }
         actions={isHr && connected ? <LeaveSyncButton /> : undefined}

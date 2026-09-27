@@ -1,18 +1,21 @@
 import { db } from "@/lib/db";
 import { readPii } from "@/lib/employee-pii";
 import {
+  checkinKind,
   getAccessToken,
   getCheckinAnswer,
   leaveCheckinConfig,
   listCheckinAnswers,
+  syncedCheckins,
   type BasecampAnswer,
+  type CheckinKind,
 } from "@/lib/basecamp";
 import { buildEmailIndex, htmlToText } from "@/lib/leave";
 import { classifyLeavePosts } from "@/lib/leave-classify";
 
-// Pulls the Basecamp leave check-in into LeaveEntry and AI-classifies new
-// rows. First run imports full history; later runs re-read the last 14 days
-// (catches edits and late posts). Classification is capped per run so a run
+// Pulls the Basecamp leave and WFH check-ins into LeaveEntry and
+// AI-classifies new rows. A check-in's first run imports its full history;
+// later runs re-read the last 14 days (catches edits and late posts). Classification is capped per run so a run
 // fits the function time limit — the rest is picked up next run.
 
 const RESYNC_DAYS = 14;
@@ -39,25 +42,31 @@ export async function syncLeaveFromBasecamp(
   const auth = await getAccessToken(userId);
   if (!auth) throw new Error("Basecamp not connected — connect it first");
 
-  const hasRows = (await db.leaveEntry.count()) > 0;
-  const sinceDay = hasRows
-    ? new Date(Date.now() - RESYNC_DAYS * 86_400_000).toISOString().slice(0, 10)
-    : undefined;
-
-  const { accountId, bucketId, questionId } = leaveCheckinConfig();
-  const answers = await listCheckinAnswers(
-    auth.accessToken,
-    accountId,
-    bucketId,
-    questionId,
-    sinceDay,
-  );
-
-  const { created, updated } = await ingestAnswers(answers);
+  const { accountId, bucketId } = leaveCheckinConfig();
+  const recent = new Date(Date.now() - RESYNC_DAYS * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  let fetched = 0;
+  let created = 0;
+  let updated = 0;
+  for (const { kind, questionId } of syncedCheckins()) {
+    const hasRows = (await db.leaveEntry.count({ where: { checkin: kind } })) > 0;
+    const answers = await listCheckinAnswers(
+      auth.accessToken,
+      accountId,
+      bucketId,
+      questionId,
+      hasRows ? recent : undefined,
+    );
+    const r = await ingestAnswers(answers, kind);
+    fetched += answers.length;
+    created += r.created;
+    updated += r.updated;
+  }
 
   const classified = await classifyPending(CLASSIFY_PER_RUN);
   const remaining = await db.leaveEntry.count({ where: { type: null } });
-  return { fetched: answers.length, created, updated, classified, remaining };
+  return { fetched, created, updated, classified, remaining };
 }
 
 /**
@@ -68,6 +77,7 @@ export async function syncLeaveFromBasecamp(
  */
 export async function ingestAnswers(
   answers: BasecampAnswer[],
+  checkin: CheckinKind,
 ): Promise<{ created: number; updated: number }> {
   // Personal emails are encrypted at rest; decrypt in memory for matching.
   const employees = (
@@ -106,6 +116,7 @@ export async function ingestAnswers(
     const email = a.creator.email_address?.toLowerCase() ?? "";
     const row = {
       employeeId: emailIndex.get(email) ?? null,
+      checkin,
       creatorName: a.creator.name,
       creatorEmail: email,
       postedOn: new Date(a.group_on),
@@ -167,7 +178,7 @@ export async function leaveSyncUserId(): Promise<string | null> {
 
 /**
  * Webhook path: fetch one answer from the API (never trust the payload),
- * make sure it belongs to the leave check-in, and ingest it.
+ * make sure it belongs to the leave or WFH check-in, and ingest it.
  */
 export async function syncOneAnswer(
   userId: string,
@@ -175,17 +186,18 @@ export async function syncOneAnswer(
 ): Promise<{ created: number; updated: number; skipped?: string }> {
   const auth = await getAccessToken(userId);
   if (!auth) throw new Error("Basecamp not connected");
-  const { accountId, bucketId, questionId } = leaveCheckinConfig();
+  const { accountId, bucketId } = leaveCheckinConfig();
   const answer = await getCheckinAnswer(
     auth.accessToken,
     accountId,
     bucketId,
     answerId,
   );
-  if (answer.parent && String(answer.parent.id) !== questionId) {
-    return { created: 0, updated: 0, skipped: "not the leave check-in" };
+  const kind = checkinKind(answer.parent?.id);
+  if (!kind) {
+    return { created: 0, updated: 0, skipped: "not a leave or WFH check-in" };
   }
-  return ingestAnswers([answer]);
+  return ingestAnswers([answer], kind);
 }
 
 /** ISO timestamp in Asia/Kolkata so "today"/"tomorrow" resolve correctly. */
@@ -213,7 +225,13 @@ export async function classifyPending(
     where: { type: null },
     orderBy: { postedOn: "desc" },
     take: limit,
-    select: { id: true, postedOn: true, postedAt: true, message: true },
+    select: {
+      id: true,
+      checkin: true,
+      postedOn: true,
+      postedAt: true,
+      message: true,
+    },
   });
 
   let classified = 0;
@@ -231,6 +249,7 @@ export async function classifyPending(
       results = await classifyLeavePosts(
         batch.map((p) => ({
           id: p.id,
+          checkin: p.checkin === "wfh" ? "wfh" : "leave",
           postedOn: p.postedOn.toISOString().slice(0, 10),
           postedAt: toIST(p.postedAt),
           message: p.message,

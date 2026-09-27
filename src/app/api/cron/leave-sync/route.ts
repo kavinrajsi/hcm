@@ -4,7 +4,7 @@ import { leaveSyncUserId, syncLeaveFromBasecamp } from "@/lib/leave-sync";
 
 export const maxDuration = 300;
 
-// Daily Vercel cron: syncs the Basecamp "Post your leave here" check-in.
+// Daily Vercel cron: syncs the Basecamp leave and WFH check-ins.
 // Uses the Basecamp token of the most recently connected HR admin.
 // Protected by CRON_SECRET (Vercel sends it as a Bearer token).
 export async function GET(req: NextRequest) {

@@ -384,12 +384,14 @@ model BasecampToken {
   updatedAt       DateTime @updatedAt
 }
 
-// Leave posts imported from the Basecamp "Post your leave here" check-in.
+// Leave posts imported from the Basecamp "Post your leave here" and
+// "Post your WFH here" check-ins.
 // Free-text answers are classified by AI; HR/managers can correct them
 // (classifiedBy = "manual"), which the sync never overwrites.
 model LeaveEntry {
   id           String      @id @default(cuid())
   basecampId   String      @unique // check-in answer id
+  checkin      String      @default("leave") // source check-in: "leave" | "wfh"
   employee     Employee?   @relation(fields: [employeeId], references: [id])
   employeeId   String? // null when the poster's email matches no employee
   creatorName  String
