@@ -1,7 +1,6 @@
 import type { NextRequest } from "next/server";
 import { isAuthorizedCron } from "@/lib/cron-auth";
-import { db } from "@/lib/db";
-import { syncLeaveFromBasecamp } from "@/lib/leave-sync";
+import { leaveSyncUserId, syncLeaveFromBasecamp } from "@/lib/leave-sync";
 
 export const maxDuration = 300;
 
@@ -13,22 +12,14 @@ export async function GET(req: NextRequest) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const hrUsers = await db.user.findMany({
-    where: { role: "HR_ADMIN" },
-    select: { id: true },
-  });
-  const token = await db.basecampToken.findFirst({
-    where: { userId: { in: hrUsers.map((u) => u.id) } },
-    orderBy: { updatedAt: "desc" },
-    select: { userId: true },
-  });
-  if (!token) {
+  const userId = await leaveSyncUserId();
+  if (!userId) {
     return Response.json(
       { error: "No HR admin has connected Basecamp" },
       { status: 503 },
     );
   }
 
-  const result = await syncLeaveFromBasecamp(token.userId);
+  const result = await syncLeaveFromBasecamp(userId);
   return Response.json(result);
 }

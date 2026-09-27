@@ -2,8 +2,10 @@ import { db } from "@/lib/db";
 import { readPii } from "@/lib/employee-pii";
 import {
   getAccessToken,
+  getCheckinAnswer,
   leaveCheckinConfig,
   listCheckinAnswers,
+  type BasecampAnswer,
 } from "@/lib/basecamp";
 import { buildEmailIndex, htmlToText } from "@/lib/leave";
 import { classifyLeavePosts } from "@/lib/leave-classify";
@@ -51,6 +53,22 @@ export async function syncLeaveFromBasecamp(
     sinceDay,
   );
 
+  const { created, updated } = await ingestAnswers(answers);
+
+  const classified = await classifyPending(CLASSIFY_PER_RUN);
+  const remaining = await db.leaveEntry.count({ where: { type: null } });
+  return { fetched: answers.length, created, updated, classified, remaining };
+}
+
+/**
+ * Saves Basecamp check-in answers as LeaveEntry rows: new posts are added,
+ * edited posts updated (and re-classified unless HR corrected them), and
+ * posters are matched to employees by work/personal email. Shared by the
+ * full sync and the webhook.
+ */
+export async function ingestAnswers(
+  answers: BasecampAnswer[],
+): Promise<{ created: number; updated: number }> {
   // Personal emails are encrypted at rest; decrypt in memory for matching.
   const employees = (
     await db.employee.findMany({
@@ -72,7 +90,12 @@ export async function syncLeaveFromBasecamp(
     (
       await db.leaveEntry.findMany({
         where: { basecampId: { in: answers.map((a) => String(a.id)) } },
-        select: { id: true, basecampId: true, message: true, classifiedBy: true },
+        select: {
+          id: true,
+          basecampId: true,
+          message: true,
+          classifiedBy: true,
+        },
       })
     ).map((e) => [e.basecampId, e]),
   );
@@ -122,9 +145,47 @@ export async function syncLeaveFromBasecamp(
     }
   }
 
-  const classified = await classifyPending(CLASSIFY_PER_RUN);
-  const remaining = await db.leaveEntry.count({ where: { type: null } });
-  return { fetched: answers.length, created, updated, classified, remaining };
+  return { created, updated };
+}
+
+/**
+ * The Basecamp connection the background jobs use: the most recently
+ * connected HR admin. Null when no HR admin has connected Basecamp.
+ */
+export async function leaveSyncUserId(): Promise<string | null> {
+  const hrUsers = await db.user.findMany({
+    where: { role: "HR_ADMIN", disabledAt: null },
+    select: { id: true },
+  });
+  const token = await db.basecampToken.findFirst({
+    where: { userId: { in: hrUsers.map((u) => u.id) } },
+    orderBy: { updatedAt: "desc" },
+    select: { userId: true },
+  });
+  return token?.userId ?? null;
+}
+
+/**
+ * Webhook path: fetch one answer from the API (never trust the payload),
+ * make sure it belongs to the leave check-in, and ingest it.
+ */
+export async function syncOneAnswer(
+  userId: string,
+  answerId: string,
+): Promise<{ created: number; updated: number; skipped?: string }> {
+  const auth = await getAccessToken(userId);
+  if (!auth) throw new Error("Basecamp not connected");
+  const { accountId, bucketId, questionId } = leaveCheckinConfig();
+  const answer = await getCheckinAnswer(
+    auth.accessToken,
+    accountId,
+    bucketId,
+    answerId,
+  );
+  if (answer.parent && String(answer.parent.id) !== questionId) {
+    return { created: 0, updated: 0, skipped: "not the leave check-in" };
+  }
+  return ingestAnswers([answer]);
 }
 
 /** ISO timestamp in Asia/Kolkata so "today"/"tomorrow" resolve correctly. */

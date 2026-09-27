@@ -247,3 +247,67 @@ export async function listCheckinAnswers(
   }
   return sinceDay ? answers.filter((a) => a.group_on >= sinceDay) : answers;
 }
+
+/** One check-in answer (webhook: re-fetch instead of trusting the payload). */
+export async function getCheckinAnswer(
+  accessToken: string,
+  accountId: string,
+  bucketId: string,
+  answerId: string,
+): Promise<BasecampAnswer & { parent?: { id: number } }> {
+  return api(
+    accessToken,
+    accountId,
+    `/buckets/${bucketId}/question_answers/${answerId}.json`,
+  );
+}
+
+export type BasecampWebhook = {
+  id: number;
+  active: boolean;
+  payload_url: string;
+  types: string[];
+};
+
+/**
+ * Registers a webhook for check-in answers on the leave project, unless one
+ * already points at `payloadUrl` (compared without the query string, so a
+ * rotated secret replaces the old hook instead of adding a second one).
+ */
+export async function ensureLeaveWebhook(
+  accessToken: string,
+  payloadUrl: string,
+): Promise<{ created: boolean; webhook: BasecampWebhook }> {
+  const { accountId, bucketId } = leaveCheckinConfig();
+  const base = `https://3.basecampapi.com/${accountId}/buckets/${bucketId}/webhooks`;
+  const headers = {
+    Authorization: `Bearer ${accessToken}`,
+    "User-Agent": "HCM Leave Sync (internal)",
+    "Content-Type": "application/json",
+  };
+  const list = (await (
+    await fetch(`${base}.json`, { headers })
+  ).json()) as BasecampWebhook[];
+  const path = (u: string) => u.split("?")[0];
+  const match = list.find((w) => path(w.payload_url) === path(payloadUrl));
+  if (match && match.payload_url === payloadUrl && match.active) {
+    return { created: false, webhook: match };
+  }
+  if (match) {
+    // Same endpoint, old secret or inactive: replace it.
+    await fetch(
+      `https://3.basecampapi.com/${accountId}/buckets/${bucketId}/webhooks/${match.id}.json`,
+      { method: "DELETE", headers },
+    );
+  }
+  const res = await fetch(`${base}.json`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      payload_url: payloadUrl,
+      types: ["Question::Answer"],
+    }),
+  });
+  if (!res.ok) throw new Error(`Webhook create failed: ${res.status}`);
+  return { created: true, webhook: (await res.json()) as BasecampWebhook };
+}
