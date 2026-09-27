@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
   if (!code) return new Response("Missing code", { status: 400 });
 
-  const token = await exchangeCode(code);
+  const token = await exchangeCode(code, req.nextUrl.origin);
   const accountId = await fetchAccountId(token.access_token);
   await saveToken(user.id, token, accountId);
 

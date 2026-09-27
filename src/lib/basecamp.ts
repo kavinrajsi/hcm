@@ -13,26 +13,30 @@ export function basecampConfigured(): boolean {
   );
 }
 
-function redirectUri(): string {
-  const base = process.env.AUTH_URL ?? "http://localhost:3000";
-  return `${base}/api/basecamp/callback`;
+/**
+ * OAuth callback on the host the user is on (connect and callback run on
+ * the same host, so both requests send the same redirect_uri). Each host
+ * used must be listed as a Redirect URI in the Basecamp integration.
+ */
+function redirectUri(origin: string): string {
+  return `${origin}/api/basecamp/callback`;
 }
 
-export function authorizeUrl(): string {
+export function authorizeUrl(origin: string): string {
   const params = new URLSearchParams({
     type: "web_server",
     client_id: process.env.BASECAMP_CLIENT_ID!,
-    redirect_uri: redirectUri(),
+    redirect_uri: redirectUri(origin),
   });
   return `${LAUNCHPAD}/authorization/new?${params}`;
 }
 
-export async function exchangeCode(code: string) {
+export async function exchangeCode(code: string, origin: string) {
   const params = new URLSearchParams({
     type: "web_server",
     client_id: process.env.BASECAMP_CLIENT_ID!,
     client_secret: process.env.BASECAMP_CLIENT_SECRET!,
-    redirect_uri: redirectUri(),
+    redirect_uri: redirectUri(origin),
     code,
   });
   const res = await fetch(`${LAUNCHPAD}/authorization/token?${params}`, {
