@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/rbac";
 import { decryptField, maskValue } from "@/lib/crypto";
+import { readPii } from "@/lib/employee-pii";
+import { EMPLOYEE_DOCUMENTS } from "@/lib/employee-documents";
 import {
   Table,
   TableBody,
@@ -68,6 +70,7 @@ export default async function MePage() {
   });
   const leaveDaysThisYear = Number(leaveAgg._sum.days ?? 0);
 
+  const pii = readPii(employee);
   const masked = {
     pan: employee.panEnc ? maskValue(decryptField(employee.panEnc)) : "—",
     aadhaar: employee.aadhaarEnc
@@ -117,6 +120,23 @@ export default async function MePage() {
             {masked.pan} · {masked.aadhaar} · {masked.bank}
           </dd>
         </div>
+        <div>
+          <dt className="text-zinc-500">Documents</dt>
+          <dd className="mt-0.5 flex flex-wrap gap-x-2 font-medium">
+            {EMPLOYEE_DOCUMENTS.filter(([key]) => employee[key]).map(
+              ([key, label]) => (
+                <a
+                  key={key}
+                  href={`/api/files/${employee[key]}`}
+                  className="underline underline-offset-4"
+                >
+                  {label}
+                </a>
+              ),
+            )}
+            {EMPLOYEE_DOCUMENTS.every(([key]) => !employee[key]) && "—"}
+          </dd>
+        </div>
       </dl>
 
       <h2 className="mt-10 text-lg font-medium">Contact info</h2>
@@ -124,10 +144,10 @@ export default async function MePage() {
         <ContactForm
           action={updateAction}
           defaults={{
-            phone: employee.phone ?? "",
-            personalEmail: employee.personalEmail ?? "",
-            emergencyContact: employee.emergencyContact ?? undefined,
-            address: employee.address ?? undefined,
+            phone: pii.phone ?? "",
+            personalEmail: pii.personalEmail ?? "",
+            emergencyContact: pii.emergencyContact ?? undefined,
+            address: pii.address ?? undefined,
             city: employee.city ?? undefined,
             state: employee.state ?? undefined,
             pincode: employee.pincode ?? undefined,
