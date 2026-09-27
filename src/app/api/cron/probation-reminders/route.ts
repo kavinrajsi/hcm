@@ -14,7 +14,10 @@ export async function GET(req: NextRequest) {
   soon.setDate(soon.getDate() + 14);
 
   const due = await db.probationRecord.findMany({
-    where: { status: { not: "CONFIRMED" }, dueDate: { lte: soon } },
+    where: {
+      status: { notIn: ["CONFIRMED", "EXITED"] },
+      dueDate: { lte: soon },
+    },
     include: { employee: { select: { empId: true, name: true } } },
     orderBy: { dueDate: "asc" },
   });

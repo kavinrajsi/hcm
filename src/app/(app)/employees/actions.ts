@@ -162,6 +162,13 @@ async function findDuplicate(
 // Default probation length; HR can extend from the probation module.
 const PROBATION_MONTHS = 6;
 
+/** Confirmation due date: PROBATION_MONTHS after `from`. */
+function probationDueFrom(from: Date): Date {
+  const due = new Date(from);
+  due.setUTCMonth(due.getUTCMonth() + PROBATION_MONTHS);
+  return due;
+}
+
 export async function createEmployee(
   _prev: EmployeeFormState,
   formData: FormData,
@@ -185,8 +192,7 @@ export async function createEmployee(
   }
 
   const joinDate = new Date(data.dateOfJoining);
-  const probationDue = new Date(joinDate);
-  probationDue.setUTCMonth(probationDue.getUTCMonth() + PROBATION_MONTHS);
+  const probationDue = probationDueFrom(joinDate);
 
   const employee = await db.employee.create({
     data: {
@@ -316,8 +322,7 @@ export async function importEmployees(
     }
 
     const joinDate = new Date(data.dateOfJoining);
-    const probationDue = new Date(joinDate);
-    probationDue.setUTCMonth(probationDue.getUTCMonth() + PROBATION_MONTHS);
+    const probationDue = probationDueFrom(joinDate);
 
     try {
       await db.employee.create({
@@ -447,6 +452,25 @@ export async function updateEmployee(
     Object.entries(sensitiveColumns(data)).filter(([, v]) => v !== undefined),
   );
 
+  // Switched to Probation after creation: open a probation record so they
+  // appear on /probation. Due 6 months after joining — or 6 months from
+  // today if that has already passed. An existing record is left as is.
+  const joinDate = new Date(data.dateOfJoining);
+  const hasProbation =
+    (await db.probationRecord.count({ where: { employeeId } })) > 0;
+  const today = new Date(new Date().toISOString().slice(0, 10));
+  const fromJoin = probationDueFrom(joinDate);
+  const openProbation =
+    data.empType === "PROBATION" && !hasProbation
+      ? {
+          probation: {
+            create: {
+              dueDate: fromJoin < today ? probationDueFrom(today) : fromJoin,
+            },
+          },
+        }
+      : {};
+
   await db.employee.update({
     where: { id: employeeId },
     data: {
@@ -466,7 +490,7 @@ export async function updateEmployee(
       pincode: data.pincode,
       department: data.department,
       designation: data.designation,
-      dateOfJoining: new Date(data.dateOfJoining),
+      dateOfJoining: joinDate,
       empType: data.empType,
       isFresher: data.isFresher,
       pfNumber: data.pfNumber,
@@ -476,10 +500,12 @@ export async function updateEmployee(
       managerId: data.managerId === employeeId ? null : (data.managerId ?? null),
       ...sensitive,
       ...blobKeys,
+      ...openProbation,
     },
   });
 
   revalidatePath("/employees");
   revalidatePath(`/employees/${employeeId}`);
+  revalidatePath("/probation");
   redirect(`/employees/${employeeId}`);
 }

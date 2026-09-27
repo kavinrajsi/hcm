@@ -29,7 +29,7 @@ export function ProbationRowActions({
 }) {
   const [extending, setExtending] = useState(false);
 
-  if (status === "CONFIRMED") return null;
+  if (status === "CONFIRMED" || status === "EXITED") return null;
 
   if (extending) {
     return (

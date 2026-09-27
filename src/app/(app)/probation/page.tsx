@@ -29,12 +29,14 @@ const STATUS_OPTIONS = [
   { value: "PENDING", label: "Pending" },
   { value: "CONFIRMED", label: "Confirmed" },
   { value: "EXTENDED", label: "Extended" },
+  { value: "EXITED", label: "Exited" },
 ];
 
 const badgeVariant = {
   PENDING: "secondary",
   CONFIRMED: "default",
   EXTENDED: "destructive",
+  EXITED: "outline",
 } as const;
 
 export default async function ProbationPage({
@@ -75,7 +77,10 @@ export default async function ProbationPage({
     }),
     db.probationRecord.count({ where }),
     db.probationRecord.count({
-      where: { dueDate: monthRange, status: { not: "CONFIRMED" } },
+      where: {
+        dueDate: monthRange,
+        status: { notIn: ["CONFIRMED", "EXITED"] },
+      },
     }),
   ]);
 
@@ -127,7 +132,8 @@ export default async function ProbationPage({
                 </>
               }
               actions={
-                r.status === "CONFIRMED" ? undefined : (
+                r.status === "CONFIRMED" ||
+                r.status === "EXITED" ? undefined : (
                   <ProbationRowActions id={r.id} status={r.status} />
                 )
               }

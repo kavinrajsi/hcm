@@ -47,7 +47,10 @@ export default async function Home() {
       where: { dateOfExit: { gte: monthStart, lt: monthEnd } },
     }),
     db.probationRecord.count({
-      where: { status: { not: "CONFIRMED" }, dueDate: { lt: monthEnd } },
+      where: {
+        status: { notIn: ["CONFIRMED", "EXITED"] },
+        dueDate: { lt: monthEnd },
+      },
     }),
     db.idCard.count({ where: { status: { notIn: ["ISSUED", "RETURNED"] } } }),
     db.trainingSession.count({ where: { date: { gte: now } } }),

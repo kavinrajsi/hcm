@@ -46,6 +46,7 @@ enum ProbationStatus {
   PENDING
   CONFIRMED
   EXTENDED
+  EXITED // set when the employee exits unconfirmed; undo exit reopens it
 }
 
 enum SessionMode {

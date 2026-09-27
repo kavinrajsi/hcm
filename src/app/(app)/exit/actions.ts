@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import { sendEmail } from "@/lib/email";
+import { ID_CARD_STATUS_VALUES } from "@/lib/id-card-status";
 
 const exitSchema = z.object({
   employeeId: z.string().min(1),
@@ -27,7 +28,7 @@ export async function markExit(
 
   const employee = await db.employee.findUnique({
     where: { id: parsed.data.employeeId },
-    include: { idCard: true },
+    include: { idCard: true, probation: true },
   });
   if (!employee) return { error: "Employee not found" };
   if (employee.dateOfExit) return { error: "Employee already marked as exited" };
@@ -55,6 +56,17 @@ export async function markExit(
           }),
         ]
       : []),
+    // An unconfirmed probation closes with the exit (undo exit reopens it).
+    ...(employee.probation &&
+    (employee.probation.status === "PENDING" ||
+      employee.probation.status === "EXTENDED")
+      ? [
+          db.probationRecord.update({
+            where: { id: employee.probation.id },
+            data: { status: "EXITED" },
+          }),
+        ]
+      : []),
   ]);
 
   await sendEmail({
@@ -65,19 +77,67 @@ export async function markExit(
 
   revalidatePath("/exit");
   revalidatePath("/id-cards");
+  revalidatePath("/probation");
   revalidatePath("/employees");
   return { ok: true };
 }
 
+/** Reverses markExit: clears the exit date and reopens what it closed. */
 export async function undoExit(formData: FormData) {
-  await requireRole("HR_ADMIN");
+  const user = await requireRole("HR_ADMIN");
   const employeeId = formData.get("employeeId");
   if (typeof employeeId !== "string") throw new Error("Missing employeeId");
 
-  await db.employee.update({
-    where: { id: employeeId },
-    data: { dateOfExit: null },
+  await db.$transaction(async (tx) => {
+    const employee = await tx.employee.update({
+      where: { id: employeeId },
+      data: { dateOfExit: null },
+      include: { idCard: true, probation: true },
+    });
+
+    // Probation closed by the exit goes back to where it was.
+    if (employee.probation?.status === "EXITED") {
+      await tx.probationRecord.update({
+        where: { id: employee.probation.id },
+        data: {
+          status: employee.probation.extendedTo ? "EXTENDED" : "PENDING",
+        },
+      });
+    }
+
+    // ID card still waiting to be returned: restore its pre-exit status from
+    // the history log (ISSUED if the exit predates the log). A card already
+    // returned stays returned.
+    const card = employee.idCard;
+    if (card?.status === "RETURN_PENDING") {
+      const flagged = await tx.idCardStatusChange.findFirst({
+        where: { idCardId: card.id, toStatus: "RETURN_PENDING" },
+        orderBy: { changedAt: "desc" },
+        select: { fromStatus: true },
+      });
+      const restored =
+        ID_CARD_STATUS_VALUES.find(
+          (s) => s === flagged?.fromStatus && s !== "RETURN_PENDING",
+        ) ?? "ISSUED";
+      await tx.idCard.update({
+        where: { id: card.id },
+        data: {
+          status: restored,
+          statusChanges: {
+            create: {
+              fromStatus: "RETURN_PENDING",
+              toStatus: restored,
+              changedById: user.id,
+            },
+          },
+        },
+      });
+    }
   });
+
   revalidatePath("/exit");
+  revalidatePath("/id-cards");
+  revalidatePath("/probation");
   revalidatePath("/employees");
+  revalidatePath(`/employees/${employeeId}`);
 }
