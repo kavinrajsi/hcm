@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
+import { inviteEmail, resetEmail } from "@/lib/emails";
 import { createPasswordLink, INVITE_TTL_MS } from "@/lib/password-links";
 import type { Role } from "@/generated/prisma/enums";
 
@@ -11,19 +12,22 @@ export type ProvisionResult =
   | { userId: string; link: string; emailed: boolean; email: string };
 
 /** Emails a set-password link; false when email isn't configured or fails. */
-export async function mailPasswordLink(
-  to: string,
-  link: string,
-  invite: boolean,
-): Promise<boolean> {
+export async function mailPasswordLink({
+  to,
+  link,
+  invite,
+  name,
+}: {
+  to: string;
+  link: string;
+  invite: boolean;
+  name?: string | null;
+}): Promise<boolean> {
   try {
-    const result = await sendEmail({
-      to,
-      subject: invite ? "Your HRM account" : "Reset your HRM password",
-      html: invite
-        ? `<p>An account has been created for you on HRM.</p><p><a href="${link}">Set your password</a> — the link expires in 7 days.</p>`
-        : `<p><a href="${link}">Set a new HRM password</a> — the link expires in 1 hour.</p>`,
-    });
+    const email = invite
+      ? inviteEmail({ name, email: to, link })
+      : resetEmail({ link });
+    const result = await sendEmail({ to, ...email });
     return !result.skipped;
   } catch (e) {
     console.error("[logins] email failed", e);
@@ -75,6 +79,11 @@ export async function provisionLogin({
     ttlMs: INVITE_TTL_MS,
     invite: true,
   });
-  const emailed = await mailPasswordLink(normalized, link, true);
+  const emailed = await mailPasswordLink({
+    to: normalized,
+    link,
+    invite: true,
+    name,
+  });
   return { userId: user.id, link, emailed, email: normalized };
 }

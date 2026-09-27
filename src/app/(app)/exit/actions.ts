@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import { sendEmail } from "@/lib/email";
+import { exitClearanceEmail } from "@/lib/emails";
 import { ID_CARD_STATUS_VALUES } from "@/lib/id-card-status";
 
 const exitSchema = z.object({
@@ -99,11 +100,19 @@ export async function markExit(
       : []),
   ]);
 
-  await sendEmail({
-    to: employee.workEmail,
-    subject: `Exit clearance — ${employee.name} (${employee.empId})`,
-    html: `<p>Exit recorded for <strong>${employee.name}</strong> (${employee.empId}) effective ${parsed.data.dateOfExit}.</p><p>Clearance checklist: return ID card, hand over assets, complete knowledge transfer.</p>`,
-  });
+  // The exit is saved; a failed email must not turn that into an error.
+  try {
+    await sendEmail({
+      to: employee.workEmail,
+      ...exitClearanceEmail({
+        name: employee.name,
+        empId: employee.empId,
+        dateOfExit: parsed.data.dateOfExit,
+      }),
+    });
+  } catch (e) {
+    console.error("[exit] clearance email failed", e);
+  }
 
   revalidatePath("/exit");
   revalidatePath("/id-cards");

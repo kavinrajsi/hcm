@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { sendEmail } from "@/lib/email";
+import { mailPasswordLink } from "@/lib/logins";
 import { createPasswordLink, RESET_TTL_MS } from "@/lib/password-links";
 
 export type ForgotFormState = { error?: string; ok?: boolean };
@@ -27,17 +27,14 @@ export async function requestPasswordReset(
 
   const resetUrl = await createPasswordLink(user.id, { ttlMs: RESET_TTL_MS });
 
-  const result = await sendEmail({
+  const emailed = await mailPasswordLink({
     to: email,
-    subject: "Reset your HRM password",
-    html: `
-      <p>Someone (hopefully you) requested a password reset for HRM.</p>
-      <p><a href="${resetUrl}">Set a new password</a> — the link expires in 1 hour.</p>
-      <p>If you didn't request this, you can ignore this email.</p>
-    `,
+    link: resetUrl,
+    invite: false,
   });
-  if (result.skipped) {
-    // Local/dev without ZEPTOMAIL_TOKEN: surface the link in server logs.
+  if (!emailed) {
+    // Local/dev without ZEPTOMAIL_TOKEN (or a send error): surface the link
+    // in server logs.
     console.log(`[password-reset] link for ${email}: ${resetUrl}`);
   }
 

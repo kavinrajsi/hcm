@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { PII_SELECT, readPii } from "@/lib/employee-pii";
 import { requireRole } from "@/lib/rbac";
 import { sendEmail } from "@/lib/email";
+import { letterEmail } from "@/lib/emails";
 import { fillTemplate, LETTER_TEMPLATES } from "@/lib/letter-templates";
 
 export type LetterFormState = {
@@ -97,11 +98,27 @@ export async function sendLetter(
       ? employee.workEmail
       : (readPii(employee).personalEmail ?? employee.workEmail);
 
-  const result = await sendEmail({
-    to,
-    subject: parsed.data.subject,
-    html: parsed.data.bodyHtml,
-  });
+  // Save the letter even if sending fails, so HR doesn't lose it.
+  let sent = false;
+  let sendError: string | undefined;
+  try {
+    const result = await sendEmail({
+      to,
+      ...letterEmail({
+        subject: parsed.data.subject,
+        bodyHtml: parsed.data.bodyHtml,
+      }),
+    });
+    sent = !result.skipped;
+    if (result.skipped) {
+      sendError =
+        "Letter saved, but not emailed — email isn't set up (ZEPTOMAIL_TOKEN).";
+    }
+  } catch (e) {
+    console.error("[letters] email failed", e);
+    sendError =
+      "Letter saved, but the email couldn't be sent. Try again later.";
+  }
 
   await db.letter.create({
     data: {
@@ -109,16 +126,14 @@ export async function sendLetter(
       type: parsed.data.type,
       subject: parsed.data.subject,
       bodyHtml: parsed.data.bodyHtml,
-      sentAt: result.skipped ? null : new Date(),
-      sentTo: result.skipped ? null : to,
+      sentAt: sent ? new Date() : null,
+      sentTo: sent ? to : null,
     },
   });
 
   revalidatePath("/letters");
   return {
     ok: true,
-    error: result.skipped
-      ? "Saved, but email not sent — ZEPTOMAIL_TOKEN is not configured"
-      : undefined,
+    error: sendError,
   };
 }

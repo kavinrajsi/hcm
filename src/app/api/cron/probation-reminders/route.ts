@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
+import { probationReminderEmail } from "@/lib/emails";
 
 // Daily Vercel cron: reminds HR of probation confirmations due within 14
 // days. Protected by CRON_SECRET (Vercel sends it as a Bearer token).
@@ -22,23 +23,32 @@ export async function GET(req: NextRequest) {
     orderBy: { dueDate: "asc" },
   });
 
+  let emailed = false;
   if (due.length > 0) {
+    // Active HR admins only — not disabled accounts.
     const hrAdmins = await db.user.findMany({
-      where: { role: "HR_ADMIN" },
+      where: { role: "HR_ADMIN", disabledAt: null },
       select: { email: true },
     });
-    const rows = due
-      .map(
-        (r) =>
-          `<li>${r.employee.name} (${r.employee.empId}) — due ${r.dueDate.toISOString().slice(0, 10)} [${r.status}]</li>`,
-      )
-      .join("");
-    await sendEmail({
-      to: hrAdmins.map((u) => u.email),
-      subject: `Probation confirmations due: ${due.length}`,
-      html: `<p>Probation confirmations due within 14 days:</p><ul>${rows}</ul>`,
-    });
+    if (hrAdmins.length > 0) {
+      try {
+        const result = await sendEmail({
+          to: hrAdmins.map((u) => u.email),
+          ...probationReminderEmail({
+            rows: due.map((r) => ({
+              name: r.employee.name,
+              empId: r.employee.empId,
+              dueDate: r.dueDate.toISOString(),
+              status: r.status,
+            })),
+          }),
+        });
+        emailed = !result.skipped;
+      } catch (e) {
+        console.error("[probation-reminders] email failed", e);
+      }
+    }
   }
 
-  return Response.json({ due: due.length });
+  return Response.json({ due: due.length, emailed });
 }

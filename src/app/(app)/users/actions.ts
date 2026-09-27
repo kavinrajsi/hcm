@@ -103,7 +103,7 @@ export async function newPasswordLink(userId: string): Promise<LinkState> {
   await requireRole("HR_ADMIN");
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { email: true, passwordHash: true },
+    select: { email: true, name: true, passwordHash: true },
   });
   if (!user) return { error: "User not found" };
   const invite = !user.passwordHash;
@@ -111,7 +111,12 @@ export async function newPasswordLink(userId: string): Promise<LinkState> {
     ttlMs: invite ? INVITE_TTL_MS : RESET_TTL_MS,
     invite,
   });
-  const emailed = await mailPasswordLink(user.email, link, invite);
+  const emailed = await mailPasswordLink({
+    to: user.email,
+    link,
+    invite,
+    name: user.name,
+  });
   return { link, emailed, email: user.email };
 }
 
@@ -164,4 +169,52 @@ export async function setUserDisabled(
   });
   revalidatePath("/users");
   return {};
+}
+
+export type BulkLoginResult = {
+  error?: string;
+  created?: number;
+  emailed?: number;
+  linked?: number;
+  failed?: string[]; // Emp IDs
+};
+
+/**
+ * Users & roles: an Employee login (and emailed invite) for every current
+ * employee who doesn't have one. One at a time so a failure only skips that
+ * person.
+ */
+export async function createLoginsForAll(): Promise<BulkLoginResult> {
+  await requireRole("HR_ADMIN");
+  const employees = await db.employee.findMany({
+    where: { userId: null, dateOfExit: null },
+    orderBy: { name: "asc" },
+    select: { id: true, empId: true, name: true, workEmail: true },
+  });
+
+  const result = { created: 0, emailed: 0, linked: 0, failed: [] as string[] };
+  for (const e of employees) {
+    try {
+      const r = await provisionLogin({
+        email: e.workEmail,
+        name: e.name,
+        role: "EMPLOYEE",
+        employeeId: e.id,
+      });
+      if ("error" in r) {
+        if (r.error.startsWith("Linked")) result.linked++;
+        else result.failed.push(e.empId);
+      } else {
+        result.created++;
+        if (r.emailed) result.emailed++;
+      }
+    } catch (err) {
+      console.error("[users] bulk login failed", e.empId, err);
+      result.failed.push(e.empId);
+    }
+  }
+
+  revalidatePath("/users");
+  revalidatePath("/employees");
+  return result;
 }
