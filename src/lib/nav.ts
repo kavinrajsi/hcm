@@ -51,6 +51,10 @@ export const NAV: NavGroup[] = [
       { title: "Reviews", url: "/reviews", roles: HR_OR_MANAGER },
     ],
   },
+  {
+    title: "Admin",
+    items: [{ title: "Users & roles", url: "/users", roles: HR }],
+  },
 ];
 
 export function canSee(item: NavItem, role: Role): boolean {

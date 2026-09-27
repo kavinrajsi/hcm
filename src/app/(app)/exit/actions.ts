@@ -33,6 +33,27 @@ export async function markExit(
   if (!employee) return { error: "Employee not found" };
   if (employee.dateOfExit) return { error: "Employee already marked as exited" };
 
+  // Exiting disables the linked login — never the last active HR admin's.
+  if (employee.userId) {
+    const login = await db.user.findUnique({
+      where: { id: employee.userId },
+      select: { role: true },
+    });
+    const otherAdmins = await db.user.count({
+      where: {
+        role: "HR_ADMIN",
+        disabledAt: null,
+        NOT: { id: employee.userId },
+      },
+    });
+    if (login?.role === "HR_ADMIN" && otherAdmins === 0) {
+      return {
+        error:
+          "This employee is the only HR admin. Make someone else HR admin (Users & roles) first.",
+      };
+    }
+  }
+
   await db.$transaction([
     db.employee.update({
       where: { id: employee.id },
@@ -53,6 +74,15 @@ export async function markExit(
                 },
               },
             },
+          }),
+        ]
+      : []),
+    // The leaver can no longer sign in (undo exit re-enables the login).
+    ...(employee.userId
+      ? [
+          db.user.update({
+            where: { id: employee.userId },
+            data: { disabledAt: new Date() },
           }),
         ]
       : []),
@@ -79,6 +109,7 @@ export async function markExit(
   revalidatePath("/id-cards");
   revalidatePath("/probation");
   revalidatePath("/employees");
+  revalidatePath("/users");
   return { ok: true };
 }
 
@@ -94,6 +125,13 @@ export async function undoExit(formData: FormData) {
       data: { dateOfExit: null },
       include: { idCard: true, probation: true },
     });
+
+    if (employee.userId) {
+      await tx.user.update({
+        where: { id: employee.userId },
+        data: { disabledAt: null },
+      });
+    }
 
     // Probation closed by the exit goes back to where it was.
     if (employee.probation?.status === "EXITED") {

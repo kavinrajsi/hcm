@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/rbac";
 import { AppSidebar, HeaderBreadcrumb } from "@/components/app-sidebar";
 import { AccountMenu } from "@/components/account-menu";
 import { MobileTabBar } from "@/components/mobile-nav";
@@ -17,13 +17,15 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
-  const email = session.user.email ?? "";
+  // Fresh from the DB: a disabled account is signed out, a role change
+  // updates the navigation straight away.
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const email = user.email;
 
   return (
     <SidebarProvider>
-      <AppSidebar role={session.user.role} />
+      <AppSidebar role={user.role} />
       <SidebarInset className="min-w-0 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
         <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-2 border-b bg-background/90 px-4 backdrop-blur-md md:static md:h-16 md:bg-background md:px-3 md:backdrop-blur-none">
           <div className="flex min-w-0 items-center gap-2">
@@ -52,7 +54,7 @@ export default async function AppLayout({
         </header>
         {children}
       </SidebarInset>
-      <MobileTabBar role={session.user.role} />
+      <MobileTabBar role={user.role} />
     </SidebarProvider>
   );
 }

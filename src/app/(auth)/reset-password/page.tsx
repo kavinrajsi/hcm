@@ -6,14 +6,21 @@ export const metadata = { title: "Reset password" };
 export default async function ResetPasswordPage({
   searchParams,
 }: PageProps<"/reset-password">) {
-  const { token } = await searchParams;
+  const { token, invite } = await searchParams;
+  const isInvite = invite === "1";
 
   return (
     <main className="flex flex-1 items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Reset password
+          {isInvite ? "Set your password" : "Reset password"}
         </h1>
+        {isInvite && (
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            Welcome to HRM. Choose a password to finish setting up your
+            account.
+          </p>
+        )}
         {typeof token === "string" && token ? (
           <div className="mt-8">
             <ResetForm token={token} />

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { auth, signIn } from "@/lib/auth";
+import { currentUser } from "@/lib/rbac";
+import { signIn } from "@/lib/auth";
 import { AuthError } from "next-auth";
 
 export const metadata = { title: "Sign in" };
@@ -21,8 +22,9 @@ async function credentialsSignIn(formData: FormData) {
 }
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
-  const session = await auth();
-  if (session?.user) redirect("/");
+  // Only an active account skips the login form; a disabled one keeps its
+  // cookie but must not bounce between here and the app.
+  if (await currentUser()) redirect("/");
   const { error } = await searchParams;
 
   const inputClass =

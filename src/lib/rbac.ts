@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/generated/prisma/enums";
@@ -15,16 +16,26 @@ export class AuthorizationError extends Error {
 
 export type SessionUser = { id: string; role: Role; email: string };
 
-export async function requireUser(): Promise<SessionUser> {
+/**
+ * The signed-in user as the database has them now — so a role change or a
+ * disabled account takes effect on the next request, not the next login.
+ * Null when signed out or disabled. Cached per request.
+ */
+export const currentUser = cache(async (): Promise<SessionUser | null> => {
   const session = await auth();
-  if (!session?.user?.id || !session.user.email) {
-    throw new AuthorizationError("Not signed in");
-  }
-  return {
-    id: session.user.id,
-    role: session.user.role,
-    email: session.user.email,
-  };
+  if (!session?.user?.id) return null;
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, role: true, email: true, disabledAt: true },
+  });
+  if (!user || user.disabledAt) return null;
+  return { id: user.id, role: user.role, email: user.email };
+});
+
+export async function requireUser(): Promise<SessionUser> {
+  const user = await currentUser();
+  if (!user) throw new AuthorizationError("Not signed in");
+  return user;
 }
 
 export async function requireRole(...roles: Role[]): Promise<SessionUser> {

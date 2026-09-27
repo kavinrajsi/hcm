@@ -31,8 +31,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = await db.user.findUnique({
           where: { email: email.toLowerCase() },
         });
-        // Only accounts provisioned with a password may use this path.
-        if (!user?.passwordHash) return null;
+        // Only accounts provisioned with a password may use this path;
+        // disabled accounts can't sign in.
+        if (!user?.passwordHash || user.disabledAt) return null;
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) return null;
         return { id: user.id, email: user.email, name: user.name };

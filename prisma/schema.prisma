@@ -94,6 +94,7 @@ model User {
   role                   Role                    @default(EMPLOYEE)
   passwordHash           String? // credentials fallback; null for SSO-only accounts
   googleId               String?                 @unique
+  disabledAt             DateTime? // set = can't sign in (HR disabled, or employee exited)
   employee               Employee?
   resetTokens            PasswordResetToken[]
   leaveReviews           LeaveEntry[]            @relation("LeaveReviews")

@@ -1,14 +1,11 @@
 "use server";
 
-import { createHash, randomBytes } from "node:crypto";
-import { headers } from "next/headers";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
+import { createPasswordLink, RESET_TTL_MS } from "@/lib/password-links";
 
 export type ForgotFormState = { error?: string; ok?: boolean };
-
-const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 const emailSchema = z.object({
   email: z.string().trim().pipe(z.email("Enter a valid email")),
@@ -28,29 +25,7 @@ export async function requestPasswordReset(
   // Same response whether or not the account exists — no enumeration.
   if (!user) return { ok: true };
 
-  const rawToken = randomBytes(32).toString("hex");
-  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
-
-  await db.$transaction([
-    // A new request supersedes any outstanding links.
-    db.passwordResetToken.deleteMany({
-      where: { userId: user.id, usedAt: null },
-    }),
-    db.passwordResetToken.create({
-      data: {
-        userId: user.id,
-        tokenHash,
-        expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
-      },
-    }),
-  ]);
-
-  const requestHeaders = await headers();
-  const origin =
-    requestHeaders.get("origin") ??
-    process.env.AUTH_URL ??
-    "http://localhost:3000";
-  const resetUrl = `${origin}/reset-password?token=${rawToken}`;
+  const resetUrl = await createPasswordLink(user.id, { ttlMs: RESET_TTL_MS });
 
   const result = await sendEmail({
     to: email,
