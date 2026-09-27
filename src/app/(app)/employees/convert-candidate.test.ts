@@ -1,0 +1,155 @@
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+// createEmployee's candidate-conversion path against a mocked database:
+// the employee is linked to the candidate, a note is left on the candidate,
+// the Employee login is created, and a second conversion is refused.
+
+const db = vi.hoisted(() => ({
+  employee: {
+    findFirst: vi.fn(),
+    findUnique: vi.fn(),
+    create: vi.fn(),
+  },
+  candidate: { findUnique: vi.fn(), update: vi.fn() },
+}));
+const provisionLogin = vi.hoisted(() => vi.fn());
+const redirect = vi.hoisted(() =>
+  vi.fn((url: string) => {
+    throw Object.assign(new Error("NEXT_REDIRECT"), { url });
+  }),
+);
+
+vi.mock("@/lib/db", () => ({ db }));
+vi.mock("@/lib/rbac", () => ({
+  requireRole: vi.fn(async () => ({ id: "hr", role: "HR_ADMIN" })),
+}));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("next/navigation", () => ({ redirect }));
+vi.mock("@/lib/blob", () => ({ uploadDocument: vi.fn() }));
+vi.mock("@/lib/logins", () => ({ provisionLogin }));
+
+const { createEmployee } = await import("./actions");
+
+beforeAll(() => {
+  process.env.FIELD_ENCRYPTION_KEY = "a".repeat(64);
+  process.env.BLIND_INDEX_KEY = "b".repeat(64);
+});
+
+function newJoiner(extra: Record<string, string> = {}) {
+  const f = new FormData();
+  const fields = {
+    empId: "E100",
+    name: "Asha Rao",
+    workEmail: "asha@madarth.com",
+    personalEmail: "asha@gmail.com",
+    phone: "9876543210",
+    department: "Design",
+    designation: "Graphic Designer",
+    dateOfJoining: "2026-10-01",
+    empType: "INTERN",
+    ...extra,
+  };
+  for (const [k, v] of Object.entries(fields)) f.set(k, v);
+  return f;
+}
+
+async function submit(form: FormData) {
+  try {
+    return { state: await createEmployee({}, form) };
+  } catch (e) {
+    return { redirectedTo: (e as { url?: string }).url };
+  }
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  db.employee.findFirst.mockResolvedValue(null); // no duplicates
+  db.employee.findUnique.mockResolvedValue(null); // not converted yet
+  db.employee.create.mockImplementation(async ({ data }) => ({
+    id: "emp1",
+    empId: data.empId,
+    name: data.name,
+    workEmail: data.workEmail,
+  }));
+  db.candidate.findUnique.mockResolvedValue({
+    notes: JSON.stringify([
+      { id: "1", text: "Great portfolio", timestamp: "2026-09-01T00:00:00Z" },
+    ]),
+  });
+});
+
+describe("Convert candidate → employee", () => {
+  it("links the employee to the candidate and redirects to it", async () => {
+    const r = await submit(newJoiner({ candidateId: "1277" }));
+    expect(r.redirectedTo).toBe("/employees/emp1");
+    expect(db.employee.create.mock.calls[0][0].data.candidateId).toBe(
+      BigInt(1277),
+    );
+  });
+
+  it("adds a 'Converted to employee' note and keeps existing notes", async () => {
+    await submit(newJoiner({ candidateId: "1277" }));
+    const update = db.candidate.update.mock.calls[0][0];
+    expect(update.where).toEqual({ id: BigInt(1277) });
+    const notes = JSON.parse(update.data.notes);
+    expect(notes.map((n: { text: string }) => n.text)).toEqual([
+      "Great portfolio",
+      "Converted to employee E100",
+    ]);
+  });
+
+  it("creates the Employee login for the new joiner", async () => {
+    await submit(newJoiner({ candidateId: "1277" }));
+    expect(provisionLogin).toHaveBeenCalledWith({
+      email: "asha@madarth.com",
+      name: "Asha Rao",
+      role: "EMPLOYEE",
+      employeeId: "emp1",
+    });
+  });
+
+  it("refuses a candidate who was already converted", async () => {
+    db.employee.findUnique.mockResolvedValue({ id: "emp0" });
+    const r = await submit(newJoiner({ candidateId: "1277" }));
+    expect(r.state?.error).toMatch(/already been converted/);
+    expect(db.employee.create).not.toHaveBeenCalled();
+    expect(db.candidate.update).not.toHaveBeenCalled();
+  });
+
+  it("still creates the employee if writing the candidate note fails", async () => {
+    db.candidate.update.mockRejectedValue(new Error("db hiccup"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const r = await submit(newJoiner({ candidateId: "1277" }));
+    expect(r.redirectedTo).toBe("/employees/emp1");
+    expect(provisionLogin).toHaveBeenCalled();
+  });
+
+  it("ignores a malformed candidateId and adds a plain employee", async () => {
+    const r = await submit(newJoiner({ candidateId: "1277; drop" }));
+    expect(r.redirectedTo).toBe("/employees/emp1");
+    expect(
+      db.employee.create.mock.calls[0][0].data.candidateId,
+    ).toBeUndefined();
+    expect(db.candidate.update).not.toHaveBeenCalled();
+  });
+
+  it("accepts the form's blank Gender option ('—' posts an empty value)", async () => {
+    const r = await submit(newJoiner({ gender: "", candidateId: "1277" }));
+    expect(r.redirectedTo).toBe("/employees/emp1");
+    expect(db.employee.create.mock.calls[0][0].data.gender).toBeUndefined();
+  });
+
+  it("still rejects a gender that isn't one of the options", async () => {
+    const r = await submit(newJoiner({ gender: "X" }));
+    expect(r.state?.fieldErrors?.gender).toBeDefined();
+    expect(db.employee.create).not.toHaveBeenCalled();
+  });
+
+  it("adds a normal employee without any candidate", async () => {
+    await submit(newJoiner());
+    expect(
+      db.employee.create.mock.calls[0][0].data.candidateId,
+    ).toBeUndefined();
+    expect(db.candidate.findUnique).not.toHaveBeenCalled();
+  });
+});
