@@ -8,6 +8,7 @@ import { EMPLOYEE_DOCUMENTS } from "@/lib/employee-documents";
 import { updateEmployee } from "../actions";
 import { EmployeeForm, type SensitiveMasks } from "../employee-form";
 import { IdCardHistory } from "./id-card-history";
+import { LeaveHistory } from "./leave-history";
 import {
   CreateLoginButton,
   RoleSelect,
@@ -26,11 +27,13 @@ function mask(enc: string | null): string | undefined {
 
 export default async function EmployeePage({
   params,
+  searchParams,
 }: PageProps<"/employees/[id]">) {
   const me = await requireRole("HR_ADMIN");
   const { id } = await params;
+  const { leaveYear } = await searchParams;
 
-  const [employee, managers] = await Promise.all([
+  const [employee, managers, leave] = await Promise.all([
     db.employee.findUnique({
       where: { id },
       include: {
@@ -59,6 +62,24 @@ export default async function EmployeePage({
       where: { dateOfExit: null, NOT: { id } },
       orderBy: { name: "asc" },
       select: { id: true, empId: true, name: true },
+    }),
+    // Every leave post for this employee (bounded: ~100 per person).
+    db.leaveEntry.findMany({
+      where: { employeeId: id },
+      orderBy: [{ postedOn: "desc" }, { postedAt: "desc" }],
+      select: {
+        id: true,
+        startDate: true,
+        endDate: true,
+        postedOn: true,
+        type: true,
+        days: true,
+        status: true,
+        message: true,
+        link: true,
+        classifiedBy: true,
+        reviewedBy: { select: { name: true, email: true } },
+      },
     }),
   ]);
   if (!employee) notFound();
@@ -169,6 +190,21 @@ export default async function EmployeePage({
           </div>
         )}
       </section>
+
+      <div id="leave-history" className="scroll-mt-20">
+        <LeaveHistory
+          employeeId={employee.id}
+          employeeName={employee.name}
+          year={typeof leaveYear === "string" ? leaveYear : undefined}
+          entries={leave.map((l) => ({
+            ...l,
+            days: l.days !== null ? Number(l.days) : null,
+            reviewedBy: l.reviewedBy
+              ? (l.reviewedBy.name ?? l.reviewedBy.email)
+              : null,
+          }))}
+        />
+      </div>
 
       <div className="mt-8">
         <EmployeeForm

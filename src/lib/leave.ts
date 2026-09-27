@@ -11,6 +11,21 @@ export const LEAVE_TYPES = [
 
 export type LeaveTypeValue = (typeof LEAVE_TYPES)[number];
 
+export const LEAVE_STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const;
+export type LeaveStatusValue = (typeof LEAVE_STATUSES)[number];
+export const LEAVE_STATUS_LABELS: Record<LeaveStatusValue, string> = {
+  PENDING: "Pending",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+};
+export const LEAVE_STATUS_CLASSES: Record<LeaveStatusValue, string> = {
+  PENDING:
+    "bg-amber-100 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200",
+  APPROVED:
+    "bg-emerald-100 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-200",
+  REJECTED: "bg-rose-100 text-rose-900 dark:bg-rose-500/20 dark:text-rose-200",
+};
+
 export const LEAVE_TYPE_LABELS: Record<LeaveTypeValue, string> = {
   FULL_DAY: "Full day",
   HALF_DAY: "Half day",
