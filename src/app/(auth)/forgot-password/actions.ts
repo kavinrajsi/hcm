@@ -37,7 +37,7 @@ export async function requestPasswordReset(
     `,
   });
   if (result.skipped) {
-    // Local/dev without RESEND_API_KEY: surface the link in server logs.
+    // Local/dev without ZEPTOMAIL_TOKEN: surface the link in server logs.
     console.log(`[password-reset] link for ${email}: ${resetUrl}`);
   }
 

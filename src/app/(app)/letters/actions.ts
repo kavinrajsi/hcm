@@ -118,7 +118,7 @@ export async function sendLetter(
   return {
     ok: true,
     error: result.skipped
-      ? "Saved, but email not sent — RESEND_API_KEY is not configured"
+      ? "Saved, but email not sent — ZEPTOMAIL_TOKEN is not configured"
       : undefined,
   };
 }
