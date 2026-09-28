@@ -5,6 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { EmployeeFormState } from "./actions";
+import { istDay } from "@/lib/date-filter";
+import {
+  TYPE_END_DEFAULT_DAYS,
+  TYPE_END_LABELS,
+  addDaysToDay,
+  type EmpTypeValue,
+} from "./type-end";
 
 export type EmployeeDefaults = Partial<{
   empId: string;
@@ -25,6 +32,8 @@ export type EmployeeDefaults = Partial<{
   designation: string;
   dateOfJoining: string;
   empType: string;
+  /** Saved end date for the current type (YYYY-MM-DD), edit mode. */
+  typeEndDate: string;
   isFresher: boolean;
   pfNumber: string;
   uanNumber: string;
@@ -85,6 +94,7 @@ export function EmployeeForm({
   managers = [],
   submitLabel,
   hidden = {},
+  typeEndBase = "joining",
 }: {
   action: (
     prev: EmployeeFormState,
@@ -96,9 +106,26 @@ export function EmployeeForm({
   submitLabel: string;
   /** Extra hidden fields posted with the form (e.g. candidateId). */
   hidden?: Record<string, string>;
+  /** Default end date counts from the joining date (add) or today (edit). */
+  typeEndBase?: "joining" | "today";
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [isFresher, setIsFresher] = useState(defaults.isFresher ?? true);
+  const [empType, setEmpType] = useState(defaults.empType ?? "PROBATION");
+  const [joiningDate, setJoiningDate] = useState(defaults.dateOfJoining ?? "");
+  const defaultTypeEnd = (joining: string) =>
+    addDaysToDay(
+      typeEndBase === "today" ? istDay() : joining,
+      TYPE_END_DEFAULT_DAYS,
+    );
+  const [typeEndDate, setTypeEndDate] = useState(
+    defaults.typeEndDate ?? defaultTypeEnd(joiningDate),
+  );
+  // Until HR picks a date, the add form's default follows the joining date.
+  const [typeEndTouched, setTypeEndTouched] = useState(
+    defaults.typeEndDate !== undefined,
+  );
+  const typeEndLabel = TYPE_END_LABELS[empType as EmpTypeValue];
   const errors = state.fieldErrors ?? {};
 
   const sensitivePlaceholder = (mask?: string) =>
@@ -260,6 +287,12 @@ export function EmployeeForm({
             name="dateOfJoining"
             type="date"
             defaultValue={defaults.dateOfJoining}
+            onChange={(event) => {
+              setJoiningDate(event.target.value);
+              if (!typeEndTouched && typeEndBase === "joining") {
+                setTypeEndDate(defaultTypeEnd(event.target.value));
+              }
+            }}
             required
           />
         </Field>
@@ -268,7 +301,13 @@ export function EmployeeForm({
             id="empType"
             name="empType"
             className={selectClass}
-            defaultValue={defaults.empType ?? "PROBATION"}
+            value={empType}
+            onChange={(event) => {
+              // A new type starts from the default end date.
+              setEmpType(event.target.value);
+              setTypeEndDate(defaultTypeEnd(joiningDate));
+              setTypeEndTouched(false);
+            }}
           >
             <option value="INTERN">Intern</option>
             <option value="PROBATION">Probation</option>
@@ -276,6 +315,26 @@ export function EmployeeForm({
             <option value="CONTRACT">Contract</option>
           </select>
         </Field>
+        {typeEndLabel && (
+          <Field
+            label={typeEndLabel}
+            name="typeEndDate"
+            error={errors.typeEndDate}
+          >
+            <Input
+              id="typeEndDate"
+              name="typeEndDate"
+              type="date"
+              value={typeEndDate}
+              min={joiningDate || undefined}
+              onChange={(event) => {
+                setTypeEndDate(event.target.value);
+                setTypeEndTouched(true);
+              }}
+              required
+            />
+          </Field>
+        )}
         <Field label="PF number" name="pfNumber" error={errors.pfNumber}>
           <Input
             id="pfNumber"

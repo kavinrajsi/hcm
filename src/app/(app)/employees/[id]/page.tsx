@@ -128,6 +128,18 @@ export default async function EmployeePage({
               : "—"}
           </dd>
         </div>
+        {(employee.empType === "INTERN" || employee.empType === "CONTRACT") && (
+          <div>
+            <dt className="text-zinc-500">
+              {employee.empType === "INTERN"
+                ? "Internship ends"
+                : "Contract ends"}
+            </dt>
+            <dd className="mt-0.5 font-medium">
+              {employee.empTypeEndsOn?.toISOString().slice(0, 10) ?? "—"}
+            </dd>
+          </div>
+        )}
         <div>
           <dt className="text-zinc-500">Onboarded</dt>
           <dd className="mt-0.5 font-medium">
@@ -211,6 +223,7 @@ export default async function EmployeePage({
         <EmployeeForm
           action={update}
           submitLabel="Save changes"
+          typeEndBase="today"
           masks={masks}
           managers={managers}
           defaults={{
@@ -232,6 +245,14 @@ export default async function EmployeePage({
             designation: employee.designation,
             dateOfJoining: employee.dateOfJoining.toISOString().slice(0, 10),
             empType: employee.empType,
+            typeEndDate: (employee.empType === "PROBATION"
+              ? employee.probation?.dueDate
+              : employee.empType === "PERMANENT"
+                ? null
+                : employee.empTypeEndsOn
+            )
+              ?.toISOString()
+              .slice(0, 10),
             isFresher: employee.isFresher,
             pfNumber: pii.pfNumber ?? undefined,
             uanNumber: pii.uanNumber ?? undefined,

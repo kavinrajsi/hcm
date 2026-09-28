@@ -10,6 +10,13 @@ import { uploadDocument } from "@/lib/blob";
 import { encryptPii } from "@/lib/employee-pii";
 import { provisionLogin } from "@/lib/logins";
 import { appendNote } from "../candidates/notes";
+import { istDay } from "@/lib/date-filter";
+import {
+  hasTypeEnd,
+  resolveTypeEnd,
+  typeEndUpdateData,
+  type EmpTypeValue,
+} from "./type-end";
 import {
   cell,
   collectRows,
@@ -56,6 +63,8 @@ const employeeSchema = z.object({
   designation: z.string().trim().min(1, "Designation is required"),
   dateOfJoining: z.string().min(1, "Date of joining is required"),
   empType: z.enum(["INTERN", "PROBATION", "PERMANENT", "CONTRACT"]),
+  // Internship end / confirmation due / contract end; defaults to 90 days.
+  typeEndDate: optionalTrimmed.pipe(z.iso.date("Invalid date").optional()),
   isFresher: z.coerce.boolean(),
   pfNumber: optionalTrimmed,
   uanNumber: optionalTrimmed,
@@ -203,14 +212,22 @@ async function findDuplicate(
   return "An employee with this bank account already exists";
 }
 
-// Default probation length; HR can extend from the probation module.
-const PROBATION_MONTHS = 6;
+/** Field error when a time-bound type ends before the joining date. */
+function typeEndError(empType: string, endDate: Date, joinDate: Date) {
+  return hasTypeEnd(empType) && endDate < joinDate
+    ? { fieldErrors: { typeEndDate: ["Must be on or after the joining date"] } }
+    : null;
+}
 
-/** Confirmation due date: PROBATION_MONTHS after `from`. */
-function probationDueFrom(from: Date): Date {
-  const due = new Date(from);
-  due.setUTCMonth(due.getUTCMonth() + PROBATION_MONTHS);
-  return due;
+/** Create fields for the type's end date (probation record or column). */
+function typeEndCreateData(empType: EmpTypeValue, endDate: Date) {
+  return {
+    empTypeEndsOn:
+      empType === "INTERN" || empType === "CONTRACT" ? endDate : null,
+    ...(empType === "PROBATION"
+      ? { probation: { create: { dueDate: endDate } } }
+      : {}),
+  };
 }
 
 export async function createEmployee(
@@ -256,7 +273,9 @@ export async function createEmployee(
   }
 
   const joinDate = new Date(data.dateOfJoining);
-  const probationDue = probationDueFrom(joinDate);
+  const typeEnd = resolveTypeEnd(data.typeEndDate, joinDate);
+  const typeEndInvalid = typeEndError(data.empType, typeEnd, joinDate);
+  if (typeEndInvalid) return typeEndInvalid;
 
   const employee = await db.employee.create({
     data: {
@@ -296,9 +315,7 @@ export async function createEmployee(
           },
         },
       },
-      ...(data.empType === "PROBATION"
-        ? { probation: { create: { dueDate: probationDue } } }
-        : {}),
+      ...typeEndCreateData(data.empType, typeEnd),
     },
   });
 
@@ -429,7 +446,7 @@ export async function importEmployees(
     }
 
     const joinDate = new Date(data.dateOfJoining);
-    const probationDue = probationDueFrom(joinDate);
+    const typeEnd = resolveTypeEnd(data.typeEndDate, joinDate);
 
     let created: { id: string; workEmail: string; name: string };
     try {
@@ -466,9 +483,7 @@ export async function importEmployees(
               },
             },
           },
-          ...(data.empType === "PROBATION"
-            ? { probation: { create: { dueDate: probationDue } } }
-            : {}),
+          ...typeEndCreateData(data.empType, typeEnd),
         },
       });
     } catch (error) {
@@ -568,24 +583,18 @@ export async function updateEmployee(
     ),
   );
 
-  // Switched to Probation after creation: open a probation record so they
-  // appear on /probation. Due 6 months after joining — or 6 months from
-  // today if that has already passed. An existing record is left as is.
+  // End date for the type (default: 90 days from today, the day of the
+  // edit). Switching into Probation opens or reopens the probation record.
   const joinDate = new Date(data.dateOfJoining);
-  const hasProbation =
-    (await db.probationRecord.count({ where: { employeeId } })) > 0;
-  const today = new Date(new Date().toISOString().slice(0, 10));
-  const fromJoin = probationDueFrom(joinDate);
-  const openProbation =
-    data.empType === "PROBATION" && !hasProbation
-      ? {
-          probation: {
-            create: {
-              dueDate: fromJoin < today ? probationDueFrom(today) : fromJoin,
-            },
-          },
-        }
-      : {};
+  const today = new Date(`${istDay()}T00:00:00Z`);
+  const typeEnd = resolveTypeEnd(data.typeEndDate, today);
+  const typeEndInvalid = typeEndError(data.empType, typeEnd, joinDate);
+  if (typeEndInvalid) return typeEndInvalid;
+  const current = await db.employee.findUnique({
+    where: { id: employeeId },
+    select: { empType: true, probation: { select: { status: true } } },
+  });
+  if (!current) return { error: "Employee not found" };
 
   await db.employee.update({
     where: { id: employeeId },
@@ -611,7 +620,12 @@ export async function updateEmployee(
       ...sensitive,
       ...encryptPii(piiInput(data)),
       ...blobKeys,
-      ...openProbation,
+      ...typeEndUpdateData({
+        empType: data.empType,
+        previousType: current.empType,
+        endDate: typeEnd,
+        probation: current.probation,
+      }),
     },
   });
 

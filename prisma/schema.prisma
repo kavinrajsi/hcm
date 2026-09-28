@@ -144,6 +144,9 @@ model Employee {
   empType       EmpType   @default(PROBATION)
   isFresher     Boolean   @default(true)
   dateOfExit    DateTime? @db.Date
+  // Internship / contract end (INTERN, CONTRACT). Probation's date lives
+  // on ProbationRecord.dueDate.
+  empTypeEndsOn DateTime? @db.Date
 
   // Statutory (plaintext-safe identifiers)
   pfNumber  String?
