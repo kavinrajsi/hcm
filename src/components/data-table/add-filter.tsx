@@ -12,25 +12,47 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CREATED_PRESETS, type CreatedPreset } from "./created";
+import { DATE_PRESETS, type DatePreset } from "@/lib/date-filter";
 
-// Vercel-style "Add Filter" menu: pick a field (Status, Position, Role,
-// Created), then a value. Like TableFilters it only writes the URL; the page
-// does the WHERE.
+// Vercel-style "Add Filter" menu: pick a field (option lists plus one date
+// field), then a value. Like TableFilters it only writes the URL; the page
+// does the WHERE (see lib/date-filter for the date bounds).
 
 /** A single-choice filter stored in one search param. */
 export type OptionField = {
   param: string;
   label: string;
-  options: { value: string; count?: number }[];
+  /** `label` defaults to the value (shown and searched). */
+  options: { value: string; label?: string; count?: number }[];
 };
 
-/** "menu", a field's param, or the Created steps. */
+/** The date field: preset key in `param`, custom range in from/to. */
+export type DateField = {
+  param: string;
+  label: string;
+  presets: DatePreset[];
+  /** Custom range picks times too (timestamp columns). */
+  withTime?: boolean;
+};
+
+/** "menu", an option field's param, or the date steps. */
 type Step = string;
+const DATE_STEP = "__date";
+const CUSTOM_STEP = "__custom";
 
 const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 const IST_MS = 330 * 60_000;
 
@@ -53,8 +75,8 @@ function formatPoint(value: string, withTime: boolean) {
   return `${MONTHS[m - 1]} ${d}${year}${withTime && time ? ` ${time}` : ""}`;
 }
 
-function createdLabel(p: {
-  created?: string | null;
+function dateLabel(p: {
+  preset?: string | null;
   from?: string | null;
   to?: string | null;
 }) {
@@ -67,10 +89,16 @@ function createdLabel(p: {
     const b = p.to ? formatPoint(p.to, !!timed) : "…";
     return a === b ? a : `${a} – ${b}`;
   }
-  return CREATED_PRESETS[p.created as CreatedPreset] ?? null;
+  return DATE_PRESETS[p.preset as DatePreset] ?? null;
 }
 
-export function AddFilter({ fields }: { fields: OptionField[] }) {
+export function AddFilter({
+  fields,
+  date,
+}: {
+  fields: OptionField[];
+  date: DateField;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -81,10 +109,11 @@ export function AddFilter({ fields }: { fields: OptionField[] }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
 
-  const created = searchParams.get("created");
+  const preset = searchParams.get(date.param);
   const from = searchParams.get("from");
   const to = searchParams.get("to");
-  const createdText = createdLabel({ created, from, to });
+  const dateText = dateLabel({ preset, from, to });
+  const clearDate = { [date.param]: null, from: null, to: null };
 
   function update(changes: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams);
@@ -137,7 +166,7 @@ export function AddFilter({ fields }: { fields: OptionField[] }) {
         text: f.label,
         next: f.param,
       })),
-      { key: "created", label: "Created", text: "Created", next: "created" },
+      { key: DATE_STEP, label: date.label, text: date.label, next: DATE_STEP },
     ];
   } else if (field) {
     const current = searchParams.get(field.param)?.toLowerCase();
@@ -154,7 +183,7 @@ export function AddFilter({ fields }: { fields: OptionField[] }) {
         key: o.value,
         label: (
           <>
-            <span className="truncate">{o.value}</span>
+            <span className="truncate">{o.label ?? o.value}</span>
             {o.count !== undefined && (
               <span className="ml-auto pl-3 text-xs tabular-nums text-zinc-400">
                 {o.count}
@@ -162,36 +191,34 @@ export function AddFilter({ fields }: { fields: OptionField[] }) {
             )}
           </>
         ),
-        text: o.value,
+        text: o.label ?? o.value,
         selected: current === o.value.toLowerCase(),
         set: { [field.param]: o.value },
       })),
     ];
-  } else if (step === "created") {
+  } else if (step === DATE_STEP) {
     const isCustom = !!(from || to);
     rows = [
       {
         key: "__any",
         label: "Any Date",
         text: "Any Date",
-        selected: !created && !isCustom,
-        set: { created: null, from: null, to: null },
+        selected: !preset && !isCustom,
+        set: clearDate,
       },
-      ...(Object.entries(CREATED_PRESETS) as [CreatedPreset, string][]).map(
-        ([key, label]) => ({
-          key,
-          label,
-          text: label,
-          selected: !isCustom && created === key,
-          set: { created: key, from: null, to: null },
-        }),
-      ),
+      ...date.presets.map((key) => ({
+        key,
+        label: DATE_PRESETS[key],
+        text: DATE_PRESETS[key],
+        selected: !isCustom && preset === key,
+        set: { ...clearDate, [date.param]: key },
+      })),
       {
         key: "__custom",
         label: "Custom Date Range",
         text: "Custom Date Range",
         selected: isCustom,
-        next: "custom" as const,
+        next: CUSTOM_STEP,
       },
     ];
   }
@@ -215,12 +242,11 @@ export function AddFilter({ fields }: { fields: OptionField[] }) {
       e.preventDefault();
       choose(rows[active]);
     } else if (e.key === "Backspace" && !query && step !== "menu") {
-      go(step === "custom" ? "created" : "menu");
+      go(step === CUSTOM_STEP ? DATE_STEP : "menu");
     }
   }
 
-  const fieldLabel =
-    step === "menu" ? null : (field?.label ?? "Created");
+  const fieldLabel = step === "menu" ? null : (field?.label ?? date.label);
 
   return (
     <div ref={anchorRef} className="flex flex-wrap items-center gap-2">
@@ -248,9 +274,7 @@ export function AddFilter({ fields }: { fields: OptionField[] }) {
           }
         }}
       >
-        <Popover.Trigger
-          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-zinc-300 bg-background px-3.5 text-sm font-medium transition-colors hover:bg-muted data-popup-open:bg-muted md:h-8 dark:border-zinc-700"
-        >
+        <Popover.Trigger className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-zinc-300 bg-background px-3.5 text-sm font-medium transition-colors hover:bg-muted data-popup-open:bg-muted md:h-8 dark:border-zinc-700">
           <ListFilter className="size-4" />
           Add Filter
         </Popover.Trigger>
@@ -265,18 +289,18 @@ export function AddFilter({ fields }: { fields: OptionField[] }) {
             <Chip
               key={f.param}
               field={f.label}
-              value={option?.value ?? value}
+              value={option?.label ?? option?.value ?? value}
               onOpen={() => openAt(f.param)}
               onClear={() => update({ [f.param]: null })}
             />
           );
         })}
-        {createdText && (
+        {dateText && (
           <Chip
-            field="Created"
-            value={createdText}
-            onOpen={() => openAt(from || to ? "custom" : "created")}
-            onClear={() => update({ created: null, from: null, to: null })}
+            field={date.label}
+            value={dateText}
+            onOpen={() => openAt(from || to ? CUSTOM_STEP : DATE_STEP)}
+            onClear={() => update(clearDate)}
           />
         )}
 
@@ -289,7 +313,7 @@ export function AddFilter({ fields }: { fields: OptionField[] }) {
             className="z-50"
           >
             <Popover.Popup
-              initialFocus={step === "custom" ? true : inputRef}
+              initialFocus={step === CUSTOM_STEP ? true : inputRef}
               className="w-[min(22rem,calc(100vw-2rem))] max-h-(--available-height) origin-(--transform-origin) overflow-y-auto rounded-xl border border-zinc-200 bg-popover text-sm text-popover-foreground shadow-lg outline-none transition-[scale,opacity] duration-100 data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0 dark:border-zinc-800"
             >
               <div className="flex items-center border-b border-zinc-200 dark:border-zinc-800">
@@ -304,9 +328,9 @@ export function AddFilter({ fields }: { fields: OptionField[] }) {
                     <ChevronDown className="size-3.5 text-zinc-500" />
                   </button>
                 )}
-                {step === "custom" ? (
+                {step === CUSTOM_STEP ? (
                   <span className="truncate px-3 text-zinc-500">
-                    {createdLabel({ from, to }) ?? "Pick a range"}
+                    {dateLabel({ from, to }) ?? "Pick a range"}
                   </span>
                 ) : (
                   <input
@@ -324,12 +348,13 @@ export function AddFilter({ fields }: { fields: OptionField[] }) {
                 )}
               </div>
 
-              {step === "custom" ? (
+              {step === CUSTOM_STEP ? (
                 <CustomRange
                   from={from}
                   to={to}
+                  withTime={date.withTime ?? false}
                   onApply={(f, t) => {
-                    update({ created: null, from: f, to: t });
+                    update({ ...clearDate, from: f, to: t });
                     close();
                   }}
                 />
@@ -390,7 +415,8 @@ function Chip({
   return (
     <span
       data-filter-chip
-      className="inline-flex h-9 max-w-full items-center rounded-full border border-dashed border-zinc-300 text-sm md:h-8 dark:border-zinc-700">
+      className="inline-flex h-9 max-w-full items-center rounded-full border border-dashed border-zinc-300 text-sm md:h-8 dark:border-zinc-700"
+    >
       <button
         type="button"
         onClick={onOpen}
@@ -415,10 +441,12 @@ function Chip({
 function CustomRange({
   from,
   to,
+  withTime,
   onApply,
 }: {
   from: string | null;
   to: string | null;
+  withTime: boolean;
   onApply: (from: string, to: string) => void;
 }) {
   const today = istToday();
@@ -469,7 +497,9 @@ function CustomRange({
       className="p-3"
       onSubmit={(e) => {
         e.preventDefault();
-        if (valid) onApply(`${lo}T${startTime}`, `${hi}T${endTime}`);
+        if (!valid) return;
+        if (withTime) onApply(`${lo}T${startTime}`, `${hi}T${endTime}`);
+        else onApply(lo, hi);
       }}
     >
       <div className="mb-2 flex items-center justify-between">
@@ -525,7 +555,9 @@ function CustomRange({
                   ? "rounded-md bg-blue-600 font-medium text-white"
                   : "rounded-md hover:bg-muted",
                 inRange && "rounded-none",
-                !edge && day === today && "font-semibold underline underline-offset-4",
+                !edge &&
+                  day === today &&
+                  "font-semibold underline underline-offset-4",
               )}
             >
               {Number(day.slice(8))}
@@ -538,7 +570,9 @@ function CustomRange({
         <label className="text-xs text-zinc-500" htmlFor="range-start">
           Start
         </label>
-        <div className="-mt-1 grid grid-cols-[1fr_auto] gap-2">
+        <div
+          className={cn("-mt-1 grid gap-2", withTime && "grid-cols-[1fr_auto]")}
+        >
           <input
             id="range-start"
             type="date"
@@ -550,19 +584,23 @@ function CustomRange({
             }}
             className={fieldClass}
           />
-          <input
-            type="time"
-            aria-label="Start time"
-            required
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            className={fieldClass}
-          />
+          {withTime && (
+            <input
+              type="time"
+              aria-label="Start time"
+              required
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className={fieldClass}
+            />
+          )}
         </div>
         <label className="text-xs text-zinc-500" htmlFor="range-end">
           End
         </label>
-        <div className="-mt-1 grid grid-cols-[1fr_auto] gap-2">
+        <div
+          className={cn("-mt-1 grid gap-2", withTime && "grid-cols-[1fr_auto]")}
+        >
           <input
             id="range-end"
             type="date"
@@ -571,14 +609,16 @@ function CustomRange({
             onChange={(e) => setEnd(e.target.value)}
             className={fieldClass}
           />
-          <input
-            type="time"
-            aria-label="End time"
-            required
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            className={fieldClass}
-          />
+          {withTime && (
+            <input
+              type="time"
+              aria-label="End time"
+              required
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              className={fieldClass}
+            />
+          )}
         </div>
         <button
           type="submit"
@@ -587,7 +627,11 @@ function CustomRange({
         >
           Apply ↵
         </button>
-        <p className="text-center text-xs text-zinc-400">Times in IST (Asia/Kolkata)</p>
+        {withTime && (
+          <p className="text-center text-xs text-zinc-400">
+            Times in IST (Asia/Kolkata)
+          </p>
+        )}
       </div>
     </form>
   );

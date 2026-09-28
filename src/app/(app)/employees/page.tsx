@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
-import { datePartsToRange, parseTableParams } from "@/lib/table-params";
+import { parseTableParams } from "@/lib/table-params";
+import { dayRange } from "@/lib/date-filter";
 import { TableFilters } from "@/components/data-table/filters";
+import { AddFilter } from "@/components/data-table/add-filter";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
   Table,
@@ -44,34 +46,62 @@ export default async function EmployeesPage({
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
-  const where: Prisma.EmployeeWhereInput = {
-    // Managers see only their direct reports.
-    ...(user.role === "MANAGER" ? { manager: { userId: user.id } } : {}),
-    ...(params.q ? { name: { contains: params.q, mode: "insensitive" } } : {}),
-    ...(params.type ? { empType: params.type as never } : {}),
-  };
-  const dateRange = datePartsToRange(params);
-  if (dateRange) where.dateOfJoining = dateRange;
+  const str = (v: unknown) =>
+    typeof v === "string" && v.trim() ? v.trim().slice(0, 200) : undefined;
+  const empType = EMP_TYPE_OPTIONS.find((o) => o.value === params.type)?.value;
+  const department = str(raw.department);
+  const designation = str(raw.designation);
+  const joined = dayRange({
+    preset: str(raw.joined),
+    from: str(raw.from),
+    to: str(raw.to),
+  });
 
-  const [employees, total] = await Promise.all([
-    db.employee.findMany({
-      where,
-      // IDs are prefix + zero-padded number, so text order is ID order.
-      orderBy: { empId: "desc" },
-      skip: params.skip,
-      take: params.take,
-      select: {
-        id: true,
-        empId: true,
-        name: true,
-        dateOfJoining: true,
-        department: true,
-        designation: true,
-        empType: true,
-      },
-    }),
-    db.employee.count({ where }),
-  ]);
+  // Managers see only their direct reports (filter options included).
+  const scope: Prisma.EmployeeWhereInput =
+    user.role === "MANAGER" ? { manager: { userId: user.id } } : {};
+  const where: Prisma.EmployeeWhereInput = {
+    ...scope,
+    ...(params.q ? { name: { contains: params.q, mode: "insensitive" } } : {}),
+    ...(empType ? { empType: empType as never } : {}),
+    ...(department ? { department } : {}),
+    ...(designation ? { designation } : {}),
+    ...(joined ? { dateOfJoining: joined } : {}),
+  };
+
+  const [employees, total, types, departments, designations] =
+    await Promise.all([
+      db.employee.findMany({
+        where,
+        // IDs are prefix + zero-padded number, so text order is ID order.
+        orderBy: { empId: "desc" },
+        skip: params.skip,
+        take: params.take,
+        select: {
+          id: true,
+          empId: true,
+          name: true,
+          dateOfJoining: true,
+          department: true,
+          designation: true,
+          empType: true,
+        },
+      }),
+      db.employee.count({ where }),
+      db.employee.groupBy({ by: ["empType"], where: scope, _count: true }),
+      db.employee.groupBy({ by: ["department"], where: scope, _count: true }),
+      db.employee.groupBy({ by: ["designation"], where: scope, _count: true }),
+    ]);
+  // Most common first.
+  const byCount = <T extends { _count: number }>(
+    rows: T[],
+    key: (r: T) => string,
+  ) =>
+    rows
+      .filter((r) => key(r).trim())
+      .sort((a, b) => b._count - a._count || key(a).localeCompare(key(b)))
+      .map((r) => ({ value: key(r), count: r._count }));
+  const typeCounts = new Map(types.map((t) => [t.empType as string, t._count]));
 
   return (
     <PageShell>
@@ -94,8 +124,39 @@ export default async function EmployeesPage({
         }
       />
 
-      <div className="mt-5 md:mt-6">
-        <TableFilters typeOptions={EMP_TYPE_OPTIONS} typeLabel="Emp type" />
+      {/* Phones: stacked. Desktop: search and filters in one row. */}
+      <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:items-center">
+        <TableFilters dateFilters={false} />
+        <div className="min-w-0 md:flex-1">
+          <AddFilter
+            fields={[
+              {
+                param: "type",
+                label: "Emp type",
+                options: EMP_TYPE_OPTIONS.map((o) => ({
+                  value: o.value,
+                  label: o.label,
+                  count: typeCounts.get(o.value) ?? 0,
+                })),
+              },
+              {
+                param: "department",
+                label: "Department",
+                options: byCount(departments, (d) => d.department),
+              },
+              {
+                param: "designation",
+                label: "Designation",
+                options: byCount(designations, (d) => d.designation),
+              },
+            ]}
+            date={{
+              param: "joined",
+              label: "Joined",
+              presets: ["7d", "30d", "month", "year"],
+            }}
+          />
+        </div>
       </div>
 
       <div className="mt-4">

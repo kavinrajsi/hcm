@@ -2,7 +2,7 @@ import type { Candidate, Prisma } from "@/generated/prisma/client";
 import type { CandidateDetail } from "./candidate-dialog";
 import { CANDIDATE_STATUSES, type CandidateStatus } from "./statuses";
 import { formatNoteTime, parseNotes } from "./notes";
-import { createdRange } from "./created";
+import { instantRange } from "@/lib/date-filter";
 
 // Shared by the list view, the board view and the board's "Load more" action.
 
@@ -16,7 +16,7 @@ export type CandidateFilters = {
   position?: string;
   /** Exact job role (case-insensitive). */
   role?: string;
-  /** Preset key from CREATED_PRESETS; ignored when from/to are set. */
+  /** Preset key from DATE_PRESETS; ignored when from/to are set. */
   created?: string;
   /** Custom range, IST: "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM" (to is inclusive). */
   from?: string;
@@ -37,7 +37,7 @@ export function candidateWhere(
   if (position) and.push({ position });
   const role = f.role?.trim();
   if (role) and.push({ jobRole: { equals: role, mode: "insensitive" } });
-  const created = createdRange(f);
+  const created = instantRange({ preset: f.created, from: f.from, to: f.to });
   if (created) and.push({ createdAt: created });
   return and;
 }

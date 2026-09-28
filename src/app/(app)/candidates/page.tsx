@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import { parseTableParams } from "@/lib/table-params";
 import { TableFilters } from "@/components/data-table/filters";
+import { AddFilter } from "@/components/data-table/add-filter";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
   Table,
@@ -23,7 +24,6 @@ import { CandidateDialog, type CandidateDetail } from "./candidate-dialog";
 import { CandidateBoard } from "./candidate-board";
 import { AddCandidate } from "./add-candidate";
 import { CandidateCard } from "./candidate-card";
-import { AddFilter } from "./add-filter";
 import { FileOpenIcon } from "@/components/icons";
 import {
   BOARD_PAGE_SIZE,
@@ -80,7 +80,10 @@ export default async function CandidatesPage({
     where: { AND: [NOT_SPAM, { jobRole: { not: null } }] },
     _count: true,
   });
-  const roleMap = new Map<string, { value: string; count: number; top: number }>();
+  const roleMap = new Map<
+    string,
+    { value: string; count: number; top: number }
+  >();
   for (const g of roleGroups) {
     const value = g.jobRole?.trim();
     if (!value) continue;
@@ -146,50 +149,54 @@ export default async function CandidatesPage({
         ))}
       </div>
 
-      <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:flex-wrap md:items-center md:justify-between">
+      {/* Phones: stacked. Desktop: search, filters and view in one row. */}
+      <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:items-center">
         <TableFilters
           dateFilters={false}
           searchPlaceholder="Name, email, phone, role…"
         />
-        <div className="flex flex-wrap items-center gap-2">
-          <Segmented
-            label="View"
-            items={(["list", "board"] as const).map((v) => ({
-              key: v,
-              href: hrefWith("view", v === "board" ? "board" : undefined),
-              label: v === "list" ? "List" : "Board",
-              active: view === v,
-            }))}
+        <div className="min-w-0 md:flex-1">
+          <AddFilter
+            fields={[
+              // Board columns are the statuses, so no status filter there.
+              ...(view === "list"
+                ? [
+                    {
+                      param: "type",
+                      label: "Status",
+                      options: CANDIDATE_STATUSES.map((s) => ({
+                        value: s,
+                        count: countByStatus.get(s) ?? 0,
+                      })),
+                    },
+                  ]
+                : []),
+              {
+                param: "position",
+                label: "Position",
+                options: POSITIONS.map((p) => ({
+                  value: p,
+                  count: countByPosition.get(p) ?? 0,
+                })),
+              },
+              { param: "role", label: "Role", options: roles },
+            ]}
+            date={{
+              param: "created",
+              label: "Created",
+              presets: ["1h", "24h", "7d", "30d", "month"],
+              withTime: true,
+            }}
           />
         </div>
-      </div>
-
-      <div className="mt-3">
-        <AddFilter
-          fields={[
-            // Board columns are the statuses, so no status filter there.
-            ...(view === "list"
-              ? [
-                  {
-                    param: "type",
-                    label: "Status",
-                    options: CANDIDATE_STATUSES.map((s) => ({
-                      value: s,
-                      count: countByStatus.get(s) ?? 0,
-                    })),
-                  },
-                ]
-              : []),
-            {
-              param: "position",
-              label: "Position",
-              options: POSITIONS.map((p) => ({
-                value: p,
-                count: countByPosition.get(p) ?? 0,
-              })),
-            },
-            { param: "role", label: "Role", options: roles },
-          ]}
+        <Segmented
+          label="View"
+          items={(["list", "board"] as const).map((v) => ({
+            key: v,
+            href: hrefWith("view", v === "board" ? "board" : undefined),
+            label: v === "list" ? "List" : "Board",
+            active: view === v,
+          }))}
         />
       </div>
 
