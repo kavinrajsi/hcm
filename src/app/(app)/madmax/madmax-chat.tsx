@@ -56,23 +56,80 @@ const TOOL_LABELS: Record<string, string> = {
   listOnboarding: "onboarding",
 };
 
-const SUGGESTIONS: Record<Role, string[]> = {
-  EMPLOYEE: [
-    "Show my leave this year",
-    "What have I logged on Quantum this week?",
-    "My upcoming sessions",
-  ],
-  MANAGER: [
-    "Pending leave in my team",
-    "Who reports to me?",
-    "Show my leave this year",
-  ],
-  HR_ADMIN: [
-    "Candidates in Interview",
-    "Probation due in the next 30 days",
-    "Pending leave requests",
-  ],
-};
+// Everything MadMax can do, as prompts to start from. Clicking one fills the
+// message box so names and dates can be edited first; [brackets] mark the
+// bits to fill in. `change` prompts end in an Approve / Deny card.
+type SamplePrompt = { text: string; change?: boolean };
+type PromptGroup = { title: string; roles: Role[]; prompts: SamplePrompt[] };
+const ALL: Role[] = ["EMPLOYEE", "MANAGER", "HR_ADMIN"];
+const TEAM: Role[] = ["MANAGER", "HR_ADMIN"];
+const HR: Role[] = ["HR_ADMIN"];
+
+const PROMPT_GROUPS: PromptGroup[] = [
+  {
+    title: "Your data",
+    roles: ALL,
+    prompts: [
+      { text: "Show my profile" },
+      { text: "Show my leave this year" },
+      { text: "How many leave days have I taken this year?" },
+      { text: "What have I logged on Quantum this week?" },
+      { text: "My upcoming sessions and the ones I attended" },
+    ],
+  },
+  {
+    title: "Update your data",
+    roles: ALL,
+    prompts: [
+      { text: "Update my phone number to [number]", change: true },
+      { text: "Change my address to [address], [city]", change: true },
+      { text: "Log [2] hours on [brand] — [work] for today", change: true },
+    ],
+  },
+  {
+    title: "Your team",
+    roles: TEAM,
+    prompts: [
+      { text: "Who reports to me?" },
+      { text: "Show details for [employee ID or name]" },
+      { text: "Pending leave in my team" },
+      { text: "Leave taken by my team this month" },
+      { text: "Approve the pending leave from [name]", change: true },
+      { text: "Reject the leave from [name] on [date]", change: true },
+    ],
+  },
+  {
+    title: "Candidates",
+    roles: HR,
+    prompts: [
+      { text: "Candidates in Interview" },
+      { text: "Newest [Copywriter] applicants" },
+      { text: "Show candidate [name] with notes" },
+      { text: "Move [candidate name] to [Screening]", change: true },
+      { text: "Add a note to [candidate name]: [note]", change: true },
+    ],
+  },
+  {
+    title: "Employees & probation",
+    roles: HR,
+    prompts: [
+      { text: "Search employees in [department]" },
+      { text: "List all interns" },
+      { text: "Recent joiners" },
+      { text: "Probation due in the next 30 days" },
+      { text: "Confirm probation for [name]", change: true },
+      { text: "Extend [name]'s probation to [DD/MM/YYYY]", change: true },
+    ],
+  },
+  {
+    title: "Leave",
+    roles: HR,
+    prompts: [
+      { text: "Pending leave requests" },
+      { text: "Leave posted between [DD/MM/YYYY] and [DD/MM/YYYY]" },
+    ],
+  },
+];
 
 /** A readable one-liner for an approval card. */
 function describeChange(toolName: string, input: Record<string, unknown>) {
@@ -253,6 +310,7 @@ export function MadmaxChat({
   const [input, setInput] = useState("");
   const [, startTransition] = useTransition();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const {
     messages,
@@ -291,6 +349,24 @@ export function MadmaxChat({
     setInput("");
   }
 
+  // Bumped when a sample prompt fills the box; the effect below then
+  // focuses it and selects the first [placeholder] to type over.
+  const [promptPicked, setPromptPicked] = useState(0);
+  useEffect(() => {
+    const box = inputRef.current;
+    if (!promptPicked || !box) return;
+    box.focus();
+    const start = box.value.indexOf("[");
+    const end = box.value.indexOf("]", start);
+    if (start !== -1 && end !== -1) box.setSelectionRange(start, end + 1);
+    else box.setSelectionRange(box.value.length, box.value.length);
+  }, [promptPicked]);
+
+  function fillPrompt(text: string) {
+    setInput(text);
+    setPromptPicked((count) => count + 1);
+  }
+
   function respond(id: string, approved: boolean) {
     addToolApprovalResponse({ id, approved });
   }
@@ -316,6 +392,7 @@ export function MadmaxChat({
       </label>
       <textarea
         id="madmax-input"
+        ref={inputRef}
         value={input}
         onChange={(event) => setInput(event.target.value)}
         onKeyDown={(event) => {
@@ -444,27 +521,50 @@ export function MadmaxChat({
         </div>
 
         {empty ? (
-          <div className="flex flex-1 flex-col items-center justify-center px-4 pb-16">
-            <h1 className="flex items-center gap-3 text-center font-serif text-3xl tracking-tight md:text-4xl">
-              <AutoAwesomeIcon className="size-8 shrink-0 text-orange-600 md:size-10" />
-              {greeting}
-            </h1>
-            <div className="mt-8 w-full max-w-2xl">
-              {composer}
-              <div className="mt-3 flex flex-wrap items-start justify-between gap-3 px-1">
-                <div className="flex flex-wrap gap-2">
-                  {SUGGESTIONS[role].map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      onClick={() => send(suggestion)}
-                      className="rounded-full border border-zinc-200 px-3 py-1.5 text-sm text-zinc-600 hover:bg-muted hover:text-foreground dark:border-zinc-800 dark:text-zinc-400"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="flex min-h-full flex-col items-center justify-center px-4 py-16">
+              <h1 className="flex items-center gap-3 text-center font-serif text-3xl tracking-tight md:text-4xl">
+                <AutoAwesomeIcon className="size-8 shrink-0 text-orange-600 md:size-10" />
+                {greeting}
+              </h1>
+              <div className="mt-8 w-full max-w-2xl">
+                {composer}
+                <div className="mt-2 flex justify-end px-1">{modelPicker}</div>
+
+                <div className="mt-8">
+                  <h2 className="px-1 text-sm font-medium text-zinc-500">
+                    Try asking
+                  </h2>
+                  <div className="mt-3 grid gap-x-6 gap-y-5 sm:grid-cols-2">
+                    {PROMPT_GROUPS.filter((group) =>
+                      group.roles.includes(role),
+                    ).map((group) => (
+                      <section key={group.title}>
+                        <h3 className="px-1 text-xs font-medium uppercase tracking-wide text-zinc-400">
+                          {group.title}
+                        </h3>
+                        <ul className="mt-1.5">
+                          {group.prompts.map((prompt) => (
+                            <li key={prompt.text}>
+                              <button
+                                type="button"
+                                onClick={() => fillPrompt(prompt.text)}
+                                className="flex w-full items-center justify-between gap-2 rounded-md px-1 py-1.5 text-left text-sm text-zinc-700 hover:bg-muted hover:text-foreground dark:text-zinc-300"
+                              >
+                                <span className="min-w-0">{prompt.text}</span>
+                                {prompt.change && (
+                                  <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                                    needs approval
+                                  </span>
+                                )}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    ))}
+                  </div>
                 </div>
-                {modelPicker}
               </div>
             </div>
           </div>
