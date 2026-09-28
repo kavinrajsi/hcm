@@ -14,15 +14,19 @@ import {
 import { cn } from "@/lib/utils";
 import { CREATED_PRESETS, type CreatedPreset } from "./created";
 
-// Vercel-style "Add Filter" menu: pick a field (Role, Created), then a value.
-// Like TableFilters it only writes the URL; the page does the WHERE.
+// Vercel-style "Add Filter" menu: pick a field (Status, Position, Role,
+// Created), then a value. Like TableFilters it only writes the URL; the page
+// does the WHERE.
 
-type Step = "menu" | "role" | "created" | "custom";
+/** A single-choice filter stored in one search param. */
+export type OptionField = {
+  param: string;
+  label: string;
+  options: { value: string; count?: number }[];
+};
 
-const FIELDS = [
-  { step: "role", label: "Role" },
-  { step: "created", label: "Created" },
-] as const;
+/** "menu", a field's param, or the Created steps. */
+type Step = string;
 
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -66,11 +70,7 @@ function createdLabel(p: {
   return CREATED_PRESETS[p.created as CreatedPreset] ?? null;
 }
 
-export function AddFilter({
-  roles,
-}: {
-  roles: { value: string; count: number }[];
-}) {
+export function AddFilter({ fields }: { fields: OptionField[] }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -81,7 +81,6 @@ export function AddFilter({
   const inputRef = useRef<HTMLInputElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
 
-  const role = searchParams.get("role");
   const created = searchParams.get("created");
   const from = searchParams.get("from");
   const to = searchParams.get("to");
@@ -129,35 +128,43 @@ export function AddFilter({
     set?: Record<string, string | null>;
   };
   let rows: Row[] = [];
+  const field = fields.find((f) => f.param === step);
   if (step === "menu") {
-    rows = FIELDS.map((f) => ({
-      key: f.step,
-      label: f.label,
-      text: f.label,
-      next: f.step,
-    }));
-  } else if (step === "role") {
+    rows = [
+      ...fields.map((f) => ({
+        key: f.param,
+        label: f.label,
+        text: f.label,
+        next: f.param,
+      })),
+      { key: "created", label: "Created", text: "Created", next: "created" },
+    ];
+  } else if (field) {
+    const current = searchParams.get(field.param)?.toLowerCase();
+    const any = `Any ${field.label}`;
     rows = [
       {
         key: "__any",
-        label: "Any Role",
-        text: "Any Role",
-        selected: !role,
-        set: { role: null },
+        label: any,
+        text: any,
+        selected: !current,
+        set: { [field.param]: null },
       },
-      ...roles.map((r) => ({
-        key: r.value,
+      ...field.options.map((o) => ({
+        key: o.value,
         label: (
           <>
-            <span className="truncate">{r.value}</span>
-            <span className="ml-auto pl-3 text-xs tabular-nums text-zinc-400">
-              {r.count}
-            </span>
+            <span className="truncate">{o.value}</span>
+            {o.count !== undefined && (
+              <span className="ml-auto pl-3 text-xs tabular-nums text-zinc-400">
+                {o.count}
+              </span>
+            )}
           </>
         ),
-        text: r.value,
-        selected: role?.toLowerCase() === r.value.toLowerCase(),
-        set: { role: r.value },
+        text: o.value,
+        selected: current === o.value.toLowerCase(),
+        set: { [field.param]: o.value },
       })),
     ];
   } else if (step === "created") {
@@ -213,7 +220,7 @@ export function AddFilter({
   }
 
   const fieldLabel =
-    step === "role" ? "Role" : step === "menu" ? null : "Created";
+    step === "menu" ? null : (field?.label ?? "Created");
 
   return (
     <div ref={anchorRef} className="flex flex-wrap items-center gap-2">
@@ -248,14 +255,22 @@ export function AddFilter({
           Add Filter
         </Popover.Trigger>
 
-        {role && (
-          <Chip
-            field="Role"
-            value={role}
-            onOpen={() => openAt("role")}
-            onClear={() => update({ role: null })}
-          />
-        )}
+        {fields.map((f) => {
+          const value = searchParams.get(f.param);
+          if (!value) return null;
+          const option = f.options.find(
+            (o) => o.value.toLowerCase() === value.toLowerCase(),
+          );
+          return (
+            <Chip
+              key={f.param}
+              field={f.label}
+              value={option?.value ?? value}
+              onOpen={() => openAt(f.param)}
+              onClear={() => update({ [f.param]: null })}
+            />
+          );
+        })}
         {createdText && (
           <Chip
             field="Created"

@@ -96,6 +96,15 @@ export default async function CandidatesPage({
     .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value))
     .map(({ value, count }) => ({ value, count }));
 
+  const positionCounts = await db.candidate.groupBy({
+    by: ["position"],
+    where: NOT_SPAM,
+    _count: true,
+  });
+  const countByPosition = new Map(
+    positionCounts.map((p) => [p.position, p._count]),
+  );
+
   const countByStatus = new Map<CandidateStatus, number>();
   for (const s of statusCounts) {
     const k = statusOf(s.status);
@@ -138,27 +147,11 @@ export default async function CandidatesPage({
       </div>
 
       <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:flex-wrap md:items-center md:justify-between">
-        {/* Board columns are the statuses, so no status filter there. */}
         <TableFilters
           dateFilters={false}
           searchPlaceholder="Name, email, phone, role…"
-          typeLabel="Status"
-          typeOptions={
-            view === "list"
-              ? CANDIDATE_STATUSES.map((s) => ({ value: s, label: s }))
-              : undefined
-          }
         />
         <div className="flex flex-wrap items-center gap-2">
-          <Segmented
-            label="Position"
-            items={([undefined, ...POSITIONS] as const).map((p) => ({
-              key: p ?? "all",
-              href: hrefWith("position", p),
-              label: p ?? "All",
-              active: position === p,
-            }))}
-          />
           <Segmented
             label="View"
             items={(["list", "board"] as const).map((v) => ({
@@ -172,7 +165,32 @@ export default async function CandidatesPage({
       </div>
 
       <div className="mt-3">
-        <AddFilter roles={roles} />
+        <AddFilter
+          fields={[
+            // Board columns are the statuses, so no status filter there.
+            ...(view === "list"
+              ? [
+                  {
+                    param: "type",
+                    label: "Status",
+                    options: CANDIDATE_STATUSES.map((s) => ({
+                      value: s,
+                      count: countByStatus.get(s) ?? 0,
+                    })),
+                  },
+                ]
+              : []),
+            {
+              param: "position",
+              label: "Position",
+              options: POSITIONS.map((p) => ({
+                value: p,
+                count: countByPosition.get(p) ?? 0,
+              })),
+            },
+            { param: "role", label: "Role", options: roles },
+          ]}
+        />
       </div>
 
       <div className="mt-4">
