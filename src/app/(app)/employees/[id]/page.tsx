@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
+import { PageShell } from "@/components/page";
 import { requireRole } from "@/lib/rbac";
 import { decryptField, maskValue } from "@/lib/crypto";
 import { readPii } from "@/lib/employee-pii";
@@ -96,7 +97,7 @@ export default async function EmployeePage({
   const pii = readPii(employee);
 
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 min-w-0 px-4 py-5 md:px-6 md:py-8">
+    <PageShell>
       <div className="flex flex-col-reverse gap-2 md:flex-row md:items-baseline md:justify-between">
         <h1 className="text-xl font-semibold tracking-tight md:text-2xl">
           {employee.name}
@@ -239,6 +240,6 @@ export default async function EmployeePage({
           }}
         />
       </div>
-    </main>
+    </PageShell>
   );
 }
