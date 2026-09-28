@@ -18,7 +18,7 @@ const modules = [
   { href: "/freelancers", title: "Freelance Pool" },
   { href: "/letters", title: "Letters" },
   { href: "/reviews", title: "Review Meetings" },
-  { href: "/me", title: "My Profile" },
+  { href: "/profile", title: "My Profile" },
 ] as const;
 
 export default async function Home() {

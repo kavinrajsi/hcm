@@ -183,10 +183,14 @@ export function DashboardSkeleton() {
   );
 }
 
-/** Employee view/new, Me, Profile: title, info card, form fields. */
-export function DetailPageSkeleton() {
+/** Employee view/new, Profile: title, info card, form fields. */
+export function DetailPageSkeleton({
+  width = "md",
+}: {
+  width?: "sm" | "md" | "lg";
+}) {
   return (
-    <Loading width="md">
+    <Loading width={width}>
       <div className="space-y-2">
         <Skeleton className="h-7 w-56 md:h-8" />
         <Skeleton className="h-4 w-40" />

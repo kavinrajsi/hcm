@@ -15,8 +15,7 @@ export const NAV: NavGroup[] = [
     title: "Overview",
     items: [
       { title: "Dashboard", url: "/" },
-      { title: "Me", url: "/me" },
-      { title: "Profile", url: "/profile" },
+      { title: "My Profile", url: "/profile" },
     ],
   },
   {
@@ -95,5 +94,5 @@ export function findCurrent(pathname: string) {
 export const TABS: Record<Role, string[]> = {
   HR_ADMIN: ["/candidates", "/employees", "/leave", "/onboarding"],
   MANAGER: ["/", "/employees", "/leave", "/onboarding"],
-  EMPLOYEE: ["/", "/me", "/sessions", "/profile"],
+  EMPLOYEE: ["/", "/profile", "/sessions"],
 };

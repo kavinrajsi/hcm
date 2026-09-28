@@ -31,7 +31,7 @@ export async function syncLeave(): Promise<LeaveSyncState> {
   try {
     const result = await syncLeaveFromBasecamp(user.id, "manual-sync");
     revalidatePath("/leave");
-    revalidatePath("/me");
+    revalidatePath("/profile");
     return {
       ok:
         `Fetched ${result.fetched}, added ${result.created}, updated ${result.updated}, classified ${result.classified}.` +
@@ -93,7 +93,7 @@ export async function updateLeaveEntry(
     },
   });
   revalidatePath("/leave");
-  revalidatePath("/me");
+  revalidatePath("/profile");
   return { ok: true };
 }
 
@@ -123,7 +123,7 @@ export async function reviewLeave(formData: FormData) {
     },
   });
   revalidatePath("/leave");
-  revalidatePath("/me");
+  revalidatePath("/profile");
 }
 
 export type LeaveHistory = {
