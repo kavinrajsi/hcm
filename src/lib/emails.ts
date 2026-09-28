@@ -87,17 +87,17 @@ export function probationReminderEmail({
 }): Email {
   const list = rows
     .map(
-      (r) => `<tr>
-  <td style="padding:8px 0;border-bottom:1px solid #f4f4f5">${escapeHtml(r.name)} <span style="color:#a1a1aa">${escapeHtml(r.empId)}</span></td>
-  <td style="padding:8px 0;border-bottom:1px solid #f4f4f5;text-align:right;white-space:nowrap">${escapeHtml(fmtDate(r.dueDate))}${r.status === "EXTENDED" ? ' <span style="color:#b45309">(extended)</span>' : ""}</td>
+      (row) => `<tr>
+  <td style="padding:8px 0;border-bottom:1px solid #f4f4f5">${escapeHtml(row.name)} <span style="color:#a1a1aa">${escapeHtml(row.empId)}</span></td>
+  <td style="padding:8px 0;border-bottom:1px solid #f4f4f5;text-align:right;white-space:nowrap">${escapeHtml(fmtDate(row.dueDate))}${row.status === "EXTENDED" ? ' <span style="color:#b45309">(extended)</span>' : ""}</td>
 </tr>`,
     )
     .join("");
-  const n = rows.length;
+  const count = rows.length;
   return {
-    subject: `${n} probation confirmation${n === 1 ? "" : "s"} due soon`,
+    subject: `${count} probation confirmation${count === 1 ? "" : "s"} due soon`,
     html: renderEmail({
-      preheader: `${n} employee${n === 1 ? "" : "s"} due for confirmation within 14 days.`,
+      preheader: `${count} employee${count === 1 ? "" : "s"} due for confirmation within 14 days.`,
       heading: "Probation confirmations due",
       body: `These employees are due for confirmation within the next 14 days (or are overdue):
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;font-size:14px">${list}</table>`,

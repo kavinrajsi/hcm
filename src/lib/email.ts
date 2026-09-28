@@ -24,8 +24,9 @@ const MIME_TYPES: Record<string, string> = {
 
 /** "Name <address>" or a bare address → ZeptoMail's { address, name }. */
 export function parseSender(from: string): { address: string; name?: string } {
-  const m = from.match(/^\s*(.*?)\s*<\s*([^>]+?)\s*>\s*$/);
-  if (m) return { address: m[2], ...(m[1] ? { name: m[1] } : {}) };
+  const match = from.match(/^\s*(.*?)\s*<\s*([^>]+?)\s*>\s*$/);
+  if (match)
+    return { address: match[2], ...(match[1] ? { name: match[1] } : {}) };
   return { address: from.trim() };
 }
 
@@ -53,34 +54,40 @@ export async function sendEmail(options: {
     htmlbody: options.html,
     ...(options.attachments?.length
       ? {
-          attachments: options.attachments.map((a) => ({
-            name: a.filename,
-            content: a.content.toString("base64"),
+          attachments: options.attachments.map((attachment) => ({
+            name: attachment.filename,
+            content: attachment.content.toString("base64"),
             mime_type:
-              MIME_TYPES[a.filename.split(".").pop()?.toLowerCase() ?? ""] ??
-              "application/octet-stream",
+              MIME_TYPES[
+                attachment.filename.split(".").pop()?.toLowerCase() ?? ""
+              ] ?? "application/octet-stream",
           })),
         }
       : {}),
   };
 
-  const res = await fetch(process.env.ZEPTOMAIL_API_URL || DEFAULT_API_URL, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      Authorization: authHeader(token),
+  const response = await fetch(
+    process.env.ZEPTOMAIL_API_URL || DEFAULT_API_URL,
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: authHeader(token),
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  });
-  const data = (await res.json().catch(() => null)) as {
+  );
+  const data = (await response.json().catch(() => null)) as {
     request_id?: string;
     message?: string;
     error?: { message?: string; details?: { message?: string }[] };
   } | null;
-  if (!res.ok) {
+  if (!response.ok) {
     const detail =
-      data?.error?.details?.[0]?.message ?? data?.error?.message ?? res.status;
+      data?.error?.details?.[0]?.message ??
+      data?.error?.message ??
+      response.status;
     throw new Error(`Email send failed: ${detail}`);
   }
   return { skipped: false as const, id: data?.request_id };

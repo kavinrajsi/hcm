@@ -81,12 +81,12 @@ function Row({
  * URL plus a sentence. Link each http(s) URL; everything else stays text.
  */
 function Linkified({ text }: { text: string }) {
-  return text.split(/(https?:\/\/[^\s,]+)/i).map((part, i) => {
-    if (i % 2 === 0) return part;
+  return text.split(/(https?:\/\/[^\s,]+)/i).map((part, partIndex) => {
+    if (partIndex % 2 === 0) return part;
     // Don't swallow sentence punctuation that follows a URL.
     const url = part.replace(/[.)\]]+$/, "");
     return (
-      <span key={i}>
+      <span key={partIndex}>
         <a
           href={url}
           target="_blank"
@@ -146,17 +146,17 @@ function NotesLog({
         <p className="mt-4 text-zinc-500">No notes yet.</p>
       ) : (
         <ol className="mt-4 flex flex-col gap-3">
-          {notes.map((n) => (
+          {notes.map((note) => (
             <li
-              key={n.id}
+              key={note.id}
               className="group rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800"
             >
               <div className="flex items-center justify-between gap-2">
                 <time
-                  dateTime={n.timestamp ?? undefined}
+                  dateTime={note.timestamp ?? undefined}
                   className="text-xs text-zinc-500"
                 >
-                  {n.when ?? "Undated"}
+                  {note.when ?? "Undated"}
                 </time>
                 <button
                   type="button"
@@ -164,14 +164,16 @@ function NotesLog({
                   disabled={deleting}
                   onClick={() => {
                     if (!window.confirm("Delete this note?")) return;
-                    startDelete(() => deleteCandidateNote(candidateId, n.id));
+                    startDelete(() =>
+                      deleteCandidateNote(candidateId, note.id),
+                    );
                   }}
                   className="-m-2 p-2 text-zinc-400 transition-opacity hover:text-red-600 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
                 >
                   <DeleteIcon className="size-4" />
                 </button>
               </div>
-              <p className="mt-1 whitespace-pre-line">{n.text}</p>
+              <p className="mt-1 whitespace-pre-line">{note.text}</p>
             </li>
           ))}
         </ol>
@@ -208,7 +210,10 @@ export function CandidateDialog({
           View
         </SheetTrigger>
       )}
-      <SheetContent side="right" className="w-full data-[side=right]:w-full sm:max-w-lg">
+      <SheetContent
+        side="right"
+        className="w-full data-[side=right]:w-full sm:max-w-lg"
+      >
         <SheetHeader>
           <SheetTitle>{candidate.name}</SheetTitle>
           <SheetDescription>
@@ -244,7 +249,9 @@ export function CandidateDialog({
                 </a>
               )}
             </Row>
-            <Row icon={LocationOnIcon} label="Location">{candidate.location}</Row>
+            <Row icon={LocationOnIcon} label="Location">
+              {candidate.location}
+            </Row>
             <Row icon={DescriptionIcon} label="Resume">
               {candidate.resumeHref &&
                 // PDFs preview in a new tab; other formats can only download.
@@ -273,14 +280,14 @@ export function CandidateDialog({
                 ))}
             </Row>
             <Row icon={LinkIcon} label="Portfolio">
-              {candidate.portfolio && (
-                <Linkified text={candidate.portfolio} />
-              )}
+              {candidate.portfolio && <Linkified text={candidate.portfolio} />}
             </Row>
             <Row icon={LanguageIcon} label="Applied from">
               {candidate.addedManually ? "Added in HCM" : candidate.pageUrl}
             </Row>
-            <Row icon={InputIcon} label="Referrer">{candidate.referrer}</Row>
+            <Row icon={InputIcon} label="Referrer">
+              {candidate.referrer}
+            </Row>
           </dl>
 
           <form
@@ -298,9 +305,9 @@ export function CandidateDialog({
                 defaultValue={candidate.status}
                 className={selectClass}
               >
-                {CANDIDATE_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
+                {CANDIDATE_STATUSES.map((statusOption) => (
+                  <option key={statusOption} value={statusOption}>
+                    {statusOption}
                   </option>
                 ))}
               </select>
@@ -320,10 +327,7 @@ export function CandidateDialog({
           <NotesLog candidateId={candidate.id} notes={candidate.notes} />
 
           {/* Re-keyed on status so a save/move reloads the log. */}
-          <StatusHistory
-            key={candidate.status}
-            candidateId={candidate.id}
-          />
+          <StatusHistory key={candidate.status} candidateId={candidate.id} />
         </div>
       </SheetContent>
     </Sheet>

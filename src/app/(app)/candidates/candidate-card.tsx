@@ -7,19 +7,15 @@ import { CandidateDialog, type CandidateDetail } from "./candidate-dialog";
 import { CANDIDATE_STATUS_CLASSES, type CandidateStatus } from "./statuses";
 
 /** Phone list row; tapping opens the same details drawer as "View". */
-export function CandidateCard({
-  candidate: c,
-}: {
-  candidate: CandidateDetail;
-}) {
+export function CandidateCard({ candidate }: { candidate: CandidateDetail }) {
   const [open, setOpen] = useState(false);
-  const status = c.status as CandidateStatus;
+  const status = candidate.status as CandidateStatus;
   return (
     <>
       <ListCard
         onSelect={() => setOpen(true)}
-        title={c.name}
-        subtitle={c.jobRole}
+        title={candidate.name}
+        subtitle={candidate.jobRole}
         badge={
           <span
             className={cn(
@@ -32,13 +28,17 @@ export function CandidateCard({
         }
         meta={
           <>
-            {c.position && <span>{c.position}</span>}
-            <span className="tabular-nums">{c.appliedOn}</span>
-            {c.resumeHref && <span>Resume</span>}
+            {candidate.position && <span>{candidate.position}</span>}
+            <span className="tabular-nums">{candidate.appliedOn}</span>
+            {candidate.resumeHref && <span>Resume</span>}
           </>
         }
       />
-      <CandidateDialog candidate={c} open={open} onOpenChange={setOpen} />
+      <CandidateDialog
+        candidate={candidate}
+        open={open}
+        onOpenChange={setOpen}
+      />
     </>
   );
 }

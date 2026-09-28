@@ -73,17 +73,19 @@ export function canSee(item: NavItem, role: Role): boolean {
 
 /** Nav groups with only the pages this role can open; empty groups dropped. */
 export function navFor(role: Role): NavGroup[] {
-  return NAV.map((g) => ({
-    ...g,
-    items: g.items.filter((i) => canSee(i, role)),
-  })).filter((g) => g.items.length > 0);
+  return NAV.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => canSee(item, role)),
+  })).filter((group) => group.items.length > 0);
 }
 
 /** Longest URL match first so /sessions/attended beats /sessions. */
 export function findCurrent(pathname: string) {
-  const all = NAV.flatMap((g) => g.items.map((item) => ({ group: g.title, item })));
+  const all = NAV.flatMap((group) =>
+    group.items.map((item) => ({ group: group.title, item })),
+  );
   return all
-    .sort((a, b) => b.item.url.length - a.item.url.length)
+    .sort((left, right) => right.item.url.length - left.item.url.length)
     .find(({ item }) =>
       item.url === "/" ? pathname === "/" : pathname.startsWith(item.url),
     );

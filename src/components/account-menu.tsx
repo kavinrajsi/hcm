@@ -34,7 +34,9 @@ function InstallRow() {
         type="button"
         className={rowClass}
         aria-expanded={canPrompt ? undefined : showSteps}
-        onClick={() => (canPrompt ? promptInstall() : setShowSteps((v) => !v))}
+        onClick={() =>
+          canPrompt ? promptInstall() : setShowSteps((shown) => !shown)
+        }
       >
         <InstallMobileIcon className="size-5 text-zinc-500" />
         Install app

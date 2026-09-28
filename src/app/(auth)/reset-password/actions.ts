@@ -13,7 +13,7 @@ const resetSchema = z
     newPassword: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
   })
-  .refine((v) => v.newPassword === v.confirmPassword, {
+  .refine((values) => values.newPassword === values.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
   });

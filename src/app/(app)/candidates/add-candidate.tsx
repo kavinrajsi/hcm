@@ -51,7 +51,7 @@ export function AddCandidate() {
     const result = await createCandidate(prev, formData);
     if (result.ok) {
       setOpen(false);
-      setFormKey((k) => k + 1);
+      setFormKey((previousKey) => previousKey + 1);
       return {};
     }
     return result;
@@ -63,7 +63,10 @@ export function AddCandidate() {
       <SheetTrigger render={<Button type="button" />}>
         Add candidate
       </SheetTrigger>
-      <SheetContent side="right" className="w-full data-[side=right]:w-full sm:max-w-lg">
+      <SheetContent
+        side="right"
+        className="w-full data-[side=right]:w-full sm:max-w-lg"
+      >
         <SheetHeader>
           <SheetTitle>Add candidate</SheetTitle>
           <SheetDescription>
@@ -101,9 +104,9 @@ export function AddCandidate() {
                 defaultValue={POSITIONS[0]}
                 className={selectClass}
               >
-                {POSITIONS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
+                {POSITIONS.map((position) => (
+                  <option key={position} value={position}>
+                    {position}
                   </option>
                 ))}
               </select>
@@ -121,9 +124,9 @@ export function AddCandidate() {
                 defaultValue="New"
                 className={selectClass}
               >
-                {CANDIDATE_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
+                {CANDIDATE_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
                   </option>
                 ))}
               </select>

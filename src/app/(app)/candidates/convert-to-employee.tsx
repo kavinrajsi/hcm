@@ -24,7 +24,7 @@ export function ConvertToEmployee({
   useEffect(() => {
     let cancelled = false;
     getConvertedEmployee(candidateId).then(
-      (e) => !cancelled && setConverted(e),
+      (employee) => !cancelled && setConverted(employee),
       () => !cancelled && setConverted(null),
     );
     return () => {

@@ -93,9 +93,9 @@ export function AttendanceForm({
           className={`${selectClass} md:w-52`}
         >
           <option value="">Select…</option>
-          {employees.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.empId} — {e.name}
+          {employees.map((employee) => (
+            <option key={employee.id} value={employee.id}>
+              {employee.empId} — {employee.name}
             </option>
           ))}
         </select>
@@ -108,22 +108,24 @@ export function AttendanceForm({
           id="a-session"
           name="sessionId"
           className={`${selectClass} md:w-56`}
-          onChange={(e) => {
-            const s = sessions.find((x) => x.id === e.target.value);
-            if (!s) return;
-            const form = e.target.form!;
+          onChange={(event) => {
+            const session = sessions.find(
+              (option) => option.id === event.target.value,
+            );
+            if (!session) return;
+            const form = event.target.form!;
             (form.elements.namedItem("sessionName") as HTMLInputElement).value =
-              s.name;
+              session.name;
             (form.elements.namedItem("trainer") as HTMLInputElement).value =
-              s.trainer;
+              session.trainer;
             (form.elements.namedItem("date") as HTMLInputElement).value =
-              s.date;
+              session.date;
           }}
         >
           <option value="">— manual entry —</option>
-          {sessions.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name} ({s.date})
+          {sessions.map((session) => (
+            <option key={session.id} value={session.id}>
+              {session.name} ({session.date})
             </option>
           ))}
         </select>

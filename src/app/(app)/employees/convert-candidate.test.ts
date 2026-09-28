@@ -36,7 +36,7 @@ beforeAll(() => {
 });
 
 function newJoiner(extra: Record<string, string> = {}) {
-  const f = new FormData();
+  const formData = new FormData();
   const fields = {
     empId: "E100",
     name: "Asha Rao",
@@ -49,15 +49,15 @@ function newJoiner(extra: Record<string, string> = {}) {
     empType: "INTERN",
     ...extra,
   };
-  for (const [k, v] of Object.entries(fields)) f.set(k, v);
-  return f;
+  for (const [key, value] of Object.entries(fields)) formData.set(key, value);
+  return formData;
 }
 
 async function submit(form: FormData) {
   try {
     return { state: await createEmployee({}, form) };
-  } catch (e) {
-    return { redirectedTo: (e as { url?: string }).url };
+  } catch (error) {
+    return { redirectedTo: (error as { url?: string }).url };
   }
 }
 
@@ -80,8 +80,8 @@ beforeEach(() => {
 
 describe("Convert candidate → employee", () => {
   it("links the employee to the candidate and redirects to it", async () => {
-    const r = await submit(newJoiner({ candidateId: "1277" }));
-    expect(r.redirectedTo).toBe("/employees/emp1");
+    const result = await submit(newJoiner({ candidateId: "1277" }));
+    expect(result.redirectedTo).toBe("/employees/emp1");
     expect(db.employee.create.mock.calls[0][0].data.candidateId).toBe(
       BigInt(1277),
     );
@@ -92,7 +92,7 @@ describe("Convert candidate → employee", () => {
     const update = db.candidate.update.mock.calls[0][0];
     expect(update.where).toEqual({ id: BigInt(1277) });
     const notes = JSON.parse(update.data.notes);
-    expect(notes.map((n: { text: string }) => n.text)).toEqual([
+    expect(notes.map((note: { text: string }) => note.text)).toEqual([
       "Great portfolio",
       "Converted to employee E100",
     ]);
@@ -110,8 +110,8 @@ describe("Convert candidate → employee", () => {
 
   it("refuses a candidate who was already converted", async () => {
     db.employee.findUnique.mockResolvedValue({ id: "emp0" });
-    const r = await submit(newJoiner({ candidateId: "1277" }));
-    expect(r.state?.error).toMatch(/already been converted/);
+    const result = await submit(newJoiner({ candidateId: "1277" }));
+    expect(result.state?.error).toMatch(/already been converted/);
     expect(db.employee.create).not.toHaveBeenCalled();
     expect(db.candidate.update).not.toHaveBeenCalled();
   });
@@ -119,14 +119,14 @@ describe("Convert candidate → employee", () => {
   it("still creates the employee if writing the candidate note fails", async () => {
     db.candidate.update.mockRejectedValue(new Error("db hiccup"));
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const r = await submit(newJoiner({ candidateId: "1277" }));
-    expect(r.redirectedTo).toBe("/employees/emp1");
+    const result = await submit(newJoiner({ candidateId: "1277" }));
+    expect(result.redirectedTo).toBe("/employees/emp1");
     expect(provisionLogin).toHaveBeenCalled();
   });
 
   it("ignores a malformed candidateId and adds a plain employee", async () => {
-    const r = await submit(newJoiner({ candidateId: "1277; drop" }));
-    expect(r.redirectedTo).toBe("/employees/emp1");
+    const result = await submit(newJoiner({ candidateId: "1277; drop" }));
+    expect(result.redirectedTo).toBe("/employees/emp1");
     expect(
       db.employee.create.mock.calls[0][0].data.candidateId,
     ).toBeUndefined();
@@ -134,14 +134,14 @@ describe("Convert candidate → employee", () => {
   });
 
   it("accepts the form's blank Gender option ('—' posts an empty value)", async () => {
-    const r = await submit(newJoiner({ gender: "", candidateId: "1277" }));
-    expect(r.redirectedTo).toBe("/employees/emp1");
+    const result = await submit(newJoiner({ gender: "", candidateId: "1277" }));
+    expect(result.redirectedTo).toBe("/employees/emp1");
     expect(db.employee.create.mock.calls[0][0].data.gender).toBeUndefined();
   });
 
   it("still rejects a gender that isn't one of the options", async () => {
-    const r = await submit(newJoiner({ gender: "X" }));
-    expect(r.state?.fieldErrors?.gender).toBeDefined();
+    const result = await submit(newJoiner({ gender: "X" }));
+    expect(result.state?.fieldErrors?.gender).toBeDefined();
     expect(db.employee.create).not.toHaveBeenCalled();
   });
 

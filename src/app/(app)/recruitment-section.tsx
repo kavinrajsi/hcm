@@ -32,26 +32,33 @@ function Card({
 
 export function RecruitmentSection({ stats }: { stats: RecruitmentStats }) {
   const { months, roles, monthTotals, pipeline, rejected, total } = stats;
-  const labels = months.map((m) => m.label);
+  const labels = months.map((month) => month.label);
 
   // Top roles get the categorical slots in order; the rest fold into Other.
-  const series: LineSeries[] = roles.slice(0, TOP_ROLES).map((r, i) => ({
-    key: r.role,
-    label: r.role,
-    color: `var(--viz-series-${i + 1})`,
-    values: r.byMonth,
-  }));
+  const series: LineSeries[] = roles
+    .slice(0, TOP_ROLES)
+    .map((roleRow, index) => ({
+      key: roleRow.role,
+      label: roleRow.role,
+      color: `var(--viz-series-${index + 1})`,
+      values: roleRow.byMonth,
+    }));
   const rest = roles.slice(TOP_ROLES);
   if (rest.length > 0) {
     series.push({
       key: "__other",
       label: `Other (${rest.length} roles)`,
       color: "var(--viz-other)",
-      values: months.map((_, i) => rest.reduce((s, r) => s + r.byMonth[i], 0)),
+      values: months.map((_, monthIndex) =>
+        rest.reduce((sum, roleRow) => sum + roleRow.byMonth[monthIndex], 0),
+      ),
     });
   }
 
-  const pipelineMax = Math.max(1, ...pipeline.map((p) => p.count));
+  const pipelineMax = Math.max(
+    1,
+    ...pipeline.map((pipelineStage) => pipelineStage.count),
+  );
 
   return (
     <div className="mt-12">
@@ -87,14 +94,17 @@ export function RecruitmentSection({ stats }: { stats: RecruitmentStats }) {
           subtitle="Candidates at each stage right now"
         >
           <ul className="viz-root flex flex-col gap-3">
-            {pipeline.map((p) => (
-              <li key={p.stage}>
+            {pipeline.map((pipelineStage) => (
+              <li key={pipelineStage.stage}>
                 <div className="flex items-baseline justify-between text-sm">
-                  <span>{p.stage}</span>
+                  <span>{pipelineStage.stage}</span>
                   <span className="font-semibold tabular-nums">
-                    {p.count.toLocaleString("en-IN")}
+                    {pipelineStage.count.toLocaleString("en-IN")}
                     <span className="ml-1.5 text-xs font-normal text-zinc-500">
-                      {total ? Math.round((p.count / total) * 100) : 0}%
+                      {total
+                        ? Math.round((pipelineStage.count / total) * 100)
+                        : 0}
+                      %
                     </span>
                   </span>
                 </div>
@@ -102,7 +112,7 @@ export function RecruitmentSection({ stats }: { stats: RecruitmentStats }) {
                   <div
                     className="h-2 rounded-full"
                     style={{
-                      width: `${Math.max(1, (p.count / pipelineMax) * 100)}%`,
+                      width: `${Math.max(1, (pipelineStage.count / pipelineMax) * 100)}%`,
                       background: "var(--viz-bar)",
                     }}
                   />
@@ -136,34 +146,34 @@ export function RecruitmentSection({ stats }: { stats: RecruitmentStats }) {
                   Total Job Postings
                 </th>
                 <th className="px-3 py-2 font-medium">Position Breakdown</th>
-                {months.map((m) => (
+                {months.map((month) => (
                   <th
-                    key={m.key}
+                    key={month.key}
                     className="px-3 py-2 text-right font-medium whitespace-nowrap"
                   >
-                    {m.label}
+                    {month.label}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {roles.map((r) => (
-                <tr key={r.role} className="border-t">
+              {roles.map((roleRow) => (
+                <tr key={roleRow.role} className="border-t">
                   <td className="sticky left-0 z-10 border-t border-zinc-200 bg-background px-4 py-2 font-medium whitespace-nowrap md:px-5 dark:border-zinc-800">
-                    {r.role}
+                    {roleRow.role}
                   </td>
                   <td className="border-t border-zinc-200 px-3 py-2 text-right font-semibold tabular-nums dark:border-zinc-800">
-                    {r.total}
+                    {roleRow.total}
                   </td>
                   <td className="border-t border-zinc-200 px-3 py-2 whitespace-nowrap text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
-                    {r.fullTime} Full time · {r.intern} Intern
+                    {roleRow.fullTime} Full time · {roleRow.intern} Intern
                   </td>
-                  {r.byMonth.map((v, i) => (
+                  {roleRow.byMonth.map((count, index) => (
                     <td
-                      key={months[i].key}
+                      key={months[index].key}
                       className="border-t border-zinc-200 px-3 py-2 text-right tabular-nums dark:border-zinc-800"
                     >
-                      {v || (
+                      {count || (
                         <span className="text-zinc-300 dark:text-zinc-700">
                           –
                         </span>
@@ -180,15 +190,17 @@ export function RecruitmentSection({ stats }: { stats: RecruitmentStats }) {
                   {total}
                 </td>
                 <td className="border-t-2 border-zinc-300 px-3 py-2 whitespace-nowrap text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
-                  {roles.reduce((s, r) => s + r.fullTime, 0)} Full time ·{" "}
-                  {roles.reduce((s, r) => s + r.intern, 0)} Intern
+                  {roles.reduce((sum, roleRow) => sum + roleRow.fullTime, 0)}{" "}
+                  Full time ·{" "}
+                  {roles.reduce((sum, roleRow) => sum + roleRow.intern, 0)}{" "}
+                  Intern
                 </td>
-                {monthTotals.map((v, i) => (
+                {monthTotals.map((count, index) => (
                   <td
-                    key={months[i].key}
+                    key={months[index].key}
                     className="border-t-2 border-zinc-300 px-3 py-2 text-right tabular-nums dark:border-zinc-700"
                   >
-                    {v}
+                    {count}
                   </td>
                 ))}
               </tr>

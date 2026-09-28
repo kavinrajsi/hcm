@@ -63,18 +63,18 @@ describe("Basecamp leave webhook", () => {
   });
 
   it("ingests a new answer by id and classifies after responding", async () => {
-    const res = await call(answerEvent());
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ created: 1, updated: 0 });
+    const response = await call(answerEvent());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ created: 1, updated: 0 });
     expect(syncOneAnswer).toHaveBeenCalledWith("hr1", "555");
     expect(after).toHaveBeenCalledOnce();
   });
 
   it("ingests answers from the WFH check-in", async () => {
-    const res = await call(
+    const response = await call(
       answerEvent("question_answer_created", { parent: { id: 7274378266 } }),
     );
-    expect(res.status).toBe(200);
+    expect(response.status).toBe(200);
     expect(syncOneAnswer).toHaveBeenCalledWith("hr1", "555");
   });
 
@@ -99,9 +99,9 @@ describe("Basecamp leave webhook", () => {
     ],
     ["junk", { hello: "world" }],
   ])("acknowledges but ignores %s", async (_, body) => {
-    const res = await call(body);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ignored: true });
+    const response = await call(body);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ignored: true });
     expect(syncOneAnswer).not.toHaveBeenCalled();
   });
 

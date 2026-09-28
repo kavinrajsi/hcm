@@ -31,8 +31,8 @@ export async function parseCsvFile(
   const result = Papa.parse<CsvRow>(await file.text(), {
     header: true,
     skipEmptyLines: true,
-    transformHeader: (h) => h.trim(),
-    transform: (v) => v.trim(),
+    transformHeader: (header) => header.trim(),
+    transform: (value) => value.trim(),
   });
 
   if (result.errors.length > 0) {
@@ -57,14 +57,14 @@ export function collectRows<T>(
 ): { valid: T[]; failures: ImportFailure[] } {
   const valid: T[] = [];
   const failures: ImportFailure[] = [];
-  rows.forEach((row, i) => {
-    const rowNumber = i + 2;
+  rows.forEach((row, index) => {
+    const rowNumber = index + 2;
     try {
       valid.push(validate(row, rowNumber));
-    } catch (e) {
+    } catch (error) {
       failures.push({
         row: rowNumber,
-        message: e instanceof Error ? e.message : "Invalid row",
+        message: error instanceof Error ? error.message : "Invalid row",
       });
     }
   });

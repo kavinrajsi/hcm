@@ -39,13 +39,13 @@ export async function exchangeCode(code: string, origin: string) {
     redirect_uri: redirectUri(origin),
     code,
   });
-  const res = await fetch(`${LAUNCHPAD}/authorization/token?${params}`, {
+  const response = await fetch(`${LAUNCHPAD}/authorization/token?${params}`, {
     method: "POST",
   });
-  if (!res.ok) {
-    throw new Error(`Basecamp token exchange failed: ${res.status}`);
+  if (!response.ok) {
+    throw new Error(`Basecamp token exchange failed: ${response.status}`);
   }
-  return (await res.json()) as {
+  return (await response.json()) as {
     access_token: string;
     refresh_token?: string;
     expires_in: number;
@@ -54,14 +54,15 @@ export async function exchangeCode(code: string, origin: string) {
 
 /** Resolve the Basecamp 4 account id for the authorized user. */
 export async function fetchAccountId(accessToken: string): Promise<string> {
-  const res = await fetch(`${LAUNCHPAD}/authorization.json`, {
+  const response = await fetch(`${LAUNCHPAD}/authorization.json`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  if (!res.ok) throw new Error(`Basecamp authorization lookup failed: ${res.status}`);
-  const data = (await res.json()) as {
+  if (!response.ok)
+    throw new Error(`Basecamp authorization lookup failed: ${response.status}`);
+  const data = (await response.json()) as {
     accounts: { id: number; product: string }[];
   };
-  const account = data.accounts.find((a) => a.product === "bc3");
+  const account = data.accounts.find((entry) => entry.product === "bc3");
   if (!account) throw new Error("No Basecamp 4 account on this login");
   return String(account.id);
 }
@@ -101,7 +102,10 @@ export async function getAccessToken(
   if (!row) return null;
 
   if (row.expiresAt > new Date()) {
-    return { accessToken: decryptField(row.accessTokenEnc), accountId: row.accountId };
+    return {
+      accessToken: decryptField(row.accessTokenEnc),
+      accountId: row.accountId,
+    };
   }
 
   // Expired — refresh.
@@ -112,11 +116,11 @@ export async function getAccessToken(
     client_secret: process.env.BASECAMP_CLIENT_SECRET!,
     refresh_token: decryptField(row.refreshTokenEnc),
   });
-  const res = await fetch(`${LAUNCHPAD}/authorization/token?${params}`, {
+  const response = await fetch(`${LAUNCHPAD}/authorization/token?${params}`, {
     method: "POST",
   });
-  if (!res.ok) return null;
-  const token = (await res.json()) as {
+  if (!response.ok) return null;
+  const token = (await response.json()) as {
     access_token: string;
     expires_in: number;
   };
@@ -135,14 +139,18 @@ async function api<T>(
   accountId: string,
   path: string,
 ): Promise<T> {
-  const res = await fetch(`https://3.basecampapi.com/${accountId}${path}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "User-Agent": "HCM Quantum Sheet (internal)",
+  const response = await fetch(
+    `https://3.basecampapi.com/${accountId}${path}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "User-Agent": "HCM Quantum Sheet (internal)",
+      },
     },
-  });
-  if (!res.ok) throw new Error(`Basecamp API ${path} failed: ${res.status}`);
-  return (await res.json()) as T;
+  );
+  if (!response.ok)
+    throw new Error(`Basecamp API ${path} failed: ${response.status}`);
+  return (await response.json()) as T;
 }
 
 export type BasecampProject = {
@@ -168,7 +176,7 @@ export async function listProjectTodos(
   accountId: string,
   project: BasecampProject,
 ): Promise<BasecampTodo[]> {
-  const todoset = project.dock.find((d) => d.name === "todoset");
+  const todoset = project.dock.find((dockItem) => dockItem.name === "todoset");
   if (!todoset) return [];
   const lists = await api<{ id: number }[]>(
     accessToken,
@@ -219,8 +227,9 @@ export function syncedCheckins(): { kind: CheckinKind; questionId: string }[] {
 /** The kind of a synced check-in question, or null for any other question. */
 export function checkinKind(questionId: string | number | undefined) {
   return (
-    syncedCheckins().find((c) => c.questionId === String(questionId))?.kind ??
-    null
+    syncedCheckins().find(
+      (checkin) => checkin.questionId === String(questionId),
+    )?.kind ?? null
   );
 }
 
@@ -250,24 +259,27 @@ export async function listCheckinAnswers(
   let url: string | null =
     `https://3.basecampapi.com/${accountId}/buckets/${bucketId}/questions/${questionId}/answers.json`;
   while (url) {
-    const res: Response = await fetch(url, {
+    const response: Response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "User-Agent": "HCM Leave Sync (internal)",
       },
     });
-    if (res.status === 429) {
-      const wait = Number(res.headers.get("Retry-After") ?? "10");
-      await new Promise((r) => setTimeout(r, wait * 1000));
+    if (response.status === 429) {
+      const wait = Number(response.headers.get("Retry-After") ?? "10");
+      await new Promise((resolve) => setTimeout(resolve, wait * 1000));
       continue;
     }
-    if (!res.ok) throw new Error(`Basecamp answers fetch failed: ${res.status}`);
-    const page = (await res.json()) as BasecampAnswer[];
+    if (!response.ok)
+      throw new Error(`Basecamp answers fetch failed: ${response.status}`);
+    const page = (await response.json()) as BasecampAnswer[];
     answers.push(...page);
-    if (sinceDay && page.every((a) => a.group_on < sinceDay)) break;
-    url = parseNextLink(res.headers.get("Link"));
+    if (sinceDay && page.every((answer) => answer.group_on < sinceDay)) break;
+    url = parseNextLink(response.headers.get("Link"));
   }
-  return sinceDay ? answers.filter((a) => a.group_on >= sinceDay) : answers;
+  return sinceDay
+    ? answers.filter((answer) => answer.group_on >= sinceDay)
+    : answers;
 }
 
 /** One check-in answer (webhook: re-fetch instead of trusting the payload). */
@@ -311,8 +323,10 @@ export async function ensureLeaveWebhook(
   const list = (await (
     await fetch(`${base}.json`, { headers })
   ).json()) as BasecampWebhook[];
-  const path = (u: string) => u.split("?")[0];
-  const match = list.find((w) => path(w.payload_url) === path(payloadUrl));
+  const path = (url: string) => url.split("?")[0];
+  const match = list.find(
+    (webhook) => path(webhook.payload_url) === path(payloadUrl),
+  );
   if (match && match.payload_url === payloadUrl && match.active) {
     return { created: false, webhook: match };
   }
@@ -323,7 +337,7 @@ export async function ensureLeaveWebhook(
       { method: "DELETE", headers },
     );
   }
-  const res = await fetch(`${base}.json`, {
+  const response = await fetch(`${base}.json`, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -331,6 +345,7 @@ export async function ensureLeaveWebhook(
       types: ["Question::Answer"],
     }),
   });
-  if (!res.ok) throw new Error(`Webhook create failed: ${res.status}`);
-  return { created: true, webhook: (await res.json()) as BasecampWebhook };
+  if (!response.ok)
+    throw new Error(`Webhook create failed: ${response.status}`);
+  return { created: true, webhook: (await response.json()) as BasecampWebhook };
 }

@@ -54,16 +54,20 @@ export default async function CandidatesPage({
   const raw = await searchParams;
   const params = parseTableParams(raw);
   const view = raw.view === "board" ? "board" : "list";
-  const position = POSITIONS.find((p) => p === raw.position);
-  const str = (v: unknown) =>
-    typeof v === "string" && v.trim() ? v.trim().slice(0, 200) : undefined;
+  const position = POSITIONS.find(
+    (positionOption) => positionOption === raw.position,
+  );
+  const trimmedParam = (value: unknown) =>
+    typeof value === "string" && value.trim()
+      ? value.trim().slice(0, 200)
+      : undefined;
   const filters: CandidateFilters = {
     q: params.q,
     position,
-    role: str(raw.role),
-    created: str(raw.created),
-    from: str(raw.from),
-    to: str(raw.to),
+    role: trimmedParam(raw.role),
+    created: trimmedParam(raw.created),
+    from: trimmedParam(raw.from),
+    to: trimmedParam(raw.to),
   };
   const and = candidateWhere(filters);
 
@@ -84,19 +88,24 @@ export default async function CandidatesPage({
     string,
     { value: string; count: number; top: number }
   >();
-  for (const g of roleGroups) {
-    const value = g.jobRole?.trim();
+  for (const group of roleGroups) {
+    const value = group.jobRole?.trim();
     if (!value) continue;
     const key = value.toLowerCase();
-    const r = roleMap.get(key);
-    if (!r) roleMap.set(key, { value, count: g._count, top: g._count });
+    const existingRole = roleMap.get(key);
+    if (!existingRole)
+      roleMap.set(key, { value, count: group._count, top: group._count });
     else {
-      r.count += g._count;
-      if (g._count > r.top) Object.assign(r, { value, top: g._count });
+      existingRole.count += group._count;
+      if (group._count > existingRole.top)
+        Object.assign(existingRole, { value, top: group._count });
     }
   }
   const roles = [...roleMap.values()]
-    .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value))
+    .sort(
+      (left, right) =>
+        right.count - left.count || left.value.localeCompare(right.value),
+    )
     .map(({ value, count }) => ({ value, count }));
 
   const positionCounts = await db.candidate.groupBy({
@@ -105,22 +114,33 @@ export default async function CandidatesPage({
     _count: true,
   });
   const countByPosition = new Map(
-    positionCounts.map((p) => [p.position, p._count]),
+    positionCounts.map((positionCount) => [
+      positionCount.position,
+      positionCount._count,
+    ]),
   );
 
   const countByStatus = new Map<CandidateStatus, number>();
-  for (const s of statusCounts) {
-    const k = statusOf(s.status);
-    countByStatus.set(k, (countByStatus.get(k) ?? 0) + s._count);
+  for (const statusCount of statusCounts) {
+    const statusKey = statusOf(statusCount.status);
+    countByStatus.set(
+      statusKey,
+      (countByStatus.get(statusKey) ?? 0) + statusCount._count,
+    );
   }
 
   const hrefWith = (key: string, value?: string) => {
-    const qs = new URLSearchParams();
-    for (const [k, v] of Object.entries(raw)) {
-      if (typeof v === "string" && k !== key && k !== "page") qs.set(k, v);
+    const queryString = new URLSearchParams();
+    for (const [paramKey, paramValue] of Object.entries(raw)) {
+      if (
+        typeof paramValue === "string" &&
+        paramKey !== key &&
+        paramKey !== "page"
+      )
+        queryString.set(paramKey, paramValue);
     }
-    if (value) qs.set(key, value);
-    return `/candidates${qs.size ? `?${qs}` : ""}`;
+    if (value) queryString.set(key, value);
+    return `/candidates${queryString.size ? `?${queryString}` : ""}`;
   };
 
   return (
@@ -133,17 +153,17 @@ export default async function CandidatesPage({
 
       {/* One swipeable row on phones, wrapping chips on desktop. */}
       <div className="-mx-4 mt-5 flex gap-2 overflow-x-auto px-4 md:mx-0 md:mt-6 md:flex-wrap md:px-0">
-        {CANDIDATE_STATUSES.map((s) => (
+        {CANDIDATE_STATUSES.map((candidateStatus) => (
           <span
-            key={s}
+            key={candidateStatus}
             className={cn(
               "shrink-0 rounded-md px-2.5 py-1 text-sm",
-              CANDIDATE_STATUS_CLASSES[s],
+              CANDIDATE_STATUS_CLASSES[candidateStatus],
             )}
           >
-            {s}{" "}
+            {candidateStatus}{" "}
             <span className="font-medium tabular-nums">
-              {countByStatus.get(s) ?? 0}
+              {countByStatus.get(candidateStatus) ?? 0}
             </span>
           </span>
         ))}
@@ -164,9 +184,9 @@ export default async function CandidatesPage({
                     {
                       param: "type",
                       label: "Status",
-                      options: CANDIDATE_STATUSES.map((s) => ({
-                        value: s,
-                        count: countByStatus.get(s) ?? 0,
+                      options: CANDIDATE_STATUSES.map((candidateStatus) => ({
+                        value: candidateStatus,
+                        count: countByStatus.get(candidateStatus) ?? 0,
                       })),
                     },
                   ]
@@ -174,9 +194,9 @@ export default async function CandidatesPage({
               {
                 param: "position",
                 label: "Position",
-                options: POSITIONS.map((p) => ({
-                  value: p,
-                  count: countByPosition.get(p) ?? 0,
+                options: POSITIONS.map((positionOption) => ({
+                  value: positionOption,
+                  count: countByPosition.get(positionOption) ?? 0,
                 })),
               },
               { param: "role", label: "Role", options: roles },
@@ -191,11 +211,14 @@ export default async function CandidatesPage({
         </div>
         <Segmented
           label="View"
-          items={(["list", "board"] as const).map((v) => ({
-            key: v,
-            href: hrefWith("view", v === "board" ? "board" : undefined),
-            label: v === "list" ? "List" : "Board",
-            active: view === v,
+          items={(["list", "board"] as const).map((viewOption) => ({
+            key: viewOption,
+            href: hrefWith(
+              "view",
+              viewOption === "board" ? "board" : undefined,
+            ),
+            label: viewOption === "list" ? "List" : "Board",
+            active: view === viewOption,
           }))}
         />
       </div>
@@ -239,8 +262,12 @@ async function BoardView({
       return [status, rows.map(toCandidateDetail), count] as const;
     }),
   );
-  const columns = Object.fromEntries(results.map(([s, rows]) => [s, rows]));
-  const counts = Object.fromEntries(results.map(([s, , n]) => [s, n]));
+  const columns = Object.fromEntries(
+    results.map(([columnStatus, rows]) => [columnStatus, rows]),
+  );
+  const counts = Object.fromEntries(
+    results.map(([columnStatus, , columnCount]) => [columnStatus, columnCount]),
+  );
 
   return (
     <CandidateBoard
@@ -266,7 +293,9 @@ async function ListView({
   take: number;
   raw: Record<string, string | string[] | undefined>;
 }) {
-  const status = CANDIDATE_STATUSES.find((s) => s === type);
+  const status = CANDIDATE_STATUSES.find(
+    (candidateStatus) => candidateStatus === type,
+  );
   const where = { AND: status ? [...and, statusWhere(status)] : and };
   const [rows, total] = await Promise.all([
     db.candidate.findMany({
@@ -283,8 +312,8 @@ async function ListView({
   return (
     <>
       <MobileList isEmpty={details.length === 0} empty="No candidates.">
-        {details.map((c) => (
-          <CandidateCard key={c.id} candidate={c} />
+        {details.map((candidate) => (
+          <CandidateCard key={candidate.id} candidate={candidate} />
         ))}
       </MobileList>
       <DesktopTable>
@@ -308,43 +337,47 @@ async function ListView({
                 </TableCell>
               </TableRow>
             )}
-            {details.map((c) => {
-              const st = c.status as CandidateStatus;
+            {details.map((candidate) => {
+              const candidateStatus = candidate.status as CandidateStatus;
               return (
-                <TableRow key={c.id}>
+                <TableRow key={candidate.id}>
                   <TableCell>
-                    <div className="font-medium">{c.name}</div>
-                    {c.jobRole && (
-                      <div className="text-sm text-zinc-500">{c.jobRole}</div>
+                    <div className="font-medium">{candidate.name}</div>
+                    {candidate.jobRole && (
+                      <div className="text-sm text-zinc-500">
+                        {candidate.jobRole}
+                      </div>
                     )}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {c.position ?? "—"}
+                    {candidate.position ?? "—"}
                   </TableCell>
                   <TableCell className="text-sm">
-                    <div>{c.email ?? "—"}</div>
-                    <div className="text-zinc-500">{c.mobileNumber}</div>
+                    <div>{candidate.email ?? "—"}</div>
+                    <div className="text-zinc-500">
+                      {candidate.mobileNumber}
+                    </div>
                   </TableCell>
-                  <TableCell>{c.location ?? "—"}</TableCell>
+                  <TableCell>{candidate.location ?? "—"}</TableCell>
                   <TableCell className="whitespace-nowrap tabular-nums">
-                    {c.appliedOn}
+                    {candidate.appliedOn}
                   </TableCell>
                   <TableCell>
                     <span
                       className={cn(
                         "rounded px-1.5 py-0.5 text-xs font-medium",
-                        CANDIDATE_STATUS_CLASSES[st],
+                        CANDIDATE_STATUS_CLASSES[candidateStatus],
                       )}
                     >
-                      {st}
+                      {candidateStatus}
                     </span>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     <div className="flex items-center gap-3">
-                      <CandidateDialog candidate={c} />
-                      {c.resumeHref && (
+                      <CandidateDialog candidate={candidate} />
+                      {candidate.resumeHref && (
                         <a
-                          href={`${c.resumeHref}?inline=1`}
+                          href={`${candidate.resumeHref}?inline=1`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-foreground"

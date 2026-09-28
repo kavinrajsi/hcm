@@ -52,7 +52,8 @@ export async function syncLeaveFromBasecamp(
   let created = 0;
   let updated = 0;
   for (const { kind, questionId } of syncedCheckins()) {
-    const hasRows = (await db.leaveEntry.count({ where: { checkin: kind } })) > 0;
+    const hasRows =
+      (await db.leaveEntry.count({ where: { checkin: kind } })) > 0;
     const answers = await listCheckinAnswers(
       auth.accessToken,
       accountId,
@@ -60,10 +61,10 @@ export async function syncLeaveFromBasecamp(
       questionId,
       hasRows ? recent : undefined,
     );
-    const r = await ingestAnswers(answers, kind);
+    const result = await ingestAnswers(answers, kind);
     fetched += answers.length;
-    created += r.created;
-    updated += r.updated;
+    created += result.created;
+    updated += result.updated;
   }
 
   const classified = await classifyPending(
@@ -95,17 +96,19 @@ export async function ingestAnswers(
         personalEmailEnc: true,
       },
     })
-  ).map((e) => ({
-    id: e.id,
-    workEmail: e.workEmail,
-    personalEmail: readPii(e).personalEmail,
+  ).map((employee) => ({
+    id: employee.id,
+    workEmail: employee.workEmail,
+    personalEmail: readPii(employee).personalEmail,
   }));
   const emailIndex = buildEmailIndex(employees);
 
   const existing = new Map(
     (
       await db.leaveEntry.findMany({
-        where: { basecampId: { in: answers.map((a) => String(a.id)) } },
+        where: {
+          basecampId: { in: answers.map((answer) => String(answer.id)) },
+        },
         select: {
           id: true,
           basecampId: true,
@@ -113,32 +116,32 @@ export async function ingestAnswers(
           classifiedBy: true,
         },
       })
-    ).map((e) => [e.basecampId, e]),
+    ).map((entry) => [entry.basecampId, entry]),
   );
 
   const toCreate = [];
   let updated = 0;
-  for (const a of answers) {
-    const email = a.creator.email_address?.toLowerCase() ?? "";
+  for (const answer of answers) {
+    const email = answer.creator.email_address?.toLowerCase() ?? "";
     const row = {
       employeeId: emailIndex.get(email) ?? null,
       checkin,
-      creatorName: a.creator.name,
+      creatorName: answer.creator.name,
       creatorEmail: email,
-      postedOn: new Date(a.group_on),
-      postedAt: new Date(a.created_at),
-      message: htmlToText(a.content),
-      link: a.app_url,
+      postedOn: new Date(answer.group_on),
+      postedAt: new Date(answer.created_at),
+      message: htmlToText(answer.content),
+      link: answer.app_url,
     };
-    const prev = existing.get(String(a.id));
-    if (!prev) {
-      toCreate.push({ basecampId: String(a.id), ...row });
-    } else if (prev.message !== row.message) {
+    const previous = existing.get(String(answer.id));
+    if (!previous) {
+      toCreate.push({ basecampId: String(answer.id), ...row });
+    } else if (previous.message !== row.message) {
       // Edited post: re-classify unless HR corrected it by hand.
       await db.leaveEntry.update({
-        where: { id: prev.id },
+        where: { id: previous.id },
         data:
-          prev.classifiedBy === "manual"
+          previous.classifiedBy === "manual"
             ? row
             : { ...row, type: null, classifiedBy: null },
       });
@@ -155,10 +158,13 @@ export async function ingestAnswers(
     where: { employeeId: null },
     select: { id: true, creatorEmail: true },
   });
-  for (const u of unmatched) {
-    const employeeId = emailIndex.get(u.creatorEmail);
+  for (const entry of unmatched) {
+    const employeeId = emailIndex.get(entry.creatorEmail);
     if (employeeId) {
-      await db.leaveEntry.update({ where: { id: u.id }, data: { employeeId } });
+      await db.leaveEntry.update({
+        where: { id: entry.id },
+        data: { employeeId },
+      });
     }
   }
 
@@ -175,7 +181,7 @@ export async function leaveSyncUserId(): Promise<string | null> {
     select: { id: true },
   });
   const token = await db.basecampToken.findFirst({
-    where: { userId: { in: hrUsers.map((u) => u.id) } },
+    where: { userId: { in: hrUsers.map((user) => user.id) } },
     orderBy: { updatedAt: "desc" },
     select: { userId: true },
   });
@@ -207,14 +213,16 @@ export async function syncOneAnswer(
 }
 
 /** ISO timestamp in Asia/Kolkata so "today"/"tomorrow" resolve correctly. */
-function toIST(d: Date): string {
-  return new Date(d.getTime() + 330 * 60_000).toISOString().replace("Z", "+05:30");
+function toIST(date: Date): string {
+  return new Date(date.getTime() + 330 * 60_000)
+    .toISOString()
+    .replace("Z", "+05:30");
 }
 
 function toDate(value: string): Date | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? null : d;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 /**
@@ -243,66 +251,68 @@ export async function classifyPending(
 
   let classified = 0;
   let lastRequest = 0;
-  for (let i = 0; i < pending.length; ) {
+  for (let offset = 0; offset < pending.length;) {
     // Space requests to stay under the per-minute cap.
     const wait = lastRequest + MIN_REQUEST_GAP_MS - Date.now();
     if (Date.now() + Math.max(wait, 0) + REQUEST_ESTIMATE_MS > deadline) break;
     if (wait > 0) await sleep(wait);
 
-    const batch = pending.slice(i, i + BATCH_SIZE);
+    const batch = pending.slice(offset, offset + BATCH_SIZE);
     lastRequest = Date.now();
     let results;
     try {
       results = await classifyLeavePosts(
-        batch.map((p) => ({
-          id: p.id,
-          checkin: p.checkin === "wfh" ? "wfh" : "leave",
-          postedOn: p.postedOn.toISOString().slice(0, 10),
-          postedAt: toIST(p.postedAt),
-          message: p.message,
+        batch.map((entry) => ({
+          id: entry.id,
+          checkin: entry.checkin === "wfh" ? "wfh" : "leave",
+          postedOn: entry.postedOn.toISOString().slice(0, 10),
+          postedAt: toIST(entry.postedAt),
+          message: entry.message,
         })),
         trigger,
       );
-    } catch (err) {
-      if (isRateLimit(err)) {
+    } catch (error) {
+      if (isRateLimit(error)) {
         // Retry the same batch after the window resets.
         lastRequest = Date.now() + RATE_LIMIT_BACKOFF_MS - MIN_REQUEST_GAP_MS;
         continue;
       }
       // Leave the batch unclassified; the next run retries it.
-      console.error("[leave-sync] classify batch failed", err);
-      i += BATCH_SIZE;
+      console.error("[leave-sync] classify batch failed", error);
+      offset += BATCH_SIZE;
       continue;
     }
 
     // One update per row, no transaction: rows are independent, and a batch
     // of 40 in one transaction can outlast Prisma's 5s transaction timeout.
     // `type: null` skips rows HR corrected while the request was running.
-    for (const r of results) {
-      const startDate = toDate(r.startDate);
+    for (const result of results) {
+      const startDate = toDate(result.startDate);
       const { count } = await db.leaveEntry.updateMany({
-        where: { id: r.id, type: null },
+        where: { id: result.id, type: null },
         data: {
-          type: r.type,
+          type: result.type,
           startDate,
-          endDate: toDate(r.endDate) ?? startDate,
-          days: Math.max(0, Math.min(r.days, 99)),
-          reason: r.reason || null,
+          endDate: toDate(result.endDate) ?? startDate,
+          days: Math.max(0, Math.min(result.days, 99)),
+          reason: result.reason || null,
           classifiedBy: "ai",
         },
       });
       classified += count;
     }
-    i += BATCH_SIZE;
+    offset += BATCH_SIZE;
   }
   return classified;
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-function isRateLimit(err: unknown): boolean {
-  const text = String(err instanceof Error ? `${err.name} ${err.message}` : err);
+function isRateLimit(error: unknown): boolean {
+  const text = String(
+    error instanceof Error ? `${error.name} ${error.message}` : error,
+  );
   return /rate.?limit|429/i.test(text);
 }

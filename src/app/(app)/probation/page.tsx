@@ -48,11 +48,11 @@ export default async function ProbationPage({
 
   // Default view: due this month (or the month/year picked in filters).
   const now = new Date();
-  const y = params.year ?? now.getUTCFullYear();
-  const m = params.month ?? now.getUTCMonth() + 1;
+  const year = params.year ?? now.getUTCFullYear();
+  const month = params.month ?? now.getUTCMonth() + 1;
   const monthRange = {
-    gte: new Date(Date.UTC(y, m - 1, 1)),
-    lt: new Date(Date.UTC(y, m, 1)),
+    gte: new Date(Date.UTC(year, month - 1, 1)),
+    lt: new Date(Date.UTC(year, month, 1)),
   };
 
   const where: Prisma.ProbationRecordWhereInput = {
@@ -84,7 +84,7 @@ export default async function ProbationPage({
     }),
   ]);
 
-  const monthLabel = new Date(Date.UTC(y, m - 1)).toLocaleString("en", {
+  const monthLabel = new Date(Date.UTC(year, month - 1)).toLocaleString("en", {
     month: "long",
     year: "numeric",
     timeZone: "UTC",
@@ -117,24 +117,28 @@ export default async function ProbationPage({
           isEmpty={records.length === 0}
           empty={`No probation confirmations due in ${monthLabel}.`}
         >
-          {records.map((r) => (
+          {records.map((record) => (
             <ListCard
-              key={r.id}
-              href={`/employees/${r.employee.id}`}
-              title={r.employee.name}
-              subtitle={r.employee.department}
-              badge={<Badge variant={badgeVariant[r.status]}>{r.status}</Badge>}
+              key={record.id}
+              href={`/employees/${record.employee.id}`}
+              title={record.employee.name}
+              subtitle={record.employee.department}
+              badge={
+                <Badge variant={badgeVariant[record.status]}>
+                  {record.status}
+                </Badge>
+              }
               meta={
                 <>
-                  <span>{r.employee.empId}</span>
-                  <span>Due {r.dueDate.toISOString().slice(0, 10)}</span>
-                  {r.notes && <span>{r.notes}</span>}
+                  <span>{record.employee.empId}</span>
+                  <span>Due {record.dueDate.toISOString().slice(0, 10)}</span>
+                  {record.notes && <span>{record.notes}</span>}
                 </>
               }
               actions={
-                r.status === "CONFIRMED" ||
-                r.status === "EXITED" ? undefined : (
-                  <ProbationRowActions id={r.id} status={r.status} />
+                record.status === "CONFIRMED" ||
+                record.status === "EXITED" ? undefined : (
+                  <ProbationRowActions id={record.id} status={record.status} />
                 )
               }
             />
@@ -162,29 +166,33 @@ export default async function ProbationPage({
                 </TableCell>
               </TableRow>
             )}
-            {records.map((r) => (
-              <TableRow key={r.id}>
+            {records.map((record) => (
+              <TableRow key={record.id}>
                 <TableCell>
                   <Link
-                    href={`/employees/${r.employee.id}`}
+                    href={`/employees/${record.employee.id}`}
                     className="font-medium underline-offset-4 hover:underline"
                   >
-                    {r.employee.empId}
+                    {record.employee.empId}
                   </Link>
                 </TableCell>
-                <TableCell>{r.employee.name}</TableCell>
-                <TableCell>{r.employee.department}</TableCell>
-                <TableCell>{r.dueDate.toISOString().slice(0, 10)}</TableCell>
+                <TableCell>{record.employee.name}</TableCell>
+                <TableCell>{record.employee.department}</TableCell>
                 <TableCell>
-                  <Badge variant={badgeVariant[r.status]}>{r.status}</Badge>
-                  {r.notes && (
+                  {record.dueDate.toISOString().slice(0, 10)}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={badgeVariant[record.status]}>
+                    {record.status}
+                  </Badge>
+                  {record.notes && (
                     <span className="ml-2 text-xs text-zinc-500">
-                      {r.notes}
+                      {record.notes}
                     </span>
                   )}
                 </TableCell>
                 <TableCell>
-                  <ProbationRowActions id={r.id} status={r.status} />
+                  <ProbationRowActions id={record.id} status={record.status} />
                 </TableCell>
               </TableRow>
             ))}

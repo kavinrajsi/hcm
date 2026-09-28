@@ -70,26 +70,26 @@ function shiftDay(day: string, by: number) {
 /** "Sep 28" (plus the year when it isn't this year), "Sep 28 09:30" if timed. */
 function formatPoint(value: string, withTime: boolean) {
   const [date, time] = value.split("T");
-  const [y, m, d] = date.split("-").map(Number);
-  const year = String(y) === istToday().slice(0, 4) ? "" : `, ${y}`;
-  return `${MONTHS[m - 1]} ${d}${year}${withTime && time ? ` ${time}` : ""}`;
+  const [yearNum, monthNum, dayNum] = date.split("-").map(Number);
+  const year = String(yearNum) === istToday().slice(0, 4) ? "" : `, ${yearNum}`;
+  return `${MONTHS[monthNum - 1]} ${dayNum}${year}${withTime && time ? ` ${time}` : ""}`;
 }
 
-function dateLabel(p: {
+function dateLabel(range: {
   preset?: string | null;
   from?: string | null;
   to?: string | null;
 }) {
-  if (p.from || p.to) {
+  if (range.from || range.to) {
     // Default times (whole days) aren't worth showing.
     const timed =
-      (p.from?.includes("T") && !p.from.endsWith("T00:00")) ||
-      (p.to?.includes("T") && !p.to.endsWith("T23:59"));
-    const a = p.from ? formatPoint(p.from, !!timed) : "…";
-    const b = p.to ? formatPoint(p.to, !!timed) : "…";
-    return a === b ? a : `${a} – ${b}`;
+      (range.from?.includes("T") && !range.from.endsWith("T00:00")) ||
+      (range.to?.includes("T") && !range.to.endsWith("T23:59"));
+    const startText = range.from ? formatPoint(range.from, !!timed) : "…";
+    const endText = range.to ? formatPoint(range.to, !!timed) : "…";
+    return startText === endText ? startText : `${startText} – ${endText}`;
   }
-  return DATE_PRESETS[p.preset as DatePreset] ?? null;
+  return DATE_PRESETS[range.preset as DatePreset] ?? null;
 }
 
 export function AddFilter({
@@ -117,9 +117,9 @@ export function AddFilter({
 
   function update(changes: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams);
-    for (const [k, v] of Object.entries(changes)) {
-      if (v) params.set(k, v);
-      else params.delete(k);
+    for (const [key, value] of Object.entries(changes)) {
+      if (value) params.set(key, value);
+      else params.delete(key);
     }
     params.delete("page"); // any filter change resets pagination
     router.replace(`${pathname}${params.size ? `?${params}` : ""}`);
@@ -145,8 +145,8 @@ export function AddFilter({
   }
 
   // Rows for the current step, filtered by the search box.
-  const q = query.trim().toLowerCase();
-  const matches = (label: string) => label.toLowerCase().includes(q);
+  const searchQuery = query.trim().toLowerCase();
+  const matches = (label: string) => label.toLowerCase().includes(searchQuery);
   type Row = {
     key: string;
     label: React.ReactNode;
@@ -157,14 +157,14 @@ export function AddFilter({
     set?: Record<string, string | null>;
   };
   let rows: Row[] = [];
-  const field = fields.find((f) => f.param === step);
+  const field = fields.find((candidate) => candidate.param === step);
   if (step === "menu") {
     rows = [
-      ...fields.map((f) => ({
-        key: f.param,
-        label: f.label,
-        text: f.label,
-        next: f.param,
+      ...fields.map((optionField) => ({
+        key: optionField.param,
+        label: optionField.label,
+        text: optionField.label,
+        next: optionField.param,
       })),
       { key: DATE_STEP, label: date.label, text: date.label, next: DATE_STEP },
     ];
@@ -179,21 +179,21 @@ export function AddFilter({
         selected: !current,
         set: { [field.param]: null },
       },
-      ...field.options.map((o) => ({
-        key: o.value,
+      ...field.options.map((option) => ({
+        key: option.value,
         label: (
           <>
-            <span className="truncate">{o.label ?? o.value}</span>
-            {o.count !== undefined && (
+            <span className="truncate">{option.label ?? option.value}</span>
+            {option.count !== undefined && (
               <span className="ml-auto pl-3 text-xs tabular-nums text-zinc-400">
-                {o.count}
+                {option.count}
               </span>
             )}
           </>
         ),
-        text: o.label ?? o.value,
-        selected: current === o.value.toLowerCase(),
-        set: { [field.param]: o.value },
+        text: option.label ?? option.value,
+        selected: current === option.value.toLowerCase(),
+        set: { [field.param]: option.value },
       })),
     ];
   } else if (step === DATE_STEP) {
@@ -222,26 +222,29 @@ export function AddFilter({
       },
     ];
   }
-  rows = rows.filter((r) => matches(r.text));
+  rows = rows.filter((row) => matches(row.text));
   const active = Math.min(highlight, rows.length - 1);
 
-  function choose(r: Row | undefined) {
-    if (r?.next) go(r.next);
-    else if (r?.set) {
-      update(r.set);
+  function choose(row: Row | undefined) {
+    if (row?.next) go(row.next);
+    else if (row?.set) {
+      update(row.set);
       close();
     }
   }
 
-  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      e.preventDefault();
-      const n = rows.length;
-      if (n) setHighlight((active + (e.key === "ArrowDown" ? 1 : -1) + n) % n);
-    } else if (e.key === "Enter") {
-      e.preventDefault();
+  function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const rowCount = rows.length;
+      if (rowCount)
+        setHighlight(
+          (active + (event.key === "ArrowDown" ? 1 : -1) + rowCount) % rowCount,
+        );
+    } else if (event.key === "Enter") {
+      event.preventDefault();
       choose(rows[active]);
-    } else if (e.key === "Backspace" && !query && step !== "menu") {
+    } else if (event.key === "Backspace" && !query && step !== "menu") {
       go(step === CUSTOM_STEP ? DATE_STEP : "menu");
     }
   }
@@ -252,13 +255,13 @@ export function AddFilter({
     <div ref={anchorRef} className="flex flex-wrap items-center gap-2">
       <Popover.Root
         open={open}
-        onOpenChange={(o, details) => {
+        onOpenChange={(nextOpen, details) => {
           // A row that unmounts on click (switching steps) is detached by
           // the time the outside-press check runs, and chips reopen the
           // menu themselves — neither should close it.
           const target = details.event.target;
           if (
-            !o &&
+            !nextOpen &&
             details.reason === "outside-press" &&
             target instanceof Element &&
             (!target.isConnected || target.closest("[data-filter-chip]"))
@@ -266,8 +269,8 @@ export function AddFilter({
             details.cancel();
             return;
           }
-          setOpen(o);
-          if (o) {
+          setOpen(nextOpen);
+          if (nextOpen) {
             setStep("menu");
             setQuery("");
             setHighlight(0);
@@ -279,19 +282,20 @@ export function AddFilter({
           Add Filter
         </Popover.Trigger>
 
-        {fields.map((f) => {
-          const value = searchParams.get(f.param);
+        {fields.map((optionField) => {
+          const value = searchParams.get(optionField.param);
           if (!value) return null;
-          const option = f.options.find(
-            (o) => o.value.toLowerCase() === value.toLowerCase(),
+          const option = optionField.options.find(
+            (candidate) =>
+              candidate.value.toLowerCase() === value.toLowerCase(),
           );
           return (
             <Chip
-              key={f.param}
-              field={f.label}
+              key={optionField.param}
+              field={optionField.label}
               value={option?.label ?? option?.value ?? value}
-              onOpen={() => openAt(f.param)}
-              onClear={() => update({ [f.param]: null })}
+              onOpen={() => openAt(optionField.param)}
+              onClear={() => update({ [optionField.param]: null })}
             />
           );
         })}
@@ -336,8 +340,8 @@ export function AddFilter({
                   <input
                     ref={inputRef}
                     value={query}
-                    onChange={(e) => {
-                      setQuery(e.target.value);
+                    onChange={(event) => {
+                      setQuery(event.target.value);
                       setHighlight(0);
                     }}
                     onKeyDown={onKeyDown}
@@ -353,8 +357,8 @@ export function AddFilter({
                   from={from}
                   to={to}
                   withTime={date.withTime ?? false}
-                  onApply={(f, t) => {
-                    update({ ...clearDate, from: f, to: t });
+                  onApply={(rangeFrom, rangeTo) => {
+                    update({ ...clearDate, from: rangeFrom, to: rangeTo });
                     close();
                   }}
                 />
@@ -369,25 +373,25 @@ export function AddFilter({
                       No matches
                     </li>
                   )}
-                  {rows.map((r, i) => (
+                  {rows.map((row, rowIndex) => (
                     <li
-                      key={r.key}
+                      key={row.key}
                       role="option"
-                      aria-selected={r.selected ?? false}
-                      onMouseMove={() => setHighlight(i)}
-                      onClick={() => choose(r)}
+                      aria-selected={row.selected ?? false}
+                      onMouseMove={() => setHighlight(rowIndex)}
+                      onClick={() => choose(row)}
                       className={cn(
                         "flex min-h-10 cursor-pointer items-center gap-2 rounded-lg px-2.5 md:min-h-9",
-                        i === active && "bg-muted",
+                        rowIndex === active && "bg-muted",
                       )}
                     >
                       <span className="flex min-w-0 flex-1 items-center">
-                        {r.label}
+                        {row.label}
                       </span>
-                      {r.next ? (
+                      {row.next ? (
                         <ChevronRight className="size-4 shrink-0 text-zinc-500" />
                       ) : (
-                        r.selected && <Check className="size-4 shrink-0" />
+                        row.selected && <Check className="size-4 shrink-0" />
                       )}
                     </li>
                   ))}
@@ -458,16 +462,16 @@ function CustomRange({
   const [picking, setPicking] = useState<"start" | "end">("start");
   const [month, setMonth] = useState(start.slice(0, 7));
 
-  const [y, m] = month.split("-").map(Number);
+  const [year, monthNum] = month.split("-").map(Number);
   const first = `${month}-01`;
   const lead = new Date(`${first}T00:00:00Z`).getUTCDay();
-  const inMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const inMonth = new Date(Date.UTC(year, monthNum, 0)).getUTCDate();
   const weeks = Math.ceil((lead + inMonth) / 7);
-  const days = Array.from({ length: weeks * 7 }, (_, i) =>
-    shiftDay(first, i - lead),
+  const days = Array.from({ length: weeks * 7 }, (_, dayIndex) =>
+    shiftDay(first, dayIndex - lead),
   );
-  const lo = start <= end ? start : end;
-  const hi = start <= end ? end : start;
+  const rangeStart = start <= end ? start : end;
+  const rangeEnd = start <= end ? end : start;
 
   function pick(day: string) {
     if (picking === "start") {
@@ -484,27 +488,31 @@ function CustomRange({
   }
 
   function stepMonth(by: number) {
-    const d = new Date(Date.UTC(y, m - 1 + by, 1));
-    setMonth(d.toISOString().slice(0, 7));
+    const target = new Date(Date.UTC(year, monthNum - 1 + by, 1));
+    setMonth(target.toISOString().slice(0, 7));
   }
 
-  const valid = !!start && !!end && `${lo}T${startTime}` <= `${hi}T${endTime}`;
+  const valid =
+    !!start &&
+    !!end &&
+    `${rangeStart}T${startTime}` <= `${rangeEnd}T${endTime}`;
   const fieldClass =
     "h-9 min-w-0 rounded-md border border-input bg-transparent px-2.5 text-sm tabular-nums dark:bg-input/30";
 
   return (
     <form
       className="p-3"
-      onSubmit={(e) => {
-        e.preventDefault();
+      onSubmit={(event) => {
+        event.preventDefault();
         if (!valid) return;
-        if (withTime) onApply(`${lo}T${startTime}`, `${hi}T${endTime}`);
-        else onApply(lo, hi);
+        if (withTime)
+          onApply(`${rangeStart}T${startTime}`, `${rangeEnd}T${endTime}`);
+        else onApply(rangeStart, rangeEnd);
       }}
     >
       <div className="mb-2 flex items-center justify-between">
         <span className="font-medium">
-          {new Date(Date.UTC(y, m - 1, 1)).toLocaleString("en-US", {
+          {new Date(Date.UTC(year, monthNum - 1, 1)).toLocaleString("en-US", {
             month: "long",
             year: "numeric",
             timeZone: "UTC",
@@ -531,15 +539,15 @@ function CustomRange({
       </div>
 
       <div className="grid grid-cols-7 text-center">
-        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-          <span key={i} className="py-1 text-xs text-zinc-500">
-            {d}
+        {["S", "M", "T", "W", "T", "F", "S"].map((weekday, weekdayIndex) => (
+          <span key={weekdayIndex} className="py-1 text-xs text-zinc-500">
+            {weekday}
           </span>
         ))}
         {days.map((day) => {
           const outside = day.slice(0, 7) !== month;
-          const edge = day === lo || day === hi;
-          const inRange = day > lo && day < hi;
+          const edge = day === rangeStart || day === rangeEnd;
+          const inRange = day > rangeStart && day < rangeEnd;
           return (
             <button
               key={day}
@@ -578,9 +586,9 @@ function CustomRange({
             type="date"
             required
             value={start}
-            onChange={(e) => {
-              setStart(e.target.value);
-              if (e.target.value) setMonth(e.target.value.slice(0, 7));
+            onChange={(event) => {
+              setStart(event.target.value);
+              if (event.target.value) setMonth(event.target.value.slice(0, 7));
             }}
             className={fieldClass}
           />
@@ -590,7 +598,7 @@ function CustomRange({
               aria-label="Start time"
               required
               value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
+              onChange={(event) => setStartTime(event.target.value)}
               className={fieldClass}
             />
           )}
@@ -606,7 +614,7 @@ function CustomRange({
             type="date"
             required
             value={end}
-            onChange={(e) => setEnd(e.target.value)}
+            onChange={(event) => setEnd(event.target.value)}
             className={fieldClass}
           />
           {withTime && (
@@ -615,7 +623,7 @@ function CustomRange({
               aria-label="End time"
               required
               value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
+              onChange={(event) => setEndTime(event.target.value)}
               className={fieldClass}
             />
           )}

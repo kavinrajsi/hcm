@@ -28,9 +28,12 @@ const UPSERT_KINDS = new Set([
 function validToken(given: string | null): boolean {
   const secret = process.env.BASECAMP_WEBHOOK_SECRET;
   if (!secret || !given) return false;
-  const a = Buffer.from(given);
-  const b = Buffer.from(secret);
-  return a.length === b.length && timingSafeEqual(a, b);
+  const givenBuffer = Buffer.from(given);
+  const secretBuffer = Buffer.from(secret);
+  return (
+    givenBuffer.length === secretBuffer.length &&
+    timingSafeEqual(givenBuffer, secretBuffer)
+  );
 }
 
 type Payload = {
@@ -43,21 +46,21 @@ type Payload = {
   };
 };
 
-export async function POST(req: NextRequest) {
-  if (!validToken(req.nextUrl.searchParams.get("token"))) {
+export async function POST(request: NextRequest) {
+  if (!validToken(request.nextUrl.searchParams.get("token"))) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const payload = (await req.json().catch(() => null)) as Payload | null;
-  const rec = payload?.recording;
+  const payload = (await request.json().catch(() => null)) as Payload | null;
+  const recording = payload?.recording;
   const { bucketId } = leaveCheckinConfig();
   const relevant =
     payload?.kind &&
     UPSERT_KINDS.has(payload.kind) &&
-    rec?.type === "Question::Answer" &&
-    rec.id &&
-    String(rec.bucket?.id) === bucketId &&
-    checkinKind(rec.parent?.id) !== null;
+    recording?.type === "Question::Answer" &&
+    recording.id &&
+    String(recording.bucket?.id) === bucketId &&
+    checkinKind(recording.parent?.id) !== null;
   // Anything else is acknowledged, so Basecamp doesn't retry or deactivate.
   if (!relevant) return Response.json({ ignored: true });
 
@@ -67,14 +70,14 @@ export async function POST(req: NextRequest) {
   }
 
   // Errors → 5xx so Basecamp retries (up to 10 times, backing off).
-  const result = await syncOneAnswer(userId, String(rec.id));
+  const result = await syncOneAnswer(userId, String(recording.id));
 
   // Reply now; AI-classify the new/edited post after the response.
   after(async () => {
     try {
       await classifyPending(10, 45_000, "webhook");
-    } catch (e) {
-      console.error("[basecamp-webhook] classify failed", e);
+    } catch (error) {
+      console.error("[basecamp-webhook] classify failed", error);
     }
   });
 

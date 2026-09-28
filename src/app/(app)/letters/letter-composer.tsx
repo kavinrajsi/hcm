@@ -48,9 +48,9 @@ export function LetterComposer({
             className={`${selectClass} w-full md:w-56`}
           >
             <option value="">Select…</option>
-            {employees.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.empId} — {e.name}
+            {employees.map((employee) => (
+              <option key={employee.id} value={employee.id}>
+                {employee.empId} — {employee.name}
               </option>
             ))}
           </select>
@@ -64,9 +64,9 @@ export function LetterComposer({
             name="type"
             className={`${selectClass} w-full md:w-52`}
           >
-            {TYPES.map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
+            {TYPES.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
               </option>
             ))}
           </select>

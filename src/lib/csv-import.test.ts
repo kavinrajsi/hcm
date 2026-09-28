@@ -53,9 +53,9 @@ describe("collectRows", () => {
     const { valid, failures } = collectRows(
       [{ n: "1" }, { n: "x" }, { n: "3" }],
       (row) => {
-        const n = Number(row.n);
-        if (isNaN(n)) throw new Error("not a number");
-        return n;
+        const parsed = Number(row.n);
+        if (isNaN(parsed)) throw new Error("not a number");
+        return parsed;
       },
     );
     expect(valid).toEqual([1, 3]);

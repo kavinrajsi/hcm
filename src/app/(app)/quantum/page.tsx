@@ -86,9 +86,9 @@ export default async function QuantumPage({
     if (auth) {
       try {
         const projects = await listProjects(auth.accessToken, auth.accountId);
-        basecampProjects = projects.map((p) => ({
-          id: String(p.id),
-          name: p.name,
+        basecampProjects = projects.map((project) => ({
+          id: String(project.id),
+          name: project.name,
         }));
       } catch {
         basecampProjects = null;
@@ -143,37 +143,39 @@ export default async function QuantumPage({
 
       <div className="mt-6">
         <MobileList isEmpty={entries.length === 0} empty="No entries yet.">
-          {entries.map((e) => (
+          {entries.map((entry) => (
             <ListCard
-              key={e.id}
+              key={entry.id}
               title={
                 <>
-                  {e.workName}
-                  {e.source === "BASECAMP" && (
+                  {entry.workName}
+                  {entry.source === "BASECAMP" && (
                     <span className="ml-1.5 text-xs font-normal text-zinc-400">
                       (imported)
                     </span>
                   )}
                 </>
               }
-              href={`/employees/${e.employee.id}`}
-              subtitle={[e.employee.name, e.brand].filter(Boolean).join(" · ")}
+              href={`/employees/${entry.employee.id}`}
+              subtitle={[entry.employee.name, entry.brand]
+                .filter(Boolean)
+                .join(" · ")}
               badge={
                 <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium tabular-nums">
-                  {formatDuration(e.durationMins)}
+                  {formatDuration(entry.durationMins)}
                 </span>
               }
-              meta={<span>{e.date.toISOString().slice(0, 10)}</span>}
+              meta={<span>{entry.date.toISOString().slice(0, 10)}</span>}
               actions={
                 <>
-                  {e.link && (
+                  {entry.link && (
                     <Button
                       variant="outline"
                       className="h-10"
                       nativeButton={false}
                       render={
                         <a
-                          href={e.link}
+                          href={entry.link}
                           target="_blank"
                           rel="noopener noreferrer"
                         />
@@ -184,7 +186,7 @@ export default async function QuantumPage({
                     </Button>
                   )}
                   <form action={deleteQuantumEntry} className="ml-auto">
-                    <input type="hidden" name="id" value={e.id} />
+                    <input type="hidden" name="id" value={entry.id} />
                     <Button
                       type="submit"
                       variant="ghost"
@@ -222,30 +224,30 @@ export default async function QuantumPage({
                 </TableCell>
               </TableRow>
             )}
-            {entries.map((e) => (
-              <TableRow key={e.id}>
+            {entries.map((entry) => (
+              <TableRow key={entry.id}>
                 <TableCell>
                   <Link
-                    href={`/employees/${e.employee.id}`}
+                    href={`/employees/${entry.employee.id}`}
                     className="font-medium underline-offset-4 hover:underline"
                   >
-                    {e.employee.name}
+                    {entry.employee.name}
                   </Link>
                 </TableCell>
-                <TableCell>{e.date.toISOString().slice(0, 10)}</TableCell>
-                <TableCell>{e.brand}</TableCell>
+                <TableCell>{entry.date.toISOString().slice(0, 10)}</TableCell>
+                <TableCell>{entry.brand}</TableCell>
                 <TableCell>
-                  {e.workName}
-                  {e.source === "BASECAMP" && (
+                  {entry.workName}
+                  {entry.source === "BASECAMP" && (
                     <span className="ml-1.5 text-xs text-zinc-400">
                       (imported)
                     </span>
                   )}
                 </TableCell>
                 <TableCell>
-                  {e.link ? (
+                  {entry.link ? (
                     <a
-                      href={e.link}
+                      href={entry.link}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="underline underline-offset-4"
@@ -256,10 +258,10 @@ export default async function QuantumPage({
                     "—"
                   )}
                 </TableCell>
-                <TableCell>{formatDuration(e.durationMins)}</TableCell>
+                <TableCell>{formatDuration(entry.durationMins)}</TableCell>
                 <TableCell>
                   <form action={deleteQuantumEntry}>
-                    <input type="hidden" name="id" value={e.id} />
+                    <input type="hidden" name="id" value={entry.id} />
                     <button
                       type="submit"
                       className="text-xs text-zinc-400 hover:text-red-600"

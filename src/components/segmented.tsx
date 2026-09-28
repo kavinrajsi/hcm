@@ -19,19 +19,19 @@ export function Segmented({
       aria-label={label}
       className="inline-flex max-w-full overflow-x-auto rounded-lg border border-zinc-200 p-0.5 text-sm dark:border-zinc-800"
     >
-      {items.map((i) => (
+      {items.map((item) => (
         <Link
-          key={i.key}
-          href={i.href}
-          aria-current={i.active ? "page" : undefined}
+          key={item.key}
+          href={item.href}
+          aria-current={item.active ? "page" : undefined}
           className={cn(
             "flex min-h-9 shrink-0 items-center rounded-md px-3 whitespace-nowrap md:min-h-7",
-            i.active
+            item.active
               ? "bg-muted font-medium"
               : "text-zinc-500 hover:text-foreground",
           )}
         >
-          {i.label}
+          {item.label}
         </Link>
       ))}
     </nav>

@@ -35,12 +35,14 @@ const passwordSchema = z
   .object({
     currentPassword: z
       .string()
-      .transform((v) => (v === "" ? undefined : v))
+      .transform((value) => (value === "" ? undefined : value))
       .optional(),
-    newPassword: z.string().min(8, "New password must be at least 8 characters"),
+    newPassword: z
+      .string()
+      .min(8, "New password must be at least 8 characters"),
     confirmPassword: z.string(),
   })
-  .refine((v) => v.newPassword === v.confirmPassword, {
+  .refine((passwords) => passwords.newPassword === passwords.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
   });

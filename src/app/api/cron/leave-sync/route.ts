@@ -7,8 +7,8 @@ export const maxDuration = 300;
 // Daily Vercel cron: syncs the Basecamp leave and WFH check-ins.
 // Uses the Basecamp token of the most recently connected HR admin.
 // Protected by CRON_SECRET (Vercel sends it as a Bearer token).
-export async function GET(req: NextRequest) {
-  if (!isAuthorizedCron(req)) {
+export async function GET(request: NextRequest) {
+  if (!isAuthorizedCron(request)) {
     return new Response("Unauthorized", { status: 401 });
   }
 

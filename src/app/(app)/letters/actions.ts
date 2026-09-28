@@ -114,8 +114,8 @@ export async function sendLetter(
       sendError =
         "Letter saved, but not emailed — email isn't set up (ZEPTOMAIL_TOKEN).";
     }
-  } catch (e) {
-    console.error("[letters] email failed", e);
+  } catch (error) {
+    console.error("[letters] email failed", error);
     sendError =
       "Letter saved, but the email couldn't be sent. Try again later.";
   }

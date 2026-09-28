@@ -52,13 +52,18 @@ async function main() {
       panHash: true,
       aadhaarHash: true,
       bankAccountHash: true,
-      ...Object.fromEntries(EMPLOYEE_ENC_COLUMNS.map((c) => [c, true])),
+      ...Object.fromEntries(
+        EMPLOYEE_ENC_COLUMNS.map((column) => [column, true]),
+      ),
     },
   });
-  for (const e of employees as unknown as Record<string, string | null>[]) {
+  for (const employee of employees as unknown as Record<
+    string,
+    string | null
+  >[]) {
     const data: Record<string, string> = {};
     for (const column of EMPLOYEE_ENC_COLUMNS) {
-      const stored = e[column];
+      const stored = employee[column];
       if (!stored) continue;
       const plain = decryptField(stored);
       if (needsReencrypt(stored)) {
@@ -68,7 +73,10 @@ async function main() {
       if (column in HASHED) {
         const hashColumn = HASHED[column as keyof typeof HASHED];
         // Only refresh an existing hash (a duplicate bank account stays unset).
-        if (e[hashColumn] && e[hashColumn] !== blindIndex(plain)) {
+        if (
+          employee[hashColumn] &&
+          employee[hashColumn] !== blindIndex(plain)
+        ) {
           data[hashColumn] = blindIndex(plain);
           hashes++;
         }
@@ -78,9 +86,12 @@ async function main() {
     rows++;
     if (apply) {
       try {
-        await db.employee.update({ where: { id: e.id as string }, data });
+        await db.employee.update({
+          where: { id: employee.id as string },
+          data,
+        });
       } catch {
-        failed.push(e.empId as string);
+        failed.push(employee.empId as string);
       }
     }
   }
@@ -89,29 +100,30 @@ async function main() {
     select: { id: true, accessTokenEnc: true, refreshTokenEnc: true },
   });
   let tokenRows = 0;
-  for (const t of tokens) {
+  for (const token of tokens) {
     const data: Record<string, string> = {};
-    if (needsReencrypt(t.accessTokenEnc)) {
-      data.accessTokenEnc = encryptField(decryptField(t.accessTokenEnc));
+    if (needsReencrypt(token.accessTokenEnc)) {
+      data.accessTokenEnc = encryptField(decryptField(token.accessTokenEnc));
     }
-    if (t.refreshTokenEnc && needsReencrypt(t.refreshTokenEnc)) {
-      data.refreshTokenEnc = encryptField(decryptField(t.refreshTokenEnc));
+    if (token.refreshTokenEnc && needsReencrypt(token.refreshTokenEnc)) {
+      data.refreshTokenEnc = encryptField(decryptField(token.refreshTokenEnc));
     }
     if (Object.keys(data).length === 0) continue;
     tokenRows++;
-    if (apply) await db.basecampToken.update({ where: { id: t.id }, data });
+    if (apply) await db.basecampToken.update({ where: { id: token.id }, data });
   }
 
   console.log(
     `${apply ? "Applied" : "Dry run"}: ${rows} employee rows (${values} values re-encrypted, ` +
       `${hashes} blind indexes refreshed), ${tokenRows} Basecamp token rows.`,
   );
-  if (failed.length) console.log(`Failed (check manually): ${failed.join(", ")}`);
+  if (failed.length)
+    console.log(`Failed (check manually): ${failed.join(", ")}`);
 }
 
 main()
-  .catch((e) => {
-    console.error(e instanceof Error ? e.message : e);
+  .catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
   })
   .finally(() => db.$disconnect());

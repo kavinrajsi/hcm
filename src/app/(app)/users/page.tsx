@@ -27,10 +27,13 @@ import {
 
 export const metadata = { title: "Users & roles" };
 
-function status(u: { disabledAt: Date | null; passwordHash: string | null }) {
-  if (u.disabledAt)
+function status(user: {
+  disabledAt: Date | null;
+  passwordHash: string | null;
+}) {
+  if (user.disabledAt)
     return { label: "Disabled", tone: "bg-muted text-zinc-500" };
-  if (!u.passwordHash)
+  if (!user.passwordHash)
     return {
       label: "Invited",
       tone: "bg-amber-100 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200",
@@ -102,21 +105,21 @@ export default async function UsersPage() {
 
       <div className="mt-4">
         <MobileList isEmpty={users.length === 0} empty="No users yet.">
-          {users.map((u) => {
-            const s = status(u);
+          {users.map((user) => {
+            const userStatus = status(user);
             return (
               <ListCard
-                key={u.id}
-                title={u.name ?? u.email}
-                subtitle={u.email}
-                badge={<StatusBadge {...s} />}
+                key={user.id}
+                title={user.name ?? user.email}
+                subtitle={user.email}
+                badge={<StatusBadge {...userStatus} />}
                 meta={
-                  u.employee ? (
+                  user.employee ? (
                     <Link
-                      href={`/employees/${u.employee.id}`}
+                      href={`/employees/${user.employee.id}`}
                       className="underline underline-offset-4"
                     >
-                      {u.employee.empId}
+                      {user.employee.empId}
                     </Link>
                   ) : (
                     <span>No employee record</span>
@@ -124,11 +127,11 @@ export default async function UsersPage() {
                 }
                 actions={
                   <div className="flex w-full flex-col gap-2">
-                    <RoleSelect userId={u.id} role={u.role} />
+                    <RoleSelect userId={user.id} role={user.role} />
                     <UserActions
-                      userId={u.id}
-                      disabled={!!u.disabledAt}
-                      isSelf={u.id === me.id}
+                      userId={user.id}
+                      disabled={!!user.disabledAt}
+                      isSelf={user.id === me.id}
                     />
                   </div>
                 }
@@ -150,42 +153,42 @@ export default async function UsersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((u) => (
-              <TableRow key={u.id} className="align-top">
+            {users.map((user) => (
+              <TableRow key={user.id} className="align-top">
                 <TableCell>
                   <div className="font-medium">
-                    {u.name ?? u.email}
-                    {u.id === me.id && (
+                    {user.name ?? user.email}
+                    {user.id === me.id && (
                       <span className="ml-1.5 text-xs font-normal text-zinc-400">
                         (you)
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-zinc-500">{u.email}</div>
+                  <div className="text-xs text-zinc-500">{user.email}</div>
                 </TableCell>
                 <TableCell>
-                  {u.employee ? (
+                  {user.employee ? (
                     <Link
-                      href={`/employees/${u.employee.id}`}
+                      href={`/employees/${user.employee.id}`}
                       className="underline-offset-4 hover:underline"
                     >
-                      {u.employee.empId} — {u.employee.name}
+                      {user.employee.empId} — {user.employee.name}
                     </Link>
                   ) : (
                     <span className="text-zinc-400">—</span>
                   )}
                 </TableCell>
                 <TableCell>
-                  <RoleSelect userId={u.id} role={u.role} />
+                  <RoleSelect userId={user.id} role={user.role} />
                 </TableCell>
                 <TableCell>
-                  <StatusBadge {...status(u)} />
+                  <StatusBadge {...status(user)} />
                 </TableCell>
                 <TableCell className="w-80 whitespace-normal">
                   <UserActions
-                    userId={u.id}
-                    disabled={!!u.disabledAt}
-                    isSelf={u.id === me.id}
+                    userId={user.id}
+                    disabled={!!user.disabledAt}
+                    isSelf={user.id === me.id}
                   />
                 </TableCell>
               </TableRow>

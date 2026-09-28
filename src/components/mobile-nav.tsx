@@ -44,7 +44,9 @@ export function MobileTabBar({ role }: { role: Role }) {
   const current = findCurrent(pathname)?.item.url;
   const { openMobile, setOpenMobile } = useSidebar();
   const titles = new Map(
-    NAV.flatMap((g) => g.items.map((i) => [i.url, i.title] as const)),
+    NAV.flatMap((group) =>
+      group.items.map((item) => [item.url, item.title] as const),
+    ),
   );
   const tabs = TABS[role];
   const inTabs = current !== undefined && tabs.includes(current);

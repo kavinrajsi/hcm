@@ -35,16 +35,18 @@ function utcMidnight(day: string, addDays = 0): Date {
 }
 
 function nextMonth(day: string): string {
-  const [y, m] = day.split("-").map(Number);
-  return new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
+  const [year, month] = day.split("-").map(Number);
+  return new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
 }
 
 /** An IST wall-clock "YYYY-MM-DD[THH:MM]" as an instant. */
 export function parseIstDateTime(value?: string): Date | undefined {
-  const m = value ? DATE_TIME.exec(value) : null;
-  if (!m) return undefined;
-  const d = new Date(`${m[1]}T${m[2] ?? "00:00"}:00Z`);
-  return Number.isNaN(d.getTime()) ? undefined : new Date(d.getTime() - IST_MS);
+  const match = value ? DATE_TIME.exec(value) : null;
+  if (!match) return undefined;
+  const parsed = new Date(`${match[1]}T${match[2] ?? "00:00"}:00Z`);
+  return Number.isNaN(parsed.getTime())
+    ? undefined
+    : new Date(parsed.getTime() - IST_MS);
 }
 
 /** The IST calendar days a preset covers, as [first, last + 1). */
@@ -60,10 +62,10 @@ function presetDays(preset: string | undefined, now: Date) {
       return { from: utcMidnight(first), to: utcMidnight(nextMonth(first)) };
     }
     case "year": {
-      const y = Number(today.slice(0, 4));
+      const year = Number(today.slice(0, 4));
       return {
-        from: utcMidnight(`${y}-01-01`),
-        to: utcMidnight(`${y + 1}-01-01`),
+        from: utcMidnight(`${year}-01-01`),
+        to: utcMidnight(`${year + 1}-01-01`),
       };
     }
   }
@@ -76,20 +78,23 @@ function presetDays(preset: string | undefined, now: Date) {
  * a timed one that whole minute.
  */
 export function instantRange(
-  f: DateFilter,
+  filter: DateFilter,
   now = new Date(),
 ): { gte?: Date; lt?: Date } | undefined {
-  if (f.from || f.to) {
-    const gte = parseIstDateTime(f.from);
-    const end = parseIstDateTime(f.to);
-    const lt =
-      end && new Date(end.getTime() + (f.to!.includes("T") ? 60_000 : DAY_MS));
-    return gte || lt ? { gte, lt } : undefined;
+  if (filter.from || filter.to) {
+    const gte = parseIstDateTime(filter.from);
+    const end = parseIstDateTime(filter.to);
+    const rangeEnd =
+      end &&
+      new Date(end.getTime() + (filter.to!.includes("T") ? 60_000 : DAY_MS));
+    return gte || rangeEnd ? { gte, lt: rangeEnd } : undefined;
   }
-  const hours = { "1h": 1, "24h": 24, "7d": 168, "30d": 720 }[f.preset ?? ""];
+  const hours = { "1h": 1, "24h": 24, "7d": 168, "30d": 720 }[
+    filter.preset ?? ""
+  ];
   if (hours) return { gte: new Date(now.getTime() - hours * 3_600_000) };
-  const days = presetDays(f.preset, now);
-  if (days && (f.preset === "month" || f.preset === "year")) {
+  const days = presetDays(filter.preset, now);
+  if (days && (filter.preset === "month" || filter.preset === "year")) {
     return { gte: new Date(days.from.getTime() - IST_MS) };
   }
   return undefined;
@@ -97,22 +102,22 @@ export function instantRange(
 
 /** Bounds for a @db.Date column: whole days, times ignored. */
 export function dayRange(
-  f: DateFilter,
+  filter: DateFilter,
   now = new Date(),
 ): { gte?: Date; lt?: Date } | undefined {
-  if (f.from || f.to) {
-    const valid = (v?: string) =>
-      v && DATE_TIME.test(v) && parseIstDateTime(v)
-        ? v.slice(0, 10)
+  if (filter.from || filter.to) {
+    const valid = (value?: string) =>
+      value && DATE_TIME.test(value) && parseIstDateTime(value)
+        ? value.slice(0, 10)
         : undefined;
-    const from = valid(f.from);
-    const to = valid(f.to);
+    const from = valid(filter.from);
+    const to = valid(filter.to);
     if (!from && !to) return undefined;
     return {
       gte: from ? utcMidnight(from) : undefined,
       lt: to ? utcMidnight(to, 1) : undefined,
     };
   }
-  const days = presetDays(f.preset, now);
+  const days = presetDays(filter.preset, now);
   return days && { gte: days.from, lt: days.to };
 }

@@ -87,29 +87,29 @@ export default async function SessionsPage() {
           isEmpty={sessions.length === 0}
           empty="No upcoming sessions."
         >
-          {sessions.map((s) => (
+          {sessions.map((session) => (
             <ListCard
-              key={s.id}
-              title={s.name}
-              subtitle={formatSessionDate(s.date)}
+              key={session.id}
+              title={session.name}
+              subtitle={formatSessionDate(session.date)}
               badge={
                 <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium">
-                  {s.mode === "IN_PERSON" ? "In-person" : "Virtual"}
+                  {session.mode === "IN_PERSON" ? "In-person" : "Virtual"}
                 </span>
               }
               meta={
                 <>
-                  <span>{s.trainer}</span>
+                  <span>{session.trainer}</span>
                   <span>
-                    {s.registrations.length === 0
+                    {session.registrations.length === 0
                       ? "No registrations"
-                      : `${s.registrations.length} registered`}
+                      : `${session.registrations.length} registered`}
                   </span>
                 </>
               }
               actions={
                 <form action={registerForSession} className="w-full">
-                  <input type="hidden" name="sessionId" value={s.id} />
+                  <input type="hidden" name="sessionId" value={session.id} />
                   <Button
                     type="submit"
                     variant="outline"
@@ -144,30 +144,30 @@ export default async function SessionsPage() {
                 </TableCell>
               </TableRow>
             )}
-            {sessions.map((s) => (
-              <TableRow key={s.id}>
-                <TableCell className="font-medium">{s.name}</TableCell>
-                <TableCell>{formatSessionDate(s.date)}</TableCell>
-                <TableCell>{s.trainer}</TableCell>
+            {sessions.map((session) => (
+              <TableRow key={session.id}>
+                <TableCell className="font-medium">{session.name}</TableCell>
+                <TableCell>{formatSessionDate(session.date)}</TableCell>
+                <TableCell>{session.trainer}</TableCell>
                 <TableCell>
-                  {s.mode === "IN_PERSON" ? "In-person" : "Virtual"}
+                  {session.mode === "IN_PERSON" ? "In-person" : "Virtual"}
                 </TableCell>
                 <TableCell>
-                  {s.registrations.length === 0 ? (
+                  {session.registrations.length === 0 ? (
                     <span className="text-zinc-400">—</span>
                   ) : (
                     <span
-                      title={s.registrations
-                        .map((r) => r.employee.name)
+                      title={session.registrations
+                        .map((registration) => registration.employee.name)
                         .join(", ")}
                     >
-                      {s.registrations.length} registered
+                      {session.registrations.length} registered
                     </span>
                   )}
                 </TableCell>
                 <TableCell>
                   <form action={registerForSession}>
-                    <input type="hidden" name="sessionId" value={s.id} />
+                    <input type="hidden" name="sessionId" value={session.id} />
                     <Button type="submit" size="sm" variant="outline">
                       Register
                     </Button>

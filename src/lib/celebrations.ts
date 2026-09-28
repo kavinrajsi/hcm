@@ -23,7 +23,8 @@ export type Celebration = {
   years?: number; // anniversaries: completed years
 };
 
-const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+const isLeap = (year: number) =>
+  (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
 
 /**
  * The day a yearly date (from YYYY-MM-DD) falls on in `year`/`month` (1-12),
@@ -34,13 +35,13 @@ export function dayInMonth(
   year: number,
   month: number,
 ): number | null {
-  const [, m, d] = iso.slice(0, 10).split("-").map(Number);
-  if (m !== month) return null;
-  if (m === 2 && d === 29 && !isLeap(year)) return 28;
-  return d;
+  const [, isoMonth, isoDay] = iso.slice(0, 10).split("-").map(Number);
+  if (isoMonth !== month) return null;
+  if (isoMonth === 2 && isoDay === 29 && !isLeap(year)) return 28;
+  return isoDay;
 }
 
-const pad = (n: number) => String(n).padStart(2, "0");
+const pad = (value: number) => String(value).padStart(2, "0");
 
 /** Every birthday and anniversary (1+ years) in `year`/`month`, by day. */
 export function celebrationsForMonth(
@@ -49,18 +50,18 @@ export function celebrationsForMonth(
   month: number,
 ): Celebration[] {
   const out: Celebration[] = [];
-  for (const p of people) {
+  for (const person of people) {
     const employee = {
-      id: p.id,
-      empId: p.empId,
-      name: p.name,
-      department: p.department,
+      id: person.id,
+      empId: person.empId,
+      name: person.name,
+      department: person.department,
     };
-    if (p.dateOfBirth) {
-      const day = dayInMonth(p.dateOfBirth, year, month);
+    if (person.dateOfBirth) {
+      const day = dayInMonth(person.dateOfBirth, year, month);
       if (day !== null) {
         out.push({
-          key: `b-${p.id}`,
+          key: `b-${person.id}`,
           type: "BIRTHDAY",
           date: `${year}-${pad(month)}-${pad(day)}`,
           day,
@@ -68,13 +69,13 @@ export function celebrationsForMonth(
         });
       }
     }
-    const joinYear = Number(p.dateOfJoining.slice(0, 4));
+    const joinYear = Number(person.dateOfJoining.slice(0, 4));
     const years = year - joinYear;
     if (years >= 1) {
-      const day = dayInMonth(p.dateOfJoining, year, month);
+      const day = dayInMonth(person.dateOfJoining, year, month);
       if (day !== null) {
         out.push({
-          key: `a-${p.id}`,
+          key: `a-${person.id}`,
           type: "ANNIVERSARY",
           date: `${year}-${pad(month)}-${pad(day)}`,
           day,
@@ -85,10 +86,10 @@ export function celebrationsForMonth(
     }
   }
   return out.sort(
-    (a, b) =>
-      a.day - b.day ||
-      a.type.localeCompare(b.type) ||
-      a.employee.name.localeCompare(b.employee.name),
+    (left, right) =>
+      left.day - right.day ||
+      left.type.localeCompare(right.type) ||
+      left.employee.name.localeCompare(right.employee.name),
   );
 }
 
@@ -104,8 +105,8 @@ export function relativeDay(date: string, today: string): string {
   return diff > 0 ? `in ${diff} days` : `${-diff} days ago`;
 }
 
-export const ordinal = (n: number) => {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
+export const ordinal = (value: number) => {
+  const suffixes = ["th", "st", "nd", "rd"];
+  const lastTwoDigits = value % 100;
+  return `${value}${suffixes[(lastTwoDigits - 20) % 10] ?? suffixes[lastTwoDigits] ?? suffixes[0]}`;
 };

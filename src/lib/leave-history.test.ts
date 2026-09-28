@@ -6,25 +6,28 @@ import {
   type HistoryEntry,
 } from "./leave-history";
 
-const d = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
-let n = 0;
-const entry = (p: Partial<HistoryEntry>): HistoryEntry => ({
-  id: `e${n++}`,
+const utcDate = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
+let entrySeq = 0;
+const entry = (overrides: Partial<HistoryEntry>): HistoryEntry => ({
+  id: `e${entrySeq++}`,
   startDate: null,
   endDate: null,
-  postedOn: d("2026-03-01"),
+  postedOn: utcDate("2026-03-01"),
   type: "FULL_DAY",
   days: 1,
   status: "APPROVED",
-  ...p,
+  ...overrides,
 });
 
 describe("leaveYears / filterByYear", () => {
   const entries = [
-    entry({ startDate: d("2026-01-05") }),
-    entry({ startDate: null, postedOn: d("2024-12-31") }),
-    entry({ startDate: d("2025-06-01"), postedOn: d("2025-05-30") }),
-    entry({ startDate: d("2026-02-10") }),
+    entry({ startDate: utcDate("2026-01-05") }),
+    entry({ startDate: null, postedOn: utcDate("2024-12-31") }),
+    entry({
+      startDate: utcDate("2025-06-01"),
+      postedOn: utcDate("2025-05-30"),
+    }),
+    entry({ startDate: utcDate("2026-02-10") }),
   ];
 
   it("lists years newest first, by leave date (else post date)", () => {
@@ -40,7 +43,7 @@ describe("leaveYears / filterByYear", () => {
 
 describe("summarizeLeave", () => {
   it("counts leave days as full + half, excluding rejected", () => {
-    const s = summarizeLeave([
+    const summary = summarizeLeave([
       entry({ type: "FULL_DAY", days: 2 }),
       entry({ type: "FULL_DAY", days: 1, status: "REJECTED" }),
       entry({ type: "HALF_DAY", days: 0.5 }),
@@ -51,7 +54,7 @@ describe("summarizeLeave", () => {
       entry({ type: "WFH", days: 0, status: "REJECTED" }),
       entry({ type: null, days: null, status: "PENDING" }),
     ]);
-    expect(s).toEqual({
+    expect(summary).toEqual({
       leaveDays: 3,
       fullDays: 2,
       halfDays: 2,

@@ -15,16 +15,16 @@ export function parseNotes(raw: string | null): CandidateNote[] {
   if (value.startsWith("[")) {
     try {
       const list = JSON.parse(value) as unknown[];
-      return list.flatMap((n, i) => {
-        if (!n || typeof n !== "object") return [];
-        const { id, text, timestamp } = n as Record<string, unknown>;
+      return list.flatMap((entry, index) => {
+        if (!entry || typeof entry !== "object") return [];
+        const { id, text, timestamp } = entry as Record<string, unknown>;
         if (typeof text !== "string" || !text.trim()) return [];
         return [
           {
             id:
               typeof id === "string" || typeof id === "number"
                 ? String(id)
-                : String(i),
+                : String(index),
             text,
             timestamp: typeof timestamp === "string" ? timestamp : null,
           },
@@ -48,15 +48,15 @@ export function appendNote(
 }
 
 export function removeNote(raw: string | null, noteId: string): string | null {
-  const notes = parseNotes(raw).filter((n) => n.id !== noteId);
+  const notes = parseNotes(raw).filter((note) => note.id !== noteId);
   return notes.length ? JSON.stringify(notes) : null;
 }
 
 /** "10 Jun 2026 at 11:44 am" in Asia/Kolkata. */
 export function formatNoteTime(iso: string | null): string | null {
   if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-GB", {
       timeZone: "Asia/Kolkata",
@@ -67,8 +67,8 @@ export function formatNoteTime(iso: string | null): string | null {
       minute: "2-digit",
       hour12: true,
     })
-      .formatToParts(d)
-      .map((p) => [p.type, p.value]),
+      .formatToParts(date)
+      .map((part) => [part.type, part.value]),
   );
   return `${parts.day} ${parts.month} ${parts.year} at ${parts.hour}:${parts.minute} ${String(parts.dayPeriod).toLowerCase()}`;
 }

@@ -97,33 +97,33 @@ export function LeaveHistoryDrawer({
             <p className="text-zinc-500">No other posts.</p>
           )}
           <ul className="flex flex-col gap-2">
-            {history?.entries.map((h) => (
+            {history?.entries.map((post) => (
               <li
-                key={h.id}
+                key={post.id}
                 className={
-                  h.id === entryId
+                  post.id === entryId
                     ? "rounded-md border border-primary/50 px-3 py-2"
                     : "rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800"
                 }
               >
                 <div className="flex flex-wrap items-center gap-x-2 text-xs">
-                  <span className="font-medium tabular-nums">{h.date}</span>
+                  <span className="font-medium tabular-nums">{post.date}</span>
                   <span>
-                    {h.type
-                      ? LEAVE_TYPE_LABELS[h.type as LeaveTypeValue]
+                    {post.type
+                      ? LEAVE_TYPE_LABELS[post.type as LeaveTypeValue]
                       : "Unclassified"}
                   </span>
-                  {h.days !== null && h.days > 0 && (
+                  {post.days !== null && post.days > 0 && (
                     <span className="tabular-nums text-zinc-500">
-                      {h.days}d
+                      {post.days}d
                     </span>
                   )}
-                  <span className={STATUS_TEXT[h.status]}>
-                    {h.status.charAt(0) + h.status.slice(1).toLowerCase()}
+                  <span className={STATUS_TEXT[post.status]}>
+                    {post.status.charAt(0) + post.status.slice(1).toLowerCase()}
                   </span>
                 </div>
                 <p className="mt-1 line-clamp-2 text-xs text-zinc-500">
-                  {h.message}
+                  {post.message}
                 </p>
               </li>
             ))}
@@ -232,9 +232,9 @@ export function LeaveEditDialog({
               defaultValue={entry.type ?? "FULL_DAY"}
               className={selectClass}
             >
-              {LEAVE_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {LEAVE_TYPE_LABELS[t]}
+              {LEAVE_TYPES.map((leaveType) => (
+                <option key={leaveType} value={leaveType}>
+                  {LEAVE_TYPE_LABELS[leaveType]}
                 </option>
               ))}
             </select>

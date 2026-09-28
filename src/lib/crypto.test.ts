@@ -22,13 +22,17 @@ function useKeys(active: string, id?: string, old?: string) {
 
 /** A value in the pre-key-id format (`iv:tag:ciphertext`). */
 function legacyEncrypt(plaintext: string, keyHex: string): string {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", Buffer.from(keyHex, "hex"), iv);
+  const initializationVector = randomBytes(12);
+  const cipher = createCipheriv(
+    "aes-256-gcm",
+    Buffer.from(keyHex, "hex"),
+    initializationVector,
+  );
   const data = Buffer.concat([
     cipher.update(plaintext, "utf8"),
     cipher.final(),
   ]);
-  return `${iv.toString("hex")}:${cipher.getAuthTag().toString("hex")}:${data.toString("hex")}`;
+  return `${initializationVector.toString("hex")}:${cipher.getAuthTag().toString("hex")}:${data.toString("hex")}`;
 }
 
 beforeAll(() => {
@@ -54,9 +58,9 @@ describe("encryptField / decryptField", () => {
 
   it("rejects tampered ciphertext (GCM auth)", () => {
     const stored = encryptField("1234567890123456");
-    const [id, iv, tag, data] = stored.split(":");
+    const [id, ivPart, tag, data] = stored.split(":");
     const flipped = data.slice(0, -1) + (data.endsWith("0") ? "1" : "0");
-    expect(() => decryptField(`${id}:${iv}:${tag}:${flipped}`)).toThrow();
+    expect(() => decryptField(`${id}:${ivPart}:${tag}:${flipped}`)).toThrow();
   });
 
   it("rejects malformed input", () => {

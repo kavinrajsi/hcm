@@ -44,16 +44,16 @@ export default async function ReviewsPage() {
           isEmpty={meetings.length === 0}
           empty="No review meetings recorded."
         >
-          {meetings.map((m) => (
+          {meetings.map((meeting) => (
             <ListCard
-              key={m.id}
-              href={`/employees/${m.employee.id}`}
-              title={m.employee.name}
-              subtitle={m.notes ?? "—"}
+              key={meeting.id}
+              href={`/employees/${meeting.employee.id}`}
+              title={meeting.employee.name}
+              subtitle={meeting.notes ?? "—"}
               meta={
                 <>
-                  <span>{m.employee.empId}</span>
-                  <span>{m.date.toISOString().slice(0, 10)}</span>
+                  <span>{meeting.employee.empId}</span>
+                  <span>{meeting.date.toISOString().slice(0, 10)}</span>
                 </>
               }
             />
@@ -79,18 +79,20 @@ export default async function ReviewsPage() {
                   </TableCell>
                 </TableRow>
               )}
-              {meetings.map((m) => (
-                <TableRow key={m.id}>
+              {meetings.map((meeting) => (
+                <TableRow key={meeting.id}>
                   <TableCell>
                     <Link
-                      href={`/employees/${m.employee.id}`}
+                      href={`/employees/${meeting.employee.id}`}
                       className="font-medium underline-offset-4 hover:underline"
                     >
-                      {m.employee.name}
+                      {meeting.employee.name}
                     </Link>
                   </TableCell>
-                  <TableCell>{m.date.toISOString().slice(0, 10)}</TableCell>
-                  <TableCell>{m.notes ?? "—"}</TableCell>
+                  <TableCell>
+                    {meeting.date.toISOString().slice(0, 10)}
+                  </TableCell>
+                  <TableCell>{meeting.notes ?? "—"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

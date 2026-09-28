@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/rbac";
 import { authorizeUrl, basecampConfigured } from "@/lib/basecamp";
 
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   // Signed out → login page; signed in without HR → 403 (not a 500).
   const user = await currentUser();
   if (!user) redirect("/login");
@@ -12,5 +12,5 @@ export async function GET(req: NextRequest) {
   if (!basecampConfigured()) {
     return new Response("Basecamp OAuth not configured", { status: 503 });
   }
-  redirect(authorizeUrl(req.nextUrl.origin));
+  redirect(authorizeUrl(request.nextUrl.origin));
 }

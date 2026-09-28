@@ -69,19 +69,19 @@ export function TableSkeleton({
   return (
     <div className="mt-4 hidden overflow-hidden rounded-lg border border-zinc-200 md:block dark:border-zinc-800">
       <div className="flex gap-6 border-b border-zinc-200 px-3 py-3 dark:border-zinc-800">
-        {Array.from({ length: cols }, (_, c) => (
-          <Skeleton key={c} className="h-3 flex-1" />
+        {Array.from({ length: cols }, (_, colIndex) => (
+          <Skeleton key={colIndex} className="h-3 flex-1" />
         ))}
       </div>
-      {Array.from({ length: rows }, (_, r) => (
+      {Array.from({ length: rows }, (_, rowIndex) => (
         <div
-          key={r}
+          key={rowIndex}
           className="flex gap-6 border-b border-zinc-200 px-3 py-3.5 last:border-b-0 dark:border-zinc-800"
         >
-          {Array.from({ length: cols }, (_, c) => (
+          {Array.from({ length: cols }, (_, colIndex) => (
             <Skeleton
-              key={c}
-              className={cn("h-4 flex-1", c === 0 && "max-w-24")}
+              key={colIndex}
+              className={cn("h-4 flex-1", colIndex === 0 && "max-w-24")}
             />
           ))}
         </div>
@@ -93,9 +93,9 @@ export function TableSkeleton({
 export function CardListSkeleton({ rows = 5 }: { rows?: number }) {
   return (
     <ul className="mt-4 flex flex-col gap-2 md:hidden">
-      {Array.from({ length: rows }, (_, i) => (
+      {Array.from({ length: rows }, (_, index) => (
         <li
-          key={i}
+          key={index}
           className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
         >
           <div className="flex items-center justify-between gap-3">
@@ -119,10 +119,10 @@ export function AddFormSkeleton() {
     <div className="mt-5 md:mt-6">
       <Skeleton className="h-11 w-full md:hidden" />
       <div className="hidden items-end gap-3 rounded-lg border border-zinc-200 p-4 md:flex dark:border-zinc-800">
-        {[40, 32, 44].map((w) => (
-          <div key={w} className="space-y-1.5">
+        {[40, 32, 44].map((width) => (
+          <div key={width} className="space-y-1.5">
             <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-9" style={{ width: `${w * 4}px` }} />
+            <Skeleton className="h-9" style={{ width: `${width * 4}px` }} />
           </div>
         ))}
         <Skeleton className="h-9 w-28" />
@@ -158,9 +158,9 @@ export function DashboardSkeleton() {
       <Skeleton className="h-8 w-56" />
       <Skeleton className="mt-3 h-4 w-80 max-w-full" />
       <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-        {Array.from({ length: 7 }, (_, i) => (
+        {Array.from({ length: 7 }, (_, index) => (
           <div
-            key={i}
+            key={index}
             className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
           >
             <Skeleton className="h-7 w-10" />
@@ -170,9 +170,9 @@ export function DashboardSkeleton() {
       </div>
       <Skeleton className="mt-12 h-6 w-24" />
       <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {Array.from({ length: 12 }, (_, i) => (
+        {Array.from({ length: 12 }, (_, index) => (
           <div
-            key={i}
+            key={index}
             className="rounded-lg border border-zinc-200 px-4 py-3 dark:border-zinc-800"
           >
             <Skeleton className="h-4 w-28" />
@@ -192,16 +192,16 @@ export function DetailPageSkeleton() {
         <Skeleton className="h-4 w-40" />
       </div>
       <div className="mt-6 grid grid-cols-2 gap-4 rounded-lg border border-zinc-200 p-5 sm:grid-cols-4 dark:border-zinc-800">
-        {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="space-y-1.5">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div key={index} className="space-y-1.5">
             <Skeleton className="h-3 w-16" />
             <Skeleton className="h-4 w-24" />
           </div>
         ))}
       </div>
       <div className="mt-8 grid gap-4 md:grid-cols-3">
-        {Array.from({ length: 12 }, (_, i) => (
-          <div key={i} className="space-y-1.5">
+        {Array.from({ length: 12 }, (_, index) => (
+          <div key={index} className="space-y-1.5">
             <Skeleton className="h-3 w-24" />
             <Skeleton className="h-10 w-full md:h-9" />
           </div>
@@ -219,8 +219,8 @@ export function LeaveSkeleton() {
       <HeaderSkeleton description action />
       <Skeleton className="mt-6 h-4 w-60" />
       <div className="mt-2 flex gap-2 overflow-hidden">
-        {Array.from({ length: 6 }, (_, i) => (
-          <Skeleton key={i} className="h-10 w-28 shrink-0 md:h-8" />
+        {Array.from({ length: 6 }, (_, index) => (
+          <Skeleton key={index} className="h-10 w-28 shrink-0 md:h-8" />
         ))}
       </div>
       <div className="mt-6 flex items-center justify-between gap-3">
@@ -235,8 +235,8 @@ export function LeaveSkeleton() {
           <Skeleton className="h-8 w-28 bg-zinc-200 dark:bg-zinc-800" />
         </div>
         <div className="mt-3 flex justify-between">
-          {Array.from({ length: 7 }, (_, i) => (
-            <div key={i} className="flex flex-col items-center gap-2">
+          {Array.from({ length: 7 }, (_, index) => (
+            <div key={index} className="flex flex-col items-center gap-2">
               <Skeleton className="h-3 w-3 bg-zinc-200 dark:bg-zinc-800" />
               <Skeleton className="size-11 rounded-full bg-zinc-200 dark:bg-zinc-800" />
             </div>

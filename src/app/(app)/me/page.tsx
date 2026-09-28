@@ -56,8 +56,8 @@ export default async function MePage() {
   }
 
   const upcoming = employee.registrations
-    .filter((r) => r.session.date >= new Date())
-    .map((r) => r.session);
+    .filter((registration) => registration.session.date >= new Date())
+    .map((registration) => registration.session);
 
   const leaveAgg = await db.leaveEntry.aggregate({
     where: {
@@ -178,14 +178,14 @@ export default async function MePage() {
                 </TableCell>
               </TableRow>
             )}
-            {employee.quantumEntries.map((e) => (
-              <TableRow key={e.id}>
-                <TableCell>{e.date.toISOString().slice(0, 10)}</TableCell>
-                <TableCell>{e.brand}</TableCell>
-                <TableCell>{e.workName}</TableCell>
+            {employee.quantumEntries.map((entry) => (
+              <TableRow key={entry.id}>
+                <TableCell>{entry.date.toISOString().slice(0, 10)}</TableCell>
+                <TableCell>{entry.brand}</TableCell>
+                <TableCell>{entry.workName}</TableCell>
                 <TableCell>
-                  {e.durationMins > 0
-                    ? `${Math.floor(e.durationMins / 60)}h ${e.durationMins % 60}m`
+                  {entry.durationMins > 0
+                    ? `${Math.floor(entry.durationMins / 60)}h ${entry.durationMins % 60}m`
                     : "—"}
                 </TableCell>
               </TableRow>
@@ -207,29 +207,29 @@ export default async function MePage() {
             No leave posts found in Basecamp check-ins.
           </li>
         )}
-        {employee.leaveEntries.map((l) => (
+        {employee.leaveEntries.map((leave) => (
           <li
-            key={l.id}
+            key={leave.id}
             className="rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800"
           >
             <span className="font-medium">
-              {l.type ? LEAVE_TYPE_LABELS[l.type] : "Pending"}
+              {leave.type ? LEAVE_TYPE_LABELS[leave.type] : "Pending"}
             </span>{" "}
-            · {(l.startDate ?? l.postedOn).toISOString().slice(0, 10)}
-            {l.endDate && l.startDate && l.endDate > l.startDate
-              ? ` → ${l.endDate.toISOString().slice(0, 10)}`
+            · {(leave.startDate ?? leave.postedOn).toISOString().slice(0, 10)}
+            {leave.endDate && leave.startDate && leave.endDate > leave.startDate
+              ? ` → ${leave.endDate.toISOString().slice(0, 10)}`
               : ""}
-            {l.reason ? ` · ${l.reason}` : ""}
+            {leave.reason ? ` · ${leave.reason}` : ""}
             <span
               className={
-                l.status === "APPROVED"
+                leave.status === "APPROVED"
                   ? "ml-2 text-xs text-emerald-600 dark:text-emerald-400"
-                  : l.status === "REJECTED"
+                  : leave.status === "REJECTED"
                     ? "ml-2 text-xs text-rose-600 dark:text-rose-400"
                     : "ml-2 text-xs text-amber-600 dark:text-amber-400"
               }
             >
-              {l.status.charAt(0) + l.status.slice(1).toLowerCase()}
+              {leave.status.charAt(0) + leave.status.slice(1).toLowerCase()}
             </span>
           </li>
         ))}
@@ -242,18 +242,18 @@ export default async function MePage() {
             {upcoming.length === 0 && (
               <li className="text-zinc-500">No registrations.</li>
             )}
-            {upcoming.map((s) => (
+            {upcoming.map((session) => (
               <li
-                key={s.id}
+                key={session.id}
                 className="rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800"
               >
-                <span className="font-medium">{s.name}</span> ·{" "}
-                {s.date.toLocaleString("en-IN", {
+                <span className="font-medium">{session.name}</span> ·{" "}
+                {session.date.toLocaleString("en-IN", {
                   dateStyle: "medium",
                   timeStyle: "short",
                   timeZone: "Asia/Kolkata",
                 })}{" "}
-                · {s.trainer}
+                · {session.trainer}
               </li>
             ))}
           </ul>
@@ -264,14 +264,14 @@ export default async function MePage() {
             {employee.attendance.length === 0 && (
               <li className="text-zinc-500">Nothing logged yet.</li>
             )}
-            {employee.attendance.map((a) => (
+            {employee.attendance.map((record) => (
               <li
-                key={a.id}
+                key={record.id}
                 className="rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800"
               >
-                <span className="font-medium">{a.sessionName}</span> ·{" "}
-                {a.date.toISOString().slice(0, 10)} ·{" "}
-                {a.attended ? "attended" : "missed"}
+                <span className="font-medium">{record.sessionName}</span> ·{" "}
+                {record.date.toISOString().slice(0, 10)} ·{" "}
+                {record.attended ? "attended" : "missed"}
               </li>
             ))}
           </ul>

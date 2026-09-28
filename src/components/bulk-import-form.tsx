@@ -48,8 +48,8 @@ function CsvPreviewDrawer({
     const result = Papa.parse<Record<string, string>>(await file.text(), {
       header: true,
       skipEmptyLines: true,
-      transformHeader: (h) => h.trim(),
-      transform: (v) => v.trim(),
+      transformHeader: (header) => header.trim(),
+      transform: (value) => value.trim(),
     });
     const first = result.errors[0];
     setPreview({
@@ -63,8 +63,8 @@ function CsvPreviewDrawer({
   }
 
   const headers = preview?.headers ?? [];
-  const missing = columns.filter((c) => !headers.includes(c));
-  const extra = headers.filter((h) => !columns.includes(h));
+  const missing = columns.filter((column) => !headers.includes(column));
+  const extra = headers.filter((header) => !columns.includes(header));
 
   return (
     <Sheet onOpenChange={load}>
@@ -74,7 +74,10 @@ function CsvPreviewDrawer({
       >
         Preview file
       </SheetTrigger>
-      <SheetContent side="right" className="w-full data-[side=right]:w-full sm:max-w-3xl">
+      <SheetContent
+        side="right"
+        className="w-full data-[side=right]:w-full sm:max-w-3xl"
+      >
         <SheetHeader>
           <SheetTitle>{file?.name ?? "Preview"}</SheetTitle>
           <SheetDescription>
@@ -106,32 +109,35 @@ function CsvPreviewDrawer({
                 <thead className="sticky top-0 bg-popover text-left">
                   <tr>
                     <th className="px-2 py-1 font-medium text-zinc-500">#</th>
-                    {headers.map((h) => (
+                    {headers.map((header) => (
                       <th
-                        key={h}
+                        key={header}
                         className={
-                          columns.includes(h)
+                          columns.includes(header)
                             ? "px-2 py-1 font-medium whitespace-nowrap"
                             : "px-2 py-1 font-medium whitespace-nowrap text-amber-600 dark:text-amber-400"
                         }
                       >
-                        {h}
+                        {header}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {preview.rows.map((row, i) => (
+                  {preview.rows.map((row, rowIndex) => (
                     <tr
-                      key={i}
+                      key={rowIndex}
                       className="border-t border-zinc-200 dark:border-zinc-800"
                     >
                       <td className="px-2 py-1 tabular-nums text-zinc-500">
-                        {i + 2}
+                        {rowIndex + 2}
                       </td>
-                      {headers.map((h) => (
-                        <td key={h} className="px-2 py-1 whitespace-nowrap">
-                          {row[h]}
+                      {headers.map((header) => (
+                        <td
+                          key={header}
+                          className="px-2 py-1 whitespace-nowrap"
+                        >
+                          {row[header]}
                         </td>
                       ))}
                     </tr>
@@ -183,7 +189,7 @@ export function BulkImportForm({
             name="file"
             accept=".csv,text/csv"
             required
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />
           <div className="flex gap-2">
             <CsvPreviewDrawer file={file} columns={columns} />
@@ -208,13 +214,13 @@ export function BulkImportForm({
                 </tr>
               </thead>
               <tbody>
-                {state.failures.map((f) => (
+                {state.failures.map((failure) => (
                   <tr
-                    key={`${f.row}-${f.message}`}
+                    key={`${failure.row}-${failure.message}`}
                     className="border-t border-zinc-200 dark:border-zinc-800"
                   >
-                    <td className="px-2 py-1 tabular-nums">{f.row}</td>
-                    <td className="px-2 py-1">{f.message}</td>
+                    <td className="px-2 py-1 tabular-nums">{failure.row}</td>
+                    <td className="px-2 py-1">{failure.message}</td>
                   </tr>
                 ))}
               </tbody>

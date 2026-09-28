@@ -72,22 +72,24 @@ export default async function IdCardsPage({
           isEmpty={cards.length === 0}
           empty="No ID card records found."
         >
-          {cards.map((c) => (
+          {cards.map((card) => (
             <ListCard
-              key={c.id}
-              href={`/employees/${c.employee.id}`}
-              title={c.employee.name}
-              subtitle={c.employee.department}
+              key={card.id}
+              href={`/employees/${card.employee.id}`}
+              title={card.employee.name}
+              subtitle={card.employee.department}
               meta={
                 <>
-                  <span>{c.employee.empId}</span>
+                  <span>{card.employee.empId}</span>
                   <span>
                     Issued{" "}
-                    {c.issuedAt ? c.issuedAt.toISOString().slice(0, 10) : "—"}
+                    {card.issuedAt
+                      ? card.issuedAt.toISOString().slice(0, 10)
+                      : "—"}
                   </span>
                 </>
               }
-              actions={<IdCardStatusSelect id={c.id} status={c.status} />}
+              actions={<IdCardStatusSelect id={card.id} status={card.status} />}
             />
           ))}
         </MobileList>
@@ -112,23 +114,25 @@ export default async function IdCardsPage({
                 </TableCell>
               </TableRow>
             )}
-            {cards.map((c) => (
-              <TableRow key={c.id}>
+            {cards.map((card) => (
+              <TableRow key={card.id}>
                 <TableCell>
                   <Link
-                    href={`/employees/${c.employee.id}`}
+                    href={`/employees/${card.employee.id}`}
                     className="font-medium underline-offset-4 hover:underline"
                   >
-                    {c.employee.empId}
+                    {card.employee.empId}
                   </Link>
                 </TableCell>
-                <TableCell>{c.employee.name}</TableCell>
-                <TableCell>{c.employee.department}</TableCell>
+                <TableCell>{card.employee.name}</TableCell>
+                <TableCell>{card.employee.department}</TableCell>
                 <TableCell>
-                  <IdCardStatusSelect id={c.id} status={c.status} />
+                  <IdCardStatusSelect id={card.id} status={card.status} />
                 </TableCell>
                 <TableCell>
-                  {c.issuedAt ? c.issuedAt.toISOString().slice(0, 10) : "—"}
+                  {card.issuedAt
+                    ? card.issuedAt.toISOString().slice(0, 10)
+                    : "—"}
                 </TableCell>
               </TableRow>
             ))}

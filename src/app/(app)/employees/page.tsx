@@ -36,7 +36,7 @@ const EMP_TYPE_OPTIONS = [
   { value: "CONTRACT", label: "Contract" },
 ];
 const EMP_TYPE_LABELS: Record<string, string> = Object.fromEntries(
-  EMP_TYPE_OPTIONS.map((o) => [o.value, o.label]),
+  EMP_TYPE_OPTIONS.map((option) => [option.value, option.label]),
 );
 
 export default async function EmployeesPage({
@@ -46,15 +46,19 @@ export default async function EmployeesPage({
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
-  const str = (v: unknown) =>
-    typeof v === "string" && v.trim() ? v.trim().slice(0, 200) : undefined;
-  const empType = EMP_TYPE_OPTIONS.find((o) => o.value === params.type)?.value;
-  const department = str(raw.department);
-  const designation = str(raw.designation);
+  const trimmedParam = (value: unknown) =>
+    typeof value === "string" && value.trim()
+      ? value.trim().slice(0, 200)
+      : undefined;
+  const empType = EMP_TYPE_OPTIONS.find(
+    (option) => option.value === params.type,
+  )?.value;
+  const department = trimmedParam(raw.department);
+  const designation = trimmedParam(raw.designation);
   const joined = dayRange({
-    preset: str(raw.joined),
-    from: str(raw.from),
-    to: str(raw.to),
+    preset: trimmedParam(raw.joined),
+    from: trimmedParam(raw.from),
+    to: trimmedParam(raw.to),
   });
 
   // Managers see only their direct reports (filter options included).
@@ -95,13 +99,18 @@ export default async function EmployeesPage({
   // Most common first.
   const byCount = <T extends { _count: number }>(
     rows: T[],
-    key: (r: T) => string,
+    key: (row: T) => string,
   ) =>
     rows
-      .filter((r) => key(r).trim())
-      .sort((a, b) => b._count - a._count || key(a).localeCompare(key(b)))
-      .map((r) => ({ value: key(r), count: r._count }));
-  const typeCounts = new Map(types.map((t) => [t.empType as string, t._count]));
+      .filter((row) => key(row).trim())
+      .sort(
+        (left, right) =>
+          right._count - left._count || key(left).localeCompare(key(right)),
+      )
+      .map((row) => ({ value: key(row), count: row._count }));
+  const typeCounts = new Map(
+    types.map((typeGroup) => [typeGroup.empType as string, typeGroup._count]),
+  );
 
   return (
     <PageShell>
@@ -133,21 +142,21 @@ export default async function EmployeesPage({
               {
                 param: "type",
                 label: "Emp type",
-                options: EMP_TYPE_OPTIONS.map((o) => ({
-                  value: o.value,
-                  label: o.label,
-                  count: typeCounts.get(o.value) ?? 0,
+                options: EMP_TYPE_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                  count: typeCounts.get(option.value) ?? 0,
                 })),
               },
               {
                 param: "department",
                 label: "Department",
-                options: byCount(departments, (d) => d.department),
+                options: byCount(departments, (group) => group.department),
               },
               {
                 param: "designation",
                 label: "Designation",
-                options: byCount(designations, (d) => d.designation),
+                options: byCount(designations, (group) => group.designation),
               },
             ]}
             date={{
@@ -164,24 +173,24 @@ export default async function EmployeesPage({
           isEmpty={employees.length === 0}
           empty="No employees found."
         >
-          {employees.map((e) => (
+          {employees.map((employee) => (
             <ListCard
-              key={e.id}
-              href={`/employees/${e.id}`}
-              title={e.name}
-              subtitle={[e.designation, e.department]
+              key={employee.id}
+              href={`/employees/${employee.id}`}
+              title={employee.name}
+              subtitle={[employee.designation, employee.department]
                 .filter(Boolean)
                 .join(" · ")}
               badge={
                 <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium">
-                  {EMP_TYPE_LABELS[e.empType] ?? e.empType}
+                  {EMP_TYPE_LABELS[employee.empType] ?? employee.empType}
                 </span>
               }
               meta={
                 <>
-                  <span>{e.empId}</span>
+                  <span>{employee.empId}</span>
                   <span>
-                    Joined {e.dateOfJoining.toISOString().slice(0, 10)}
+                    Joined {employee.dateOfJoining.toISOString().slice(0, 10)}
                   </span>
                 </>
               }
@@ -210,23 +219,23 @@ export default async function EmployeesPage({
                 </TableCell>
               </TableRow>
             )}
-            {employees.map((e) => (
-              <TableRow key={e.id}>
+            {employees.map((employee) => (
+              <TableRow key={employee.id}>
                 <TableCell>
                   <Link
-                    href={`/employees/${e.id}`}
+                    href={`/employees/${employee.id}`}
                     className="font-medium underline-offset-4 hover:underline"
                   >
-                    {e.empId}
+                    {employee.empId}
                   </Link>
                 </TableCell>
-                <TableCell>{e.name}</TableCell>
+                <TableCell>{employee.name}</TableCell>
                 <TableCell>
-                  {e.dateOfJoining.toISOString().slice(0, 10)}
+                  {employee.dateOfJoining.toISOString().slice(0, 10)}
                 </TableCell>
-                <TableCell>{e.department}</TableCell>
-                <TableCell>{e.designation}</TableCell>
-                <TableCell>{e.empType}</TableCell>
+                <TableCell>{employee.department}</TableCell>
+                <TableCell>{employee.designation}</TableCell>
+                <TableCell>{employee.empType}</TableCell>
               </TableRow>
             ))}
           </TableBody>

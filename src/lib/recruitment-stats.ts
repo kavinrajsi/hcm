@@ -42,15 +42,15 @@ const monthLabel = (key: string) =>
 /** Every month from `first` to `last` inclusive (YYYY-MM). */
 export function monthRange(first: string, last: string): MonthCol[] {
   const out: MonthCol[] = [];
-  let [y, m] = first.split("-").map(Number);
-  const [ly, lm] = last.split("-").map(Number);
-  while (y < ly || (y === ly && m <= lm)) {
-    const key = `${y}-${String(m).padStart(2, "0")}`;
+  let [year, month] = first.split("-").map(Number);
+  const [lastYear, lastMonth] = last.split("-").map(Number);
+  while (year < lastYear || (year === lastYear && month <= lastMonth)) {
+    const key = `${year}-${String(month).padStart(2, "0")}`;
     out.push({ key, label: monthLabel(key) });
-    m++;
-    if (m > 12) {
-      m = 1;
-      y++;
+    month++;
+    if (month > 12) {
+      month = 1;
+      year++;
     }
   }
   return out;
@@ -62,17 +62,19 @@ export function buildStats(
   currentMonth: string,
 ): RecruitmentStats {
   const first = rows.reduce<string | null>(
-    (min, r) => (min === null || r.month < min ? r.month : min),
+    (min, record) => (min === null || record.month < min ? record.month : min),
     null,
   );
   const months = first ? monthRange(first, currentMonth) : [];
-  const idx = new Map(months.map((m, i) => [m.key, i]));
+  const monthIndexByKey = new Map(
+    months.map((month, index) => [month.key, index]),
+  );
 
   const roles = new Map<string, RoleRow>();
   const stage = new Map<string, number>();
   let total = 0;
-  for (const r of rows) {
-    const role = r.role?.trim() || "Unspecified";
+  for (const record of rows) {
+    const role = record.role?.trim() || "Unspecified";
     const row =
       roles.get(role) ??
       ({
@@ -82,33 +84,35 @@ export function buildStats(
         intern: 0,
         byMonth: months.map(() => 0),
       } satisfies RoleRow);
-    row.total += r.n;
-    if (r.position === "Intern") row.intern += r.n;
-    else row.fullTime += r.n;
-    const i = idx.get(r.month);
-    if (i !== undefined) row.byMonth[i] += r.n;
+    row.total += record.n;
+    if (record.position === "Intern") row.intern += record.n;
+    else row.fullTime += record.n;
+    const monthIndex = monthIndexByKey.get(record.month);
+    if (monthIndex !== undefined) row.byMonth[monthIndex] += record.n;
     roles.set(role, row);
 
-    const s =
-      r.status && PIPELINE_STAGES.concat("Rejected").includes(r.status)
-        ? r.status
+    const stageName =
+      record.status &&
+      PIPELINE_STAGES.concat("Rejected").includes(record.status)
+        ? record.status
         : "New";
-    stage.set(s, (stage.get(s) ?? 0) + r.n);
-    total += r.n;
+    stage.set(stageName, (stage.get(stageName) ?? 0) + record.n);
+    total += record.n;
   }
 
   const sorted = [...roles.values()].sort(
-    (a, b) => b.total - a.total || a.role.localeCompare(b.role),
+    (left, right) =>
+      right.total - left.total || left.role.localeCompare(right.role),
   );
   return {
     months,
     roles: sorted,
-    monthTotals: months.map((_, i) =>
-      sorted.reduce((sum, r) => sum + r.byMonth[i], 0),
+    monthTotals: months.map((_, monthIndex) =>
+      sorted.reduce((sum, roleRow) => sum + roleRow.byMonth[monthIndex], 0),
     ),
-    pipeline: PIPELINE_STAGES.map((s) => ({
-      stage: s,
-      count: stage.get(s) ?? 0,
+    pipeline: PIPELINE_STAGES.map((stageName) => ({
+      stage: stageName,
+      count: stage.get(stageName) ?? 0,
     })),
     rejected: stage.get("Rejected") ?? 0,
     total,

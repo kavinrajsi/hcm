@@ -25,7 +25,9 @@ const resultSchema = z.object({
       endDate: z.string().describe("YYYY-MM-DD, same as startDate for one day"),
       days: z
         .number()
-        .describe("Working days absent: 1 per full day, 0.5 half day, 0 for late/early/WFH"),
+        .describe(
+          "Working days absent: 1 per full day, 0.5 half day, 0 for late/early/WFH",
+        ),
       reason: z.string().describe("Short reason, max 8 words, or empty"),
     }),
   ),
@@ -59,7 +61,12 @@ export async function classifyLeavePosts(
   trigger?: AiTrigger,
 ): Promise<LeaveClassification[]> {
   if (posts.length === 0) return [];
-  const usage = { feature: "leave-classify", trigger, model: MODEL, items: posts.length };
+  const usage = {
+    feature: "leave-classify",
+    trigger,
+    model: MODEL,
+    items: posts.length,
+  };
   let result;
   try {
     result = await generateText({
@@ -69,9 +76,9 @@ export async function classifyLeavePosts(
       output: Output.object({ schema: resultSchema }),
       prompt: JSON.stringify(posts),
     });
-  } catch (err) {
+  } catch (error) {
     await recordAiUsage({ ...usage, ok: false });
-    throw err;
+    throw error;
   }
   await recordAiUsage({
     ...usage,
@@ -80,6 +87,6 @@ export async function classifyLeavePosts(
     ...gatewayCost(result.providerMetadata),
   });
   const { output } = result;
-  const ids = new Set(posts.map((p) => p.id));
-  return output.items.filter((i) => ids.has(i.id));
+  const ids = new Set(posts.map((post) => post.id));
+  return output.items.filter((item) => ids.has(item.id));
 }

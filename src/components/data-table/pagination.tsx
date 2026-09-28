@@ -15,12 +15,12 @@ export function TablePagination({
 }) {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  function pageHref(p: number) {
+  function pageHref(pageNumber: number) {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(searchParams)) {
       if (typeof value === "string" && key !== "page") params.set(key, value);
     }
-    params.set("page", String(p));
+    params.set("page", String(pageNumber));
     return `${pathname}?${params.toString()}`;
   }
 

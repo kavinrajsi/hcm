@@ -57,8 +57,8 @@ function keyForId(id: string): Buffer {
 
 /** Key id a stored value was encrypted with. */
 function storedKeyId(stored: string): string {
-  const m = stored.match(/^k([^:]+):/);
-  return m ? m[1] : LEGACY_KEY_ID;
+  const keyIdMatch = stored.match(/^k([^:]+):/);
+  return keyIdMatch ? keyIdMatch[1] : LEGACY_KEY_ID;
 }
 
 /** True when the value was encrypted with a key other than the active one. */
@@ -69,14 +69,14 @@ export function needsReencrypt(stored: string): boolean {
 export function encryptField(plaintext: string): string {
   const keyId = activeKeyId();
   const key = keyForId(keyId);
-  const iv = randomBytes(IV_LENGTH);
-  const cipher = createCipheriv(ALGO, key, iv);
+  const initializationVector = randomBytes(IV_LENGTH);
+  const cipher = createCipheriv(ALGO, key, initializationVector);
   const ciphertext = Buffer.concat([
     cipher.update(plaintext, "utf8"),
     cipher.final(),
   ]);
   const tag = cipher.getAuthTag();
-  return `k${keyId}:${iv.toString("hex")}:${tag.toString("hex")}:${ciphertext.toString("hex")}`;
+  return `k${keyId}:${initializationVector.toString("hex")}:${tag.toString("hex")}:${ciphertext.toString("hex")}`;
 }
 
 export function decryptField(stored: string): string {

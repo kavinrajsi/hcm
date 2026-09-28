@@ -32,62 +32,62 @@ describe("renderEmail", () => {
 
 describe("inviteEmail", () => {
   it("greets by first name and carries the link and sign-in email", () => {
-    const e = inviteEmail({
+    const email = inviteEmail({
       name: "Asha Rao",
       email: "asha@madarth.com",
       link: "https://app/reset-password?token=t&invite=1",
     });
-    expect(e.subject).toMatch(/set your password/i);
-    expect(e.html).toContain("Hi Asha,");
-    expect(e.html).toContain("asha@madarth.com");
-    expect(e.html).toContain("Set your password");
-    expect(e.html).toContain("expires in 7 days");
+    expect(email.subject).toMatch(/set your password/i);
+    expect(email.html).toContain("Hi Asha,");
+    expect(email.html).toContain("asha@madarth.com");
+    expect(email.html).toContain("Set your password");
+    expect(email.html).toContain("expires in 7 days");
   });
 
   it("escapes a hostile name", () => {
-    const e = inviteEmail({
+    const email = inviteEmail({
       name: "<script>x</script>",
       email: "a@x.com",
       link: "https://app/l",
     });
-    expect(e.html).not.toContain("<script>");
+    expect(email.html).not.toContain("<script>");
   });
 });
 
 describe("resetEmail", () => {
   it("says the link expires in 1 hour", () => {
-    const e = resetEmail({ link: "https://app/reset-password?token=t" });
-    expect(e.subject).toBe("Reset your HCM password");
-    expect(e.html).toContain("expires in 1 hour");
+    const email = resetEmail({ link: "https://app/reset-password?token=t" });
+    expect(email.subject).toBe("Reset your HCM password");
+    expect(email.html).toContain("expires in 1 hour");
   });
 });
 
 describe("exitClearanceEmail", () => {
   it("lists the checklist with a readable date and escapes the name", () => {
-    const e = exitClearanceEmail({
+    const email = exitClearanceEmail({
       name: "Ravi <K>",
       empId: "E7",
       dateOfExit: "2026-10-31",
     });
-    expect(e.subject).toBe("Exit clearance — Ravi <K> (E7)");
-    expect(e.html).toContain("31 October 2026");
-    expect(e.html).toContain("Return your ID card");
-    expect(e.html).not.toContain("<K>");
+    expect(email.subject).toBe("Exit clearance — Ravi <K> (E7)");
+    expect(email.html).toContain("31 October 2026");
+    expect(email.html).toContain("Return your ID card");
+    expect(email.html).not.toContain("<K>");
   });
 });
 
 describe("probationReminderEmail", () => {
   it("lists each person, flags extensions and pluralises the subject", () => {
-    const e = probationReminderEmail({
+    const email = probationReminderEmail({
       rows: [
         { name: "A", empId: "E1", dueDate: "2026-10-05", status: "PENDING" },
         { name: "B", empId: "E2", dueDate: "2026-10-09", status: "EXTENDED" },
       ],
     });
-    expect(e.subject).toBe("2 probation confirmations due soon");
-    expect(e.html).toContain("5 October 2026");
-    expect(e.html).toContain("(extended)");
-    expect(e.html).toContain("/probation");
+    expect(email.subject).toBe("2 probation confirmations due soon");
+    expect(email.html).toContain("5 October 2026");
+    expect(email.html).toContain("(extended)");
+    expect(email.html).toContain("/probation");
   });
 
   it("uses the singular for one person", () => {
@@ -103,11 +103,11 @@ describe("probationReminderEmail", () => {
 
 describe("letterEmail", () => {
   it("keeps the HR-written letter body as-is inside the frame", () => {
-    const e = letterEmail({
+    const email = letterEmail({
       subject: "Offer letter",
       bodyHtml: "<p>Dear Asha, <strong>welcome</strong>.</p>",
     });
-    expect(e.subject).toBe("Offer letter");
-    expect(e.html).toContain("<p>Dear Asha, <strong>welcome</strong>.</p>");
+    expect(email.subject).toBe("Offer letter");
+    expect(email.html).toContain("<p>Dear Asha, <strong>welcome</strong>.</p>");
   });
 });

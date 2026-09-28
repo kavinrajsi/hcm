@@ -59,6 +59,6 @@ describe("readPii", () => {
 
   it("returns null for every field of an empty row", () => {
     const pii = readPii({});
-    for (const f of PII_FIELDS) expect(pii[f]).toBeNull();
+    for (const field of PII_FIELDS) expect(pii[field]).toBeNull();
   });
 });

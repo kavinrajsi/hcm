@@ -62,7 +62,7 @@ export function LeaveDayStrip({
     row.scrollLeft = cell.offsetLeft - (row.clientWidth - cell.offsetWidth) / 2;
   }, []);
 
-  const day = days.find((d) => d.key === selected) ?? days[0];
+  const day = days.find((stripDay) => stripDay.key === selected) ?? days[0];
   const list = byDay[day.key] ?? [];
 
   return (
@@ -99,48 +99,50 @@ export function LeaveDayStrip({
           ref={rowRef}
           className="relative -mx-4 mt-2 flex snap-x snap-mandatory overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {days.map((d) => {
-            const entries = byDay[d.key] ?? [];
-            const isSelected = d.key === day.key;
+          {days.map((stripDay) => {
+            const entries = byDay[stripDay.key] ?? [];
+            const isSelected = stripDay.key === day.key;
             return (
               <div
-                key={d.key}
+                key={stripDay.key}
                 ref={isSelected ? selectedRef : undefined}
                 className="flex w-[calc(100%/7)] shrink-0 snap-start flex-col items-center gap-2"
               >
                 <span
                   className={cn(
                     "text-sm font-medium",
-                    d.isWeekend && "text-zinc-400",
+                    stripDay.isWeekend && "text-zinc-400",
                   )}
                 >
-                  {d.weekday}
+                  {stripDay.weekday}
                 </span>
                 <button
                   type="button"
-                  onClick={() => setSelected(d.key)}
+                  onClick={() => setSelected(stripDay.key)}
                   aria-pressed={isSelected}
-                  aria-label={`${d.label}, ${entries.length} on leave`}
+                  aria-label={`${stripDay.label}, ${entries.length} on leave`}
                   className={cn(
                     "flex size-11 items-center justify-center rounded-full text-base tabular-nums transition-colors",
                     isSelected
                       ? "bg-foreground font-semibold text-background"
                       : "bg-background/70 dark:bg-background/30",
                     !isSelected &&
-                      d.isToday &&
+                      stripDay.isToday &&
                       "font-semibold ring-2 ring-foreground/70",
-                    !isSelected && d.isWeekend && "text-zinc-400",
+                    !isSelected && stripDay.isWeekend && "text-zinc-400",
                   )}
                 >
-                  {d.date}
+                  {stripDay.date}
                 </button>
                 <span className="flex h-1.5 gap-0.5" aria-hidden>
-                  {entries.slice(0, MAX_DOTS).map((e) => (
+                  {entries.slice(0, MAX_DOTS).map((dotEntry) => (
                     <span
-                      key={e.id}
+                      key={dotEntry.id}
                       className={cn(
                         "size-1.5 rounded-full",
-                        e.type ? DOT_CLASSES[e.type] : "bg-zinc-400",
+                        dotEntry.type
+                          ? DOT_CLASSES[dotEntry.type]
+                          : "bg-zinc-400",
                       )}
                     />
                   ))}
@@ -168,22 +170,22 @@ export function LeaveDayStrip({
           </p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2">
-            {list.map((e) => (
+            {list.map((entry) => (
               <li
-                key={e.id}
+                key={entry.id}
                 className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
               >
                 <div className="flex items-start justify-between gap-2">
-                  {e.employeeId ? (
+                  {entry.employeeId ? (
                     <Link
-                      href={`/employees/${e.employeeId}`}
+                      href={`/employees/${entry.employeeId}`}
                       className="font-medium underline-offset-4 hover:underline"
                     >
-                      {e.name}
+                      {entry.name}
                     </Link>
                   ) : (
                     <span className="font-medium">
-                      {e.name}
+                      {entry.name}
                       <span className="ml-1.5 text-xs font-normal text-zinc-400">
                         (no match)
                       </span>
@@ -192,20 +194,22 @@ export function LeaveDayStrip({
                   <span
                     className={cn(
                       "shrink-0 rounded px-1.5 py-0.5 text-xs font-medium",
-                      TYPE_CLASSES[e.type ?? "UNCLASSIFIED"],
+                      TYPE_CLASSES[entry.type ?? "UNCLASSIFIED"],
                     )}
                   >
-                    {e.type ? LEAVE_TYPE_LABELS[e.type] : "Unclassified"}
+                    {entry.type
+                      ? LEAVE_TYPE_LABELS[entry.type]
+                      : "Unclassified"}
                   </span>
                 </div>
                 <p className="mt-1 line-clamp-2 text-sm whitespace-pre-line text-zinc-600 dark:text-zinc-400">
-                  {e.message}
+                  {entry.message}
                 </p>
                 <p className="mt-1.5 flex gap-3 text-xs text-zinc-500">
-                  {e.days !== null && (
-                    <span className="tabular-nums">{e.days}d</span>
+                  {entry.days !== null && (
+                    <span className="tabular-nums">{entry.days}d</span>
                   )}
-                  {e.status === "PENDING" && (
+                  {entry.status === "PENDING" && (
                     <span className="italic">◷ Awaiting approval</span>
                   )}
                 </p>

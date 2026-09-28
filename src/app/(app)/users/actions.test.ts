@@ -29,9 +29,9 @@ vi.mock("@/lib/password-links", () => ({
 const { setUserRole, setUserDisabled, inviteUser } = await import("./actions");
 
 function form(fields: Record<string, string>) {
-  const f = new FormData();
-  for (const [k, v] of Object.entries(fields)) f.set(k, v);
-  return f;
+  const formData = new FormData();
+  for (const [key, value] of Object.entries(fields)) formData.set(key, value);
+  return formData;
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -40,8 +40,8 @@ describe("setUserRole", () => {
   it("refuses to demote the last active HR admin", async () => {
     db.user.findUnique.mockResolvedValue({ role: "HR_ADMIN" });
     db.user.count.mockResolvedValue(0);
-    const r = await setUserRole("u1", "EMPLOYEE");
-    expect(r.error).toMatch(/at least one active HR admin/);
+    const result = await setUserRole("u1", "EMPLOYEE");
+    expect(result.error).toMatch(/at least one active HR admin/);
     expect(db.user.update).not.toHaveBeenCalled();
   });
 
@@ -68,16 +68,16 @@ describe("setUserRole", () => {
 
 describe("setUserDisabled", () => {
   it("won't let you disable yourself", async () => {
-    const r = await setUserDisabled("me", true);
-    expect(r.error).toMatch(/your own account/);
+    const result = await setUserDisabled("me", true);
+    expect(result.error).toMatch(/your own account/);
     expect(db.user.update).not.toHaveBeenCalled();
   });
 
   it("won't disable the last active HR admin", async () => {
     db.user.findUnique.mockResolvedValue({ role: "HR_ADMIN" });
     db.user.count.mockResolvedValue(0);
-    const r = await setUserDisabled("u1", true);
-    expect(r.error).toMatch(/at least one active HR admin/);
+    const result = await setUserDisabled("u1", true);
+    expect(result.error).toMatch(/at least one active HR admin/);
   });
 
   it("disables and re-enables", async () => {
@@ -93,8 +93,11 @@ describe("setUserDisabled", () => {
 
 describe("inviteUser", () => {
   it("needs an employee or a valid email", async () => {
-    const r = await inviteUser({}, form({ role: "EMPLOYEE", email: "nope" }));
-    expect(r.error).toMatch(/valid email/);
+    const result = await inviteUser(
+      {},
+      form({ role: "EMPLOYEE", email: "nope" }),
+    );
+    expect(result.error).toMatch(/valid email/);
   });
 
   it("refuses an employee who already has a login", async () => {
@@ -104,11 +107,11 @@ describe("inviteUser", () => {
       userId: "u9",
       dateOfExit: null,
     });
-    const r = await inviteUser(
+    const result = await inviteUser(
       {},
       form({ role: "EMPLOYEE", employeeId: "e1" }),
     );
-    expect(r.error).toMatch(/already has a login/);
+    expect(result.error).toMatch(/already has a login/);
   });
 
   it("refuses an exited employee", async () => {
@@ -118,20 +121,20 @@ describe("inviteUser", () => {
       userId: null,
       dateOfExit: new Date(),
     });
-    const r = await inviteUser(
+    const result = await inviteUser(
       {},
       form({ role: "EMPLOYEE", employeeId: "e1" }),
     );
-    expect(r.error).toMatch(/exited/);
+    expect(result.error).toMatch(/exited/);
   });
 
   it("refuses an email that already has an account", async () => {
     db.user.findUnique.mockResolvedValue({ id: "u5" });
-    const r = await inviteUser(
+    const result = await inviteUser(
       {},
       form({ role: "MANAGER", email: "Taken@X.com" }),
     );
-    expect(r.error).toMatch(/already exists/);
+    expect(result.error).toMatch(/already exists/);
     expect(db.user.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({ where: { email: "taken@x.com" } }),
     );
@@ -147,7 +150,10 @@ describe("inviteUser", () => {
     db.user.findUnique.mockResolvedValue(null);
     db.user.create.mockResolvedValue({ id: "new" });
 
-    const r = await inviteUser({}, form({ role: "MANAGER", employeeId: "e1" }));
+    const result = await inviteUser(
+      {},
+      form({ role: "MANAGER", employeeId: "e1" }),
+    );
 
     expect(db.user.create).toHaveBeenCalledWith({
       data: {
@@ -157,7 +163,7 @@ describe("inviteUser", () => {
         employee: { connect: { id: "e1" } },
       },
     });
-    expect(r).toEqual({
+    expect(result).toEqual({
       link: "http://app/reset-password?token=t",
       emailed: false, // email not configured → HR copies the link
       email: "asha@madarth.com",

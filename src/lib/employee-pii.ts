@@ -51,9 +51,9 @@ export const PII_SELECT = {
 } as const;
 
 function legacyValue(row: PiiRow, field: PiiField): string | null {
-  const v = row[field];
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
-  return v ?? null;
+  const value = row[field];
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return value ?? null;
 }
 
 /** Decrypted PII for display / editing; server-side only. */

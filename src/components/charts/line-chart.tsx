@@ -17,11 +17,12 @@ export type LineSeries = {
 const HEIGHT = 260;
 const PAD = { top: 12, right: 12, bottom: 28, left: 36 };
 
-function niceMax(v: number): number {
-  if (v <= 5) return 5;
-  const step = 10 ** Math.floor(Math.log10(v));
-  const n = v / step;
-  const nice = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+function niceMax(value: number): number {
+  if (value <= 5) return 5;
+  const step = 10 ** Math.floor(Math.log10(value));
+  const normalized = value / step;
+  const nice =
+    normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
   return nice * step;
 }
 
@@ -41,50 +42,59 @@ export function LineChart({
   // Measure right away (no waiting for the first ResizeObserver tick, which
   // can be delayed), then track resizes.
   useLayoutEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return;
-    const measure = (w: number) => setWidth(Math.max(280, Math.round(w)));
-    measure(el.clientWidth);
-    const ro = new ResizeObserver(([entry]) =>
+    const element = wrapRef.current;
+    if (!element) return;
+    const measure = (measuredWidth: number) =>
+      setWidth(Math.max(280, Math.round(measuredWidth)));
+    measure(element.clientWidth);
+    const resizeObserver = new ResizeObserver(([entry]) =>
       measure(entry.contentRect.width),
     );
-    ro.observe(el);
-    return () => ro.disconnect();
+    resizeObserver.observe(element);
+    return () => resizeObserver.disconnect();
   }, []);
 
-  const n = labels.length;
-  const max = niceMax(Math.max(1, ...series.flatMap((s) => s.values)));
+  const pointCount = labels.length;
+  const max = niceMax(
+    Math.max(1, ...series.flatMap((seriesItem) => seriesItem.values)),
+  );
   const plotW = width - PAD.left - PAD.right;
   const plotH = HEIGHT - PAD.top - PAD.bottom;
-  const x = (i: number) =>
-    PAD.left + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW);
-  const y = (v: number) => PAD.top + plotH - (v / max) * plotH;
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(max * f));
+  const xAt = (index: number) =>
+    PAD.left +
+    (pointCount <= 1 ? plotW / 2 : (index / (pointCount - 1)) * plotW);
+  const yAt = (value: number) => PAD.top + plotH - (value / max) * plotH;
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((fraction) =>
+    Math.round(max * fraction),
+  );
   // Show as many month labels as fit (~84px each).
-  const every = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(plotW / 84))));
+  const every = Math.max(
+    1,
+    Math.ceil(pointCount / Math.max(2, Math.floor(plotW / 84))),
+  );
 
   function pick(clientX: number) {
     const rect = wrapRef.current?.getBoundingClientRect();
-    if (!rect || n === 0) return;
-    const px = clientX - rect.left - PAD.left;
-    const i = Math.round((px / plotW) * (n - 1));
-    setActive(Math.min(n - 1, Math.max(0, i)));
+    if (!rect || pointCount === 0) return;
+    const offsetX = clientX - rect.left - PAD.left;
+    const index = Math.round((offsetX / plotW) * (pointCount - 1));
+    setActive(Math.min(pointCount - 1, Math.max(0, index)));
   }
 
-  const tipLeft = active === null ? 0 : x(active);
+  const tipLeft = active === null ? 0 : xAt(active);
   const tipOnRight = active !== null && tipLeft < width * 0.6;
 
   return (
     <div className="viz-root">
       <ul className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-600 dark:text-zinc-400">
-        {series.map((s) => (
-          <li key={s.key} className="flex items-center gap-1.5">
+        {series.map((seriesItem) => (
+          <li key={seriesItem.key} className="flex items-center gap-1.5">
             <span
               aria-hidden
               className="inline-block h-0.5 w-3 rounded-full"
-              style={{ background: s.color }}
+              style={{ background: seriesItem.color }}
             />
-            {s.label}
+            {seriesItem.label}
           </li>
         ))}
       </ul>
@@ -94,82 +104,93 @@ export function LineChart({
         tabIndex={0}
         role="img"
         aria-label={ariaLabel}
-        onPointerMove={(e) => pick(e.clientX)}
-        onPointerDown={(e) => pick(e.clientX)}
+        onPointerMove={(event) => pick(event.clientX)}
+        onPointerDown={(event) => pick(event.clientX)}
         onPointerLeave={() => setActive(null)}
-        onFocus={() => setActive((a) => a ?? n - 1)}
+        onFocus={() => setActive((current) => current ?? pointCount - 1)}
         onBlur={() => setActive(null)}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowLeft")
-            setActive((a) => Math.max(0, (a ?? n) - 1));
-          if (e.key === "ArrowRight")
-            setActive((a) => Math.min(n - 1, (a ?? -1) + 1));
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft")
+            setActive((current) => Math.max(0, (current ?? pointCount) - 1));
+          if (event.key === "ArrowRight")
+            setActive((current) =>
+              Math.min(pointCount - 1, (current ?? -1) + 1),
+            );
         }}
       >
         <svg width={width} height={HEIGHT} className="block overflow-visible">
-          {ticks.map((t) => (
-            <g key={t}>
+          {ticks.map((tickValue) => (
+            <g key={tickValue}>
               <line
                 x1={PAD.left}
                 x2={width - PAD.right}
-                y1={y(t)}
-                y2={y(t)}
+                y1={yAt(tickValue)}
+                y2={yAt(tickValue)}
                 stroke="var(--viz-grid)"
                 strokeWidth={1}
               />
               <text
                 x={PAD.left - 6}
-                y={y(t)}
+                y={yAt(tickValue)}
                 dy="0.32em"
                 textAnchor="end"
                 className="fill-zinc-500 text-[11px] tabular-nums"
               >
-                {t.toLocaleString("en-IN")}
+                {tickValue.toLocaleString("en-IN")}
               </text>
             </g>
           ))}
-          {labels.map((l, i) =>
-            (i % every === 0 && n - 1 - i >= every) || i === n - 1 ? (
+          {labels.map((label, index) =>
+            (index % every === 0 && pointCount - 1 - index >= every) ||
+            index === pointCount - 1 ? (
               <text
-                key={l}
-                x={x(i)}
+                key={label}
+                x={xAt(index)}
                 y={HEIGHT - 8}
-                textAnchor={i === 0 ? "start" : i === n - 1 ? "end" : "middle"}
+                textAnchor={
+                  index === 0
+                    ? "start"
+                    : index === pointCount - 1
+                      ? "end"
+                      : "middle"
+                }
                 className="fill-zinc-500 text-[11px]"
               >
-                {l}
+                {label}
               </text>
             ) : null,
           )}
           {active !== null && (
             <line
-              x1={x(active)}
-              x2={x(active)}
+              x1={xAt(active)}
+              x2={xAt(active)}
               y1={PAD.top}
               y2={PAD.top + plotH}
               stroke="var(--viz-grid)"
               strokeWidth={1}
             />
           )}
-          {series.map((s) => (
+          {series.map((seriesItem) => (
             <polyline
-              key={s.key}
+              key={seriesItem.key}
               fill="none"
-              stroke={s.color}
+              stroke={seriesItem.color}
               strokeWidth={2}
               strokeLinejoin="round"
               strokeLinecap="round"
-              points={s.values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}
+              points={seriesItem.values
+                .map((value, index) => `${xAt(index)},${yAt(value)}`)
+                .join(" ")}
             />
           ))}
           {active !== null &&
-            series.map((s) => (
+            series.map((seriesItem) => (
               <circle
-                key={s.key}
-                cx={x(active)}
-                cy={y(s.values[active] ?? 0)}
+                key={seriesItem.key}
+                cx={xAt(active)}
+                cy={yAt(seriesItem.values[active] ?? 0)}
                 r={4}
-                fill={s.color}
+                fill={seriesItem.color}
                 className="stroke-white dark:stroke-zinc-950"
                 strokeWidth={2}
               />
@@ -188,19 +209,20 @@ export function LineChart({
             <ul className="flex flex-col gap-0.5">
               {[...series]
                 .sort(
-                  (a, b) => (b.values[active] ?? 0) - (a.values[active] ?? 0),
+                  (left, right) =>
+                    (right.values[active] ?? 0) - (left.values[active] ?? 0),
                 )
-                .map((s) => (
-                  <li key={s.key} className="flex items-center gap-2">
+                .map((seriesItem) => (
+                  <li key={seriesItem.key} className="flex items-center gap-2">
                     <span
                       aria-hidden
                       className="inline-block h-0.5 w-3 rounded-full"
-                      style={{ background: s.color }}
+                      style={{ background: seriesItem.color }}
                     />
                     <span className="font-semibold tabular-nums">
-                      {s.values[active] ?? 0}
+                      {seriesItem.values[active] ?? 0}
                     </span>
-                    <span className="text-zinc-500">{s.label}</span>
+                    <span className="text-zinc-500">{seriesItem.label}</span>
                   </li>
                 ))}
             </ul>

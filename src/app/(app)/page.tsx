@@ -84,14 +84,16 @@ export default async function Home() {
       </p>
 
       <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-        {stats.map((s) => (
+        {stats.map((stat) => (
           <Link
-            key={s.label}
-            href={s.href}
+            key={stat.label}
+            href={stat.href}
             className="rounded-lg border border-zinc-200 p-4 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
           >
-            <div className="text-2xl font-semibold tabular-nums">{s.value}</div>
-            <div className="mt-1 text-xs text-zinc-500">{s.label}</div>
+            <div className="text-2xl font-semibold tabular-nums">
+              {stat.value}
+            </div>
+            <div className="mt-1 text-xs text-zinc-500">{stat.label}</div>
           </Link>
         ))}
       </div>
@@ -100,13 +102,13 @@ export default async function Home() {
 
       <h2 className="mt-12 text-lg font-medium">Modules</h2>
       <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {modules.map((m) => (
+        {modules.map((moduleLink) => (
           <Link
-            key={m.href}
-            href={m.href}
+            key={moduleLink.href}
+            href={moduleLink.href}
             className="rounded-lg border border-zinc-200 px-4 py-3 text-sm font-medium transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
           >
-            {m.title}
+            {moduleLink.title}
           </Link>
         ))}
       </div>

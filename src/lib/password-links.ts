@@ -10,8 +10,12 @@ export const RESET_TTL_MS = 60 * 60 * 1000; // 1 hour
 export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 async function appOrigin(): Promise<string> {
-  const h = await headers();
-  return h.get("origin") ?? process.env.AUTH_URL ?? "http://localhost:3000";
+  const requestHeaders = await headers();
+  return (
+    requestHeaders.get("origin") ??
+    process.env.AUTH_URL ??
+    "http://localhost:3000"
+  );
 }
 
 /** Creates a single-use link to /reset-password for this user. */

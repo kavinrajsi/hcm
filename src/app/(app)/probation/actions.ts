@@ -10,13 +10,13 @@ export async function confirmProbation(formData: FormData) {
   const id = formData.get("id");
   if (typeof id !== "string") throw new Error("Missing id");
 
-  await db.$transaction(async (tx) => {
-    const record = await tx.probationRecord.update({
+  await db.$transaction(async (transaction) => {
+    const record = await transaction.probationRecord.update({
       where: { id },
       data: { status: "CONFIRMED", confirmedAt: new Date() },
     });
     // Confirmation promotes the employee to permanent.
-    await tx.employee.update({
+    await transaction.employee.update({
       where: { id: record.employeeId },
       data: { empType: "PERMANENT" },
     });

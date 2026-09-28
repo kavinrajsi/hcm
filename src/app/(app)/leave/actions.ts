@@ -29,18 +29,18 @@ export type LeaveSyncState = { error?: string; ok?: string };
 export async function syncLeave(): Promise<LeaveSyncState> {
   const user = await requireRole("HR_ADMIN");
   try {
-    const r = await syncLeaveFromBasecamp(user.id, "manual-sync");
+    const result = await syncLeaveFromBasecamp(user.id, "manual-sync");
     revalidatePath("/leave");
     revalidatePath("/me");
     return {
       ok:
-        `Fetched ${r.fetched}, added ${r.created}, updated ${r.updated}, classified ${r.classified}.` +
-        (r.remaining > 0
-          ? ` ${r.remaining} still to classify — sync again.`
+        `Fetched ${result.fetched}, added ${result.created}, updated ${result.updated}, classified ${result.classified}.` +
+        (result.remaining > 0
+          ? ` ${result.remaining} still to classify — sync again.`
           : ""),
     };
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "Sync failed" };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Sync failed" };
   }
 }
 
@@ -50,7 +50,7 @@ const updateSchema = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Start date is required"),
   endDate: z
     .string()
-    .transform((v) => (v === "" ? undefined : v))
+    .transform((value) => (value === "" ? undefined : value))
     .optional(),
   days: z.coerce.number().min(0).max(99),
 });
@@ -153,7 +153,7 @@ export async function getLeaveHistory(entryId: string): Promise<LeaveHistory> {
     : { employeeId: null, creatorEmail: entry.creatorEmail };
 
   const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
-  const [rows, agg] = await Promise.all([
+  const [rows, leaveTotals] = await Promise.all([
     db.leaveEntry.findMany({
       where: person,
       orderBy: [{ postedOn: "desc" }, { postedAt: "desc" }],
@@ -180,14 +180,14 @@ export async function getLeaveHistory(entryId: string): Promise<LeaveHistory> {
   ]);
 
   return {
-    daysThisYear: Number(agg._sum.days ?? 0),
-    entries: rows.map((r) => ({
-      id: r.id,
-      date: (r.startDate ?? r.postedOn).toISOString().slice(0, 10),
-      type: r.type,
-      days: r.days !== null ? Number(r.days) : null,
-      status: r.status,
-      message: r.message,
+    daysThisYear: Number(leaveTotals._sum.days ?? 0),
+    entries: rows.map((row) => ({
+      id: row.id,
+      date: (row.startDate ?? row.postedOn).toISOString().slice(0, 10),
+      type: row.type,
+      days: row.days !== null ? Number(row.days) : null,
+      status: row.status,
+      message: row.message,
     })),
   };
 }

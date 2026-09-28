@@ -111,30 +111,60 @@ export function EmployeeForm({
       ))}
       <Section title="Identity">
         <Field label="Employee ID" name="empId" error={errors.empId}>
-          <Input id="empId" name="empId" defaultValue={defaults.empId} required />
+          <Input
+            id="empId"
+            name="empId"
+            defaultValue={defaults.empId}
+            required
+          />
         </Field>
         <Field label="Full name" name="name" error={errors.name}>
           <Input id="name" name="name" defaultValue={defaults.name} required />
         </Field>
         <Field label="Gender" name="gender" error={errors.gender}>
-          <select id="gender" name="gender" className={selectClass} defaultValue={defaults.gender ?? ""}>
+          <select
+            id="gender"
+            name="gender"
+            className={selectClass}
+            defaultValue={defaults.gender ?? ""}
+          >
             <option value="">—</option>
             <option value="MALE">Male</option>
             <option value="FEMALE">Female</option>
             <option value="OTHER">Other</option>
           </select>
         </Field>
-        <Field label="Date of birth" name="dateOfBirth" error={errors.dateOfBirth}>
-          <Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={defaults.dateOfBirth} />
+        <Field
+          label="Date of birth"
+          name="dateOfBirth"
+          error={errors.dateOfBirth}
+        >
+          <Input
+            id="dateOfBirth"
+            name="dateOfBirth"
+            type="date"
+            defaultValue={defaults.dateOfBirth}
+          />
         </Field>
         <Field label="Blood group" name="bloodGroup" error={errors.bloodGroup}>
-          <Input id="bloodGroup" name="bloodGroup" defaultValue={defaults.bloodGroup} />
+          <Input
+            id="bloodGroup"
+            name="bloodGroup"
+            defaultValue={defaults.bloodGroup}
+          />
         </Field>
         <Field label="T-shirt size" name="tshirtSize" error={errors.tshirtSize}>
-          <select id="tshirtSize" name="tshirtSize" className={selectClass} defaultValue={defaults.tshirtSize ?? ""}>
+          <select
+            id="tshirtSize"
+            name="tshirtSize"
+            className={selectClass}
+            defaultValue={defaults.tshirtSize ?? ""}
+          >
             <option value="">—</option>
-            {["XS", "S", "M", "L", "XL", "XXL"].map((s) => (
-              <option key={s} value={s}>{s}</option>
+            {["XS", "S", "M", "L", "XL", "XXL"].map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
             ))}
           </select>
         </Field>
@@ -142,16 +172,45 @@ export function EmployeeForm({
 
       <Section title="Contact">
         <Field label="Phone" name="phone" error={errors.phone}>
-          <Input id="phone" name="phone" type="tel" defaultValue={defaults.phone} />
+          <Input
+            id="phone"
+            name="phone"
+            type="tel"
+            defaultValue={defaults.phone}
+          />
         </Field>
-        <Field label="Personal email" name="personalEmail" error={errors.personalEmail}>
-          <Input id="personalEmail" name="personalEmail" type="email" defaultValue={defaults.personalEmail} />
+        <Field
+          label="Personal email"
+          name="personalEmail"
+          error={errors.personalEmail}
+        >
+          <Input
+            id="personalEmail"
+            name="personalEmail"
+            type="email"
+            defaultValue={defaults.personalEmail}
+          />
         </Field>
         <Field label="Work email" name="workEmail" error={errors.workEmail}>
-          <Input id="workEmail" name="workEmail" type="email" defaultValue={defaults.workEmail} required />
+          <Input
+            id="workEmail"
+            name="workEmail"
+            type="email"
+            defaultValue={defaults.workEmail}
+            required
+          />
         </Field>
-        <Field label="Emergency contact" name="emergencyContact" error={errors.emergencyContact}>
-          <Input id="emergencyContact" name="emergencyContact" type="tel" defaultValue={defaults.emergencyContact} />
+        <Field
+          label="Emergency contact"
+          name="emergencyContact"
+          error={errors.emergencyContact}
+        >
+          <Input
+            id="emergencyContact"
+            name="emergencyContact"
+            type="tel"
+            defaultValue={defaults.emergencyContact}
+          />
         </Field>
       </Section>
 
@@ -172,16 +231,45 @@ export function EmployeeForm({
 
       <Section title="Employment">
         <Field label="Department" name="department" error={errors.department}>
-          <Input id="department" name="department" defaultValue={defaults.department} required />
+          <Input
+            id="department"
+            name="department"
+            defaultValue={defaults.department}
+            required
+          />
         </Field>
-        <Field label="Designation" name="designation" error={errors.designation}>
-          <Input id="designation" name="designation" defaultValue={defaults.designation} required />
+        <Field
+          label="Designation"
+          name="designation"
+          error={errors.designation}
+        >
+          <Input
+            id="designation"
+            name="designation"
+            defaultValue={defaults.designation}
+            required
+          />
         </Field>
-        <Field label="Date of joining" name="dateOfJoining" error={errors.dateOfJoining}>
-          <Input id="dateOfJoining" name="dateOfJoining" type="date" defaultValue={defaults.dateOfJoining} required />
+        <Field
+          label="Date of joining"
+          name="dateOfJoining"
+          error={errors.dateOfJoining}
+        >
+          <Input
+            id="dateOfJoining"
+            name="dateOfJoining"
+            type="date"
+            defaultValue={defaults.dateOfJoining}
+            required
+          />
         </Field>
         <Field label="Employment type" name="empType" error={errors.empType}>
-          <select id="empType" name="empType" className={selectClass} defaultValue={defaults.empType ?? "PROBATION"}>
+          <select
+            id="empType"
+            name="empType"
+            className={selectClass}
+            defaultValue={defaults.empType ?? "PROBATION"}
+          >
             <option value="INTERN">Intern</option>
             <option value="PROBATION">Probation</option>
             <option value="PERMANENT">Permanent</option>
@@ -189,17 +277,30 @@ export function EmployeeForm({
           </select>
         </Field>
         <Field label="PF number" name="pfNumber" error={errors.pfNumber}>
-          <Input id="pfNumber" name="pfNumber" defaultValue={defaults.pfNumber} />
+          <Input
+            id="pfNumber"
+            name="pfNumber"
+            defaultValue={defaults.pfNumber}
+          />
         </Field>
         <Field label="UAN number" name="uanNumber" error={errors.uanNumber}>
-          <Input id="uanNumber" name="uanNumber" defaultValue={defaults.uanNumber} />
+          <Input
+            id="uanNumber"
+            name="uanNumber"
+            defaultValue={defaults.uanNumber}
+          />
         </Field>
         <Field label="Manager" name="managerId" error={errors.managerId}>
-          <select id="managerId" name="managerId" className={selectClass} defaultValue={defaults.managerId ?? ""}>
+          <select
+            id="managerId"
+            name="managerId"
+            className={selectClass}
+            defaultValue={defaults.managerId ?? ""}
+          >
             <option value="">—</option>
-            {managers.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.empId} — {m.name}
+            {managers.map((manager) => (
+              <option key={manager.id} value={manager.id}>
+                {manager.empId} — {manager.name}
               </option>
             ))}
           </select>
@@ -210,7 +311,7 @@ export function EmployeeForm({
             name="isFresher"
             type="checkbox"
             checked={isFresher}
-            onChange={(e) => setIsFresher(e.target.checked)}
+            onChange={(event) => setIsFresher(event.target.checked)}
             className="size-4"
           />
           <Label htmlFor="isFresher">Fresher</Label>
@@ -219,16 +320,40 @@ export function EmployeeForm({
 
       <Section title="Statutory & bank (stored encrypted)">
         <Field label="PAN" name="pan" error={errors.pan}>
-          <Input id="pan" name="pan" placeholder={sensitivePlaceholder(masks.pan)} autoComplete="off" />
+          <Input
+            id="pan"
+            name="pan"
+            placeholder={sensitivePlaceholder(masks.pan)}
+            autoComplete="off"
+          />
         </Field>
         <Field label="Aadhaar" name="aadhaar" error={errors.aadhaar}>
-          <Input id="aadhaar" name="aadhaar" placeholder={sensitivePlaceholder(masks.aadhaar)} autoComplete="off" />
+          <Input
+            id="aadhaar"
+            name="aadhaar"
+            placeholder={sensitivePlaceholder(masks.aadhaar)}
+            autoComplete="off"
+          />
         </Field>
-        <Field label="Bank account number" name="bankAccount" error={errors.bankAccount}>
-          <Input id="bankAccount" name="bankAccount" placeholder={sensitivePlaceholder(masks.bankAccount)} autoComplete="off" />
+        <Field
+          label="Bank account number"
+          name="bankAccount"
+          error={errors.bankAccount}
+        >
+          <Input
+            id="bankAccount"
+            name="bankAccount"
+            placeholder={sensitivePlaceholder(masks.bankAccount)}
+            autoComplete="off"
+          />
         </Field>
         <Field label="IFSC" name="ifsc" error={errors.ifsc}>
-          <Input id="ifsc" name="ifsc" placeholder={sensitivePlaceholder(masks.ifsc)} autoComplete="off" />
+          <Input
+            id="ifsc"
+            name="ifsc"
+            placeholder={sensitivePlaceholder(masks.ifsc)}
+            autoComplete="off"
+          />
         </Field>
       </Section>
 
@@ -239,24 +364,68 @@ export function EmployeeForm({
         <Field label="PAN upload" name="panDoc" error={errors.panDoc}>
           <Input id="panDoc" name="panDoc" type="file" accept="image/*,.pdf" />
         </Field>
-        <Field label="Aadhaar upload" name="aadhaarDoc" error={errors.aadhaarDoc}>
-          <Input id="aadhaarDoc" name="aadhaarDoc" type="file" accept="image/*,.pdf" />
+        <Field
+          label="Aadhaar upload"
+          name="aadhaarDoc"
+          error={errors.aadhaarDoc}
+        >
+          <Input
+            id="aadhaarDoc"
+            name="aadhaarDoc"
+            type="file"
+            accept="image/*,.pdf"
+          />
         </Field>
       </Section>
 
       {!isFresher && (
         <Section title="Experience (non-fresher)">
-          <Field label="LinkedIn ID" name="linkedinId" error={errors.linkedinId}>
-            <Input id="linkedinId" name="linkedinId" defaultValue={defaults.linkedinId} />
+          <Field
+            label="LinkedIn ID"
+            name="linkedinId"
+            error={errors.linkedinId}
+          >
+            <Input
+              id="linkedinId"
+              name="linkedinId"
+              defaultValue={defaults.linkedinId}
+            />
           </Field>
-          <Field label="Offer letter" name="offerLetter" error={errors.offerLetter}>
-            <Input id="offerLetter" name="offerLetter" type="file" accept=".pdf,image/*" />
+          <Field
+            label="Offer letter"
+            name="offerLetter"
+            error={errors.offerLetter}
+          >
+            <Input
+              id="offerLetter"
+              name="offerLetter"
+              type="file"
+              accept=".pdf,image/*"
+            />
           </Field>
-          <Field label="Experience letter" name="experienceLetter" error={errors.experienceLetter}>
-            <Input id="experienceLetter" name="experienceLetter" type="file" accept=".pdf,image/*" />
+          <Field
+            label="Experience letter"
+            name="experienceLetter"
+            error={errors.experienceLetter}
+          >
+            <Input
+              id="experienceLetter"
+              name="experienceLetter"
+              type="file"
+              accept=".pdf,image/*"
+            />
           </Field>
-          <Field label="Relieving letter" name="relievingLetter" error={errors.relievingLetter}>
-            <Input id="relievingLetter" name="relievingLetter" type="file" accept=".pdf,image/*" />
+          <Field
+            label="Relieving letter"
+            name="relievingLetter"
+            error={errors.relievingLetter}
+          >
+            <Input
+              id="relievingLetter"
+              name="relievingLetter"
+              type="file"
+              accept=".pdf,image/*"
+            />
           </Field>
         </Section>
       )}

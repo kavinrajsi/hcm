@@ -29,15 +29,21 @@ export const NOT_SPAM: Prisma.CandidateWhereInput = {
 };
 
 export function candidateWhere(
-  f: CandidateFilters,
+  filters: CandidateFilters,
 ): Prisma.CandidateWhereInput[] {
   const and: Prisma.CandidateWhereInput[] = [NOT_SPAM];
-  and.push(...searchWhere(f.q));
-  const position = POSITIONS.find((p) => p === f.position);
+  and.push(...searchWhere(filters.q));
+  const position = POSITIONS.find(
+    (candidatePosition) => candidatePosition === filters.position,
+  );
   if (position) and.push({ position });
-  const role = f.role?.trim();
+  const role = filters.role?.trim();
   if (role) and.push({ jobRole: { equals: role, mode: "insensitive" } });
-  const created = instantRange({ preset: f.created, from: f.from, to: f.to });
+  const created = instantRange({
+    preset: filters.created,
+    from: filters.from,
+    to: filters.to,
+  });
   if (created) and.push({ createdAt: created });
   return and;
 }
@@ -47,8 +53,8 @@ export function candidateWhere(
  * stored as 10 bare digits. Otherwise every word must match some field, so
  * "rahul manoj" finds first + last name and "rahul copywriter" narrows by role.
  */
-function searchWhere(q?: string): Prisma.CandidateWhereInput[] {
-  const query = q?.trim();
+function searchWhere(searchQuery?: string): Prisma.CandidateWhereInput[] {
+  const query = searchQuery?.trim();
   if (!query) return [];
   if (/^[\d\s+()-]+$/.test(query)) {
     const digits = query.replace(/\D/g, "").slice(-10);
@@ -70,35 +76,42 @@ export function statusWhere(
   status: CandidateStatus,
 ): Prisma.CandidateWhereInput {
   if (status !== "New") return { status };
-  const others = CANDIDATE_STATUSES.filter((s) => s !== "New");
+  const others = CANDIDATE_STATUSES.filter(
+    (candidateStatus) => candidateStatus !== "New",
+  );
   return { OR: [{ status: null }, { status: { notIn: others } }] };
 }
 
 export function statusOf(value: string | null): CandidateStatus {
-  return CANDIDATE_STATUSES.find((s) => s === value) ?? "New";
+  return (
+    CANDIDATE_STATUSES.find((candidateStatus) => candidateStatus === value) ??
+    "New"
+  );
 }
 
-export function toCandidateDetail(c: Candidate): CandidateDetail {
+export function toCandidateDetail(candidate: Candidate): CandidateDetail {
   return {
-    id: String(c.id),
-    name: [c.firstName, c.lastName].filter(Boolean).join(" ") || "—",
-    email: c.email,
-    mobileNumber: c.mobileNumber,
-    position: c.position,
-    jobRole: c.jobRole,
-    location: c.location,
-    portfolio: c.portfolio?.trim() || null,
-    resumeHref: c.fileUrl
-      ? `/api/files/${c.fileUrl.split("/").map(encodeURIComponent).join("/")}`
+    id: String(candidate.id),
+    name:
+      [candidate.firstName, candidate.lastName].filter(Boolean).join(" ") ||
+      "—",
+    email: candidate.email,
+    mobileNumber: candidate.mobileNumber,
+    position: candidate.position,
+    jobRole: candidate.jobRole,
+    location: candidate.location,
+    portfolio: candidate.portfolio?.trim() || null,
+    resumeHref: candidate.fileUrl
+      ? `/api/files/${candidate.fileUrl.split("/").map(encodeURIComponent).join("/")}`
       : null,
-    status: statusOf(c.status),
+    status: statusOf(candidate.status),
     // Newest first, with IST display time resolved on the server.
-    notes: parseNotes(c.notes)
-      .map((n) => ({ ...n, when: formatNoteTime(n.timestamp) }))
+    notes: parseNotes(candidate.notes)
+      .map((note) => ({ ...note, when: formatNoteTime(note.timestamp) }))
       .reverse(),
-    appliedOn: c.createdAt.toISOString().slice(0, 10),
-    pageUrl: c.pageUrl,
-    addedManually: c.sourceUrl === MANUAL_SOURCE,
-    referrer: c.referrer,
+    appliedOn: candidate.createdAt.toISOString().slice(0, 10),
+    pageUrl: candidate.pageUrl,
+    addedManually: candidate.sourceUrl === MANUAL_SOURCE,
+    referrer: candidate.referrer,
   };
 }

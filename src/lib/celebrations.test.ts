@@ -7,14 +7,14 @@ import {
   type Celebrant,
 } from "./celebrations";
 
-const person = (p: Partial<Celebrant>): Celebrant => ({
+const person = (overrides: Partial<Celebrant>): Celebrant => ({
   id: "e1",
   empId: "E1",
   name: "Asha",
   department: "Design",
   dateOfBirth: null,
   dateOfJoining: "2024-01-01",
-  ...p,
+  ...overrides,
 });
 
 describe("dayInMonth", () => {
@@ -55,7 +55,14 @@ describe("celebrationsForMonth", () => {
       2026,
       10,
     );
-    expect(list.map((c) => [c.day, c.type, c.employee.name, c.years])).toEqual([
+    expect(
+      list.map((celebration) => [
+        celebration.day,
+        celebration.type,
+        celebration.employee.name,
+        celebration.years,
+      ]),
+    ).toEqual([
       [3, "ANNIVERSARY", "Asha", 3],
       [3, "BIRTHDAY", "Ravi", undefined],
       [20, "BIRTHDAY", "Asha", undefined],
@@ -79,12 +86,12 @@ describe("celebrationsForMonth", () => {
   });
 
   it("never exposes the birth year", () => {
-    const [b] = celebrationsForMonth(
+    const [celebration] = celebrationsForMonth(
       [person({ dateOfBirth: "1988-05-09" })],
       2026,
       5,
     );
-    expect(JSON.stringify(b)).not.toContain("1988");
+    expect(JSON.stringify(celebration)).not.toContain("1988");
   });
 });
 

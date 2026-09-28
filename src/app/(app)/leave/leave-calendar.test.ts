@@ -8,7 +8,7 @@ import {
   type CalendarEntry,
 } from "./leave-calendar";
 
-const d = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
+const utcDate = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
 function entry(partial: Partial<CalendarEntry>): CalendarEntry {
   return {
@@ -18,7 +18,7 @@ function entry(partial: Partial<CalendarEntry>): CalendarEntry {
     type: "FULL_DAY",
     startDate: null,
     endDate: null,
-    postedOn: d("2026-09-01"),
+    postedOn: utcDate("2026-09-01"),
     days: null,
     message: "",
     status: "APPROVED",
@@ -43,22 +43,25 @@ describe("parseMonth", () => {
 
 describe("isWeekend", () => {
   it("flags Saturday and Sunday only", () => {
-    expect(isWeekend(d("2026-09-26"))).toBe(true); // Sat
-    expect(isWeekend(d("2026-09-27"))).toBe(true); // Sun
-    expect(isWeekend(d("2026-09-28"))).toBe(false); // Mon
+    expect(isWeekend(utcDate("2026-09-26"))).toBe(true); // Sat
+    expect(isWeekend(utcDate("2026-09-27"))).toBe(true); // Sun
+    expect(isWeekend(utcDate("2026-09-28"))).toBe(false); // Mon
   });
 });
 
 describe("groupByDay", () => {
   it("puts a dateless post on the day it was posted", () => {
-    const byDay = groupByDay([entry({ postedOn: d("2026-09-10") })]);
+    const byDay = groupByDay([entry({ postedOn: utcDate("2026-09-10") })]);
     expect(Object.keys(byDay)).toEqual(["2026-09-10"]);
   });
 
   it("spreads a range over working days, skipping the weekend", () => {
     // Fri 25 → Tue 29 Sep: 25, 28, 29 (26/27 are the weekend).
     const byDay = groupByDay([
-      entry({ startDate: d("2026-09-25"), endDate: d("2026-09-29") }),
+      entry({
+        startDate: utcDate("2026-09-25"),
+        endDate: utcDate("2026-09-29"),
+      }),
     ]);
     expect(Object.keys(byDay)).toEqual([
       "2026-09-25",
@@ -71,8 +74,8 @@ describe("groupByDay", () => {
     // "23rd Sep and 16th Oct" is stored as one range with days = 2.
     const byDay = groupByDay([
       entry({
-        startDate: d("2026-09-23"),
-        endDate: d("2026-10-16"),
+        startDate: utcDate("2026-09-23"),
+        endDate: utcDate("2026-10-16"),
         days: 2,
       }),
     ]);
@@ -81,16 +84,19 @@ describe("groupByDay", () => {
 
   it("collects several people on the same day", () => {
     const byDay = groupByDay([
-      entry({ id: "a", postedOn: d("2026-09-10") }),
-      entry({ id: "b", postedOn: d("2026-09-10") }),
+      entry({ id: "a", postedOn: utcDate("2026-09-10") }),
+      entry({ id: "b", postedOn: utcDate("2026-09-10") }),
     ]);
-    expect(byDay["2026-09-10"].map((e) => e.id)).toEqual(["a", "b"]);
+    expect(byDay["2026-09-10"].map((grouped) => grouped.id)).toEqual([
+      "a",
+      "b",
+    ]);
   });
 });
 
 describe("monthLinks", () => {
   it("pages months while keeping filters and the view, dropping page", () => {
-    const links = monthLinks(d("2026-01-01"), {
+    const links = monthLinks(utcDate("2026-01-01"), {
       q: "asha",
       view: "calendar",
       page: "3",
@@ -106,7 +112,7 @@ describe("monthLinks", () => {
   });
 
   it("does not add a view when none was set (phone default strip)", () => {
-    const links = monthLinks(d("2026-05-01"), {});
+    const links = monthLinks(utcDate("2026-05-01"), {});
     expect(new URL(links.next, "http://x").searchParams.has("view")).toBe(
       false,
     );
@@ -117,7 +123,7 @@ describe("monthLinks", () => {
     const expected = key(
       new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)),
     ).slice(0, 7);
-    const links = monthLinks(d("2020-01-01"), {});
+    const links = monthLinks(utcDate("2020-01-01"), {});
     expect(new URL(links.today, "http://x").searchParams.get("month")).toBe(
       expected,
     );

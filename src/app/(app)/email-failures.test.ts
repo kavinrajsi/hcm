@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // still recorded, and the probation reminder cron only mails active admins.
 
 const db = vi.hoisted(() => {
-  const m = {
+  const mockDb = {
     employee: { findUnique: vi.fn(), update: vi.fn() },
     user: {
       findUnique: vi.fn(),
@@ -18,10 +18,10 @@ const db = vi.hoisted(() => {
     $transaction: vi.fn(async (arg: unknown) =>
       Array.isArray(arg)
         ? Promise.all(arg)
-        : (arg as (tx: unknown) => unknown)(m),
+        : (arg as (transaction: unknown) => unknown)(mockDb),
     ),
   };
-  return m;
+  return mockDb;
 });
 const sendEmail = vi.hoisted(() => vi.fn());
 
@@ -38,9 +38,9 @@ const { GET: probationCron } =
   await import("../api/cron/probation-reminders/route");
 
 function form(fields: Record<string, string>) {
-  const f = new FormData();
-  for (const [k, v] of Object.entries(fields)) f.set(k, v);
-  return f;
+  const formData = new FormData();
+  for (const [key, value] of Object.entries(fields)) formData.set(key, value);
+  return formData;
 }
 
 beforeEach(() => {
@@ -63,8 +63,8 @@ describe("sendLetter", () => {
 
   it("emails the letter in the branded frame and records it as sent", async () => {
     sendEmail.mockResolvedValue({ skipped: false, id: "m1" });
-    const r = await sendLetter({}, letter);
-    expect(r).toEqual({ ok: true, error: undefined });
+    const result = await sendLetter({}, letter);
+    expect(result).toEqual({ ok: true, error: undefined });
     const mail = sendEmail.mock.calls[0][0];
     expect(mail.to).toBe("asha@madarth.com");
     expect(mail.subject).toBe("Revised compensation");
@@ -77,9 +77,9 @@ describe("sendLetter", () => {
 
   it("still saves the letter (unsent) when sending fails", async () => {
     sendEmail.mockRejectedValue(new Error("Email send failed: TM_4001"));
-    const r = await sendLetter({}, letter);
-    expect(r.ok).toBe(true);
-    expect(r.error).toMatch(/couldn't be sent/);
+    const result = await sendLetter({}, letter);
+    expect(result.ok).toBe(true);
+    expect(result.error).toMatch(/couldn't be sent/);
     expect(db.letter.create.mock.calls[0][0].data).toMatchObject({
       sentAt: null,
       sentTo: null,
@@ -100,11 +100,11 @@ describe("markExit", () => {
       probation: null,
     });
     sendEmail.mockRejectedValue(new Error("down"));
-    const r = await markExit(
+    const result = await markExit(
       {},
       form({ employeeId: "e1", dateOfExit: "2026-10-31" }),
     );
-    expect(r).toEqual({ ok: true });
+    expect(result).toEqual({ ok: true });
     expect(db.employee.update).toHaveBeenCalled();
     expect(sendEmail.mock.calls[0][0].subject).toBe(
       "Exit clearance — Asha (E1)",
@@ -113,7 +113,7 @@ describe("markExit", () => {
 });
 
 describe("probation reminder cron", () => {
-  const req = {
+  const request = {
     headers: new Headers({ authorization: "Bearer test-secret" }),
   } as never;
 
@@ -130,17 +130,17 @@ describe("probation reminder cron", () => {
   });
 
   it("refuses requests without the right secret", async () => {
-    const res = await probationCron({ headers: new Headers() } as never);
-    expect(res.status).toBe(401);
+    const response = await probationCron({ headers: new Headers() } as never);
+    expect(response.status).toBe(401);
     delete process.env.CRON_SECRET; // unset secret must not open the route
-    expect((await probationCron(req)).status).toBe(401);
+    expect((await probationCron(request)).status).toBe(401);
     expect(sendEmail).not.toHaveBeenCalled();
   });
 
   it("emails only active HR admins", async () => {
     sendEmail.mockResolvedValue({ skipped: false });
-    const res = await probationCron(req);
-    expect(await res.json()).toEqual({ due: 1, emailed: true });
+    const response = await probationCron(request);
+    expect(await response.json()).toEqual({ due: 1, emailed: true });
     expect(db.user.findMany.mock.calls[0][0].where).toEqual({
       role: "HR_ADMIN",
       disabledAt: null,
@@ -150,8 +150,8 @@ describe("probation reminder cron", () => {
 
   it("reports emailed:false instead of crashing when sending fails", async () => {
     sendEmail.mockRejectedValue(new Error("down"));
-    const res = await probationCron(req);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ due: 1, emailed: false });
+    const response = await probationCron(request);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ due: 1, emailed: false });
   });
 });

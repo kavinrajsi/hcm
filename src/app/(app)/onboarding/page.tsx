@@ -31,7 +31,7 @@ const EMP_TYPE_OPTIONS = [
   { value: "CONTRACT", label: "Contract" },
 ];
 const EMP_TYPE_LABELS: Record<string, string> = Object.fromEntries(
-  EMP_TYPE_OPTIONS.map((o) => [o.value, o.label]),
+  EMP_TYPE_OPTIONS.map((option) => [option.value, option.label]),
 );
 
 export default async function OnboardingPage({
@@ -83,21 +83,23 @@ export default async function OnboardingPage({
           isEmpty={records.length === 0}
           empty="No onboarding records found."
         >
-          {records.map((r) => (
+          {records.map((record) => (
             <ListCard
-              key={r.id}
-              href={`/employees/${r.employee.id}`}
-              title={r.employee.name}
-              subtitle={r.designation}
+              key={record.id}
+              href={`/employees/${record.employee.id}`}
+              title={record.employee.name}
+              subtitle={record.designation}
               badge={
                 <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium">
-                  {EMP_TYPE_LABELS[r.empType] ?? r.empType}
+                  {EMP_TYPE_LABELS[record.empType] ?? record.empType}
                 </span>
               }
               meta={
                 <>
-                  <span>{r.employee.empId}</span>
-                  <span>Joined {r.joinDate.toISOString().slice(0, 10)}</span>
+                  <span>{record.employee.empId}</span>
+                  <span>
+                    Joined {record.joinDate.toISOString().slice(0, 10)}
+                  </span>
                 </>
               }
             />
@@ -124,20 +126,22 @@ export default async function OnboardingPage({
                 </TableCell>
               </TableRow>
             )}
-            {records.map((r) => (
-              <TableRow key={r.id}>
+            {records.map((record) => (
+              <TableRow key={record.id}>
                 <TableCell>
                   <Link
-                    href={`/employees/${r.employee.id}`}
+                    href={`/employees/${record.employee.id}`}
                     className="font-medium underline-offset-4 hover:underline"
                   >
-                    {r.employee.empId}
+                    {record.employee.empId}
                   </Link>
                 </TableCell>
-                <TableCell>{r.employee.name}</TableCell>
-                <TableCell>{r.joinDate.toISOString().slice(0, 10)}</TableCell>
-                <TableCell>{r.designation}</TableCell>
-                <TableCell>{r.empType}</TableCell>
+                <TableCell>{record.employee.name}</TableCell>
+                <TableCell>
+                  {record.joinDate.toISOString().slice(0, 10)}
+                </TableCell>
+                <TableCell>{record.designation}</TableCell>
+                <TableCell>{record.empType}</TableCell>
               </TableRow>
             ))}
           </TableBody>

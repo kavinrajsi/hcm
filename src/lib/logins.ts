@@ -29,8 +29,8 @@ export async function mailPasswordLink({
       : resetEmail({ link });
     const result = await sendEmail({ to, ...email });
     return !result.skipped;
-  } catch (e) {
-    console.error("[logins] email failed", e);
+  } catch (error) {
+    console.error("[logins] email failed", error);
     return false;
   }
 }

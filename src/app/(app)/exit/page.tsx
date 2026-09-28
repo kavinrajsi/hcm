@@ -32,7 +32,7 @@ const EMP_TYPE_OPTIONS = [
   { value: "CONTRACT", label: "Contract" },
 ];
 const EMP_TYPE_LABELS: Record<string, string> = Object.fromEntries(
-  EMP_TYPE_OPTIONS.map((o) => [o.value, o.label]),
+  EMP_TYPE_OPTIONS.map((option) => [option.value, option.label]),
 );
 
 export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
@@ -88,24 +88,29 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
 
       <div className="mt-4">
         <MobileList isEmpty={exits.length === 0} empty="No exits recorded.">
-          {exits.map((e) => (
+          {exits.map((exitedEmployee) => (
             <ListCard
-              key={e.id}
-              href={`/employees/${e.id}`}
-              title={e.name}
-              subtitle={e.designation}
+              key={exitedEmployee.id}
+              href={`/employees/${exitedEmployee.id}`}
+              title={exitedEmployee.name}
+              subtitle={exitedEmployee.designation}
               badge={
                 <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium">
-                  {EMP_TYPE_LABELS[e.empType] ?? e.empType}
+                  {EMP_TYPE_LABELS[exitedEmployee.empType] ??
+                    exitedEmployee.empType}
                 </span>
               }
               meta={
                 <>
-                  <span>{e.empId}</span>
+                  <span>{exitedEmployee.empId}</span>
                   <span>
-                    Joined {e.dateOfJoining.toISOString().slice(0, 10)}
+                    Joined{" "}
+                    {exitedEmployee.dateOfJoining.toISOString().slice(0, 10)}
                   </span>
-                  <span>Exited {e.dateOfExit?.toISOString().slice(0, 10)}</span>
+                  <span>
+                    Exited{" "}
+                    {exitedEmployee.dateOfExit?.toISOString().slice(0, 10)}
+                  </span>
                 </>
               }
             />
@@ -133,25 +138,25 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
                 </TableCell>
               </TableRow>
             )}
-            {exits.map((e) => (
-              <TableRow key={e.id}>
+            {exits.map((exitedEmployee) => (
+              <TableRow key={exitedEmployee.id}>
                 <TableCell>
                   <Link
-                    href={`/employees/${e.id}`}
+                    href={`/employees/${exitedEmployee.id}`}
                     className="font-medium underline-offset-4 hover:underline"
                   >
-                    {e.empId}
+                    {exitedEmployee.empId}
                   </Link>
                 </TableCell>
-                <TableCell>{e.name}</TableCell>
+                <TableCell>{exitedEmployee.name}</TableCell>
                 <TableCell>
-                  {e.dateOfJoining.toISOString().slice(0, 10)}
+                  {exitedEmployee.dateOfJoining.toISOString().slice(0, 10)}
                 </TableCell>
                 <TableCell>
-                  {e.dateOfExit?.toISOString().slice(0, 10)}
+                  {exitedEmployee.dateOfExit?.toISOString().slice(0, 10)}
                 </TableCell>
-                <TableCell>{e.designation}</TableCell>
-                <TableCell>{e.empType}</TableCell>
+                <TableCell>{exitedEmployee.designation}</TableCell>
+                <TableCell>{exitedEmployee.empType}</TableCell>
               </TableRow>
             ))}
           </TableBody>

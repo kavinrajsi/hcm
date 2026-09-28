@@ -33,13 +33,13 @@ const SERVER_STATE: InstallState = {
 
 function notify() {
   snapshot = null;
-  for (const l of listeners) l();
+  for (const listener of listeners) listener();
 }
 
 if (typeof window !== "undefined") {
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault(); // keep the mini-infobar away; we prompt on tap
-    deferred = e as BeforeInstallPromptEvent;
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault(); // keep the mini-infobar away; we prompt on tap
+    deferred = event as BeforeInstallPromptEvent;
     notify();
   });
   window.addEventListener("appinstalled", () => {
@@ -73,11 +73,11 @@ function subscribe(listener: () => void) {
 
 /** Shows the browser's install dialog; the event is single-use. */
 export async function promptInstall(): Promise<void> {
-  const e = deferred;
-  if (!e) return;
+  const promptEvent = deferred;
+  if (!promptEvent) return;
   deferred = null;
-  await e.prompt();
-  const { outcome } = await e.userChoice;
+  await promptEvent.prompt();
+  const { outcome } = await promptEvent.userChoice;
   if (outcome === "accepted") installedSeen = true;
   notify();
 }

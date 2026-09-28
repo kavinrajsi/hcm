@@ -53,23 +53,25 @@ export default async function LettersPage() {
       <h2 className="mt-8 text-lg font-medium md:mt-10">History</h2>
       <div className="mt-3">
         <MobileList isEmpty={letters.length === 0} empty="No letters yet.">
-          {letters.map((l) => (
+          {letters.map((letter) => (
             <ListCard
-              key={l.id}
-              href={`/employees/${l.employee.id}`}
-              title={l.employee.name}
-              subtitle={<span className="line-clamp-2">{l.subject}</span>}
+              key={letter.id}
+              href={`/employees/${letter.employee.id}`}
+              title={letter.employee.name}
+              subtitle={<span className="line-clamp-2">{letter.subject}</span>}
               badge={
                 <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium">
-                  {l.type}
+                  {letter.type}
                 </span>
               }
               meta={
                 <>
                   <span className="tabular-nums">
-                    {l.sentAt ? l.sentAt.toISOString().slice(0, 10) : "draft"}
+                    {letter.sentAt
+                      ? letter.sentAt.toISOString().slice(0, 10)
+                      : "draft"}
                   </span>
-                  <span className="break-all">{l.sentTo ?? "—"}</span>
+                  <span className="break-all">{letter.sentTo ?? "—"}</span>
                 </>
               }
             />
@@ -94,24 +96,26 @@ export default async function LettersPage() {
                   </TableCell>
                 </TableRow>
               )}
-              {letters.map((l) => (
-                <TableRow key={l.id}>
+              {letters.map((letter) => (
+                <TableRow key={letter.id}>
                   <TableCell>
                     <Link
-                      href={`/employees/${l.employee.id}`}
+                      href={`/employees/${letter.employee.id}`}
                       className="font-medium underline-offset-4 hover:underline"
                     >
-                      {l.employee.name}
+                      {letter.employee.name}
                     </Link>
                   </TableCell>
-                  <TableCell>{l.type}</TableCell>
+                  <TableCell>{letter.type}</TableCell>
                   <TableCell className="max-w-72 truncate">
-                    {l.subject}
+                    {letter.subject}
                   </TableCell>
                   <TableCell>
-                    {l.sentAt ? l.sentAt.toISOString().slice(0, 10) : "draft"}
+                    {letter.sentAt
+                      ? letter.sentAt.toISOString().slice(0, 10)
+                      : "draft"}
                   </TableCell>
-                  <TableCell>{l.sentTo ?? "—"}</TableCell>
+                  <TableCell>{letter.sentTo ?? "—"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

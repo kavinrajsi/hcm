@@ -196,11 +196,11 @@ export default async function EmployeePage({
           employeeId={employee.id}
           employeeName={employee.name}
           year={typeof leaveYear === "string" ? leaveYear : undefined}
-          entries={leave.map((l) => ({
-            ...l,
-            days: l.days !== null ? Number(l.days) : null,
-            reviewedBy: l.reviewedBy
-              ? (l.reviewedBy.name ?? l.reviewedBy.email)
+          entries={leave.map((leaveEntry) => ({
+            ...leaveEntry,
+            days: leaveEntry.days !== null ? Number(leaveEntry.days) : null,
+            reviewedBy: leaveEntry.reviewedBy
+              ? (leaveEntry.reviewedBy.name ?? leaveEntry.reviewedBy.email)
               : null,
           }))}
         />

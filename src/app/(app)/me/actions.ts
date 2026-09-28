@@ -11,7 +11,7 @@ export type SelfUpdateState = { error?: string; ok?: boolean };
 const optional = z
   .string()
   .trim()
-  .transform((v) => (v === "" ? undefined : v))
+  .transform((value) => (value === "" ? undefined : value))
   .optional();
 
 // Self-service scope: contact + address only. Everything else stays HR-only.

@@ -115,9 +115,9 @@ export function InviteForm({ employees }: { employees: Employee[] }) {
           defaultValue="EMPLOYEE"
           className={selectClass}
         >
-          {(Object.keys(ROLE_LABELS) as Role[]).map((r) => (
-            <option key={r} value={r}>
-              {ROLE_LABELS[r]}
+          {(Object.keys(ROLE_LABELS) as Role[]).map((roleOption) => (
+            <option key={roleOption} value={roleOption}>
+              {ROLE_LABELS[roleOption]}
             </option>
           ))}
         </select>
@@ -141,24 +141,24 @@ export function RoleSelect({ userId, role }: { userId: string; role: Role }) {
         aria-label="Role"
         value={value}
         disabled={pending}
-        onChange={(e) => {
-          const next = e.target.value as Role;
+        onChange={(event) => {
+          const next = event.target.value as Role;
           const prev = value;
           setValue(next);
           setError(undefined);
           startTransition(async () => {
-            const r = await setUserRole(userId, next);
-            if (r.error) {
+            const result = await setUserRole(userId, next);
+            if (result.error) {
               setValue(prev);
-              setError(r.error);
+              setError(result.error);
             }
           });
         }}
         className={`${selectClass} disabled:opacity-50`}
       >
-        {(Object.keys(ROLE_LABELS) as Role[]).map((r) => (
-          <option key={r} value={r}>
-            {ROLE_LABELS[r]}
+        {(Object.keys(ROLE_LABELS) as Role[]).map((roleOption) => (
+          <option key={roleOption} value={roleOption}>
+            {ROLE_LABELS[roleOption]}
           </option>
         ))}
       </select>
@@ -209,8 +209,8 @@ export function UserActions({
             onClick={() =>
               startTransition(async () => {
                 setError(undefined);
-                const r = await setUserDisabled(userId, !disabled);
-                if (r.error) setError(r.error);
+                const result = await setUserDisabled(userId, !disabled);
+                if (result.error) setError(result.error);
               })
             }
           >

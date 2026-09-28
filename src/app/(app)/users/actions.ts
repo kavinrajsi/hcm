@@ -193,24 +193,24 @@ export async function createLoginsForAll(): Promise<BulkLoginResult> {
   });
 
   const result = { created: 0, emailed: 0, linked: 0, failed: [] as string[] };
-  for (const e of employees) {
+  for (const employee of employees) {
     try {
-      const r = await provisionLogin({
-        email: e.workEmail,
-        name: e.name,
+      const provisionResult = await provisionLogin({
+        email: employee.workEmail,
+        name: employee.name,
         role: "EMPLOYEE",
-        employeeId: e.id,
+        employeeId: employee.id,
       });
-      if ("error" in r) {
-        if (r.error.startsWith("Linked")) result.linked++;
-        else result.failed.push(e.empId);
+      if ("error" in provisionResult) {
+        if (provisionResult.error.startsWith("Linked")) result.linked++;
+        else result.failed.push(employee.empId);
       } else {
         result.created++;
-        if (r.emailed) result.emailed++;
+        if (provisionResult.emailed) result.emailed++;
       }
-    } catch (err) {
-      console.error("[users] bulk login failed", e.empId, err);
-      result.failed.push(e.empId);
+    } catch (error) {
+      console.error("[users] bulk login failed", employee.empId, error);
+      result.failed.push(employee.empId);
     }
   }
 

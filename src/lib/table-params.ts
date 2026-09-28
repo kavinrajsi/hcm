@@ -18,8 +18,8 @@ type RawSearchParams = Record<string, string | string[] | undefined>;
 
 function toInt(value: string | string[] | undefined): number | undefined {
   if (typeof value !== "string") return undefined;
-  const n = Number.parseInt(value, 10);
-  return Number.isNaN(n) ? undefined : n;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isNaN(parsed) ? undefined : parsed;
 }
 
 export function parseTableParams(raw: RawSearchParams): TableParams {
@@ -48,27 +48,30 @@ export function datePartsToRange(
   const { day, month, year } = params;
   if (!day && !month && !year) return undefined;
 
-  const y = year ?? new Date().getFullYear();
+  const resolvedYear = year ?? new Date().getFullYear();
   if (month && day) {
-    const start = new Date(Date.UTC(y, month - 1, day));
-    return { gte: start, lt: new Date(Date.UTC(y, month - 1, day + 1)) };
+    const start = new Date(Date.UTC(resolvedYear, month - 1, day));
+    return {
+      gte: start,
+      lt: new Date(Date.UTC(resolvedYear, month - 1, day + 1)),
+    };
   }
   if (month) {
     return {
-      gte: new Date(Date.UTC(y, month - 1, 1)),
-      lt: new Date(Date.UTC(y, month, 1)),
+      gte: new Date(Date.UTC(resolvedYear, month - 1, 1)),
+      lt: new Date(Date.UTC(resolvedYear, month, 1)),
     };
   }
   if (day) {
     // Day without month: interpret as that day in the current month.
-    const m = new Date().getMonth();
+    const currentMonth = new Date().getMonth();
     return {
-      gte: new Date(Date.UTC(y, m, day)),
-      lt: new Date(Date.UTC(y, m, day + 1)),
+      gte: new Date(Date.UTC(resolvedYear, currentMonth, day)),
+      lt: new Date(Date.UTC(resolvedYear, currentMonth, day + 1)),
     };
   }
   return {
-    gte: new Date(Date.UTC(y, 0, 1)),
-    lt: new Date(Date.UTC(y + 1, 0, 1)),
+    gte: new Date(Date.UTC(resolvedYear, 0, 1)),
+    lt: new Date(Date.UTC(resolvedYear + 1, 0, 1)),
   };
 }

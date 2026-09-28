@@ -26,27 +26,27 @@ export function IdCardHistory({ changes }: { changes: Change[] }) {
         <p className="mt-2 text-zinc-500">No status changes yet.</p>
       ) : (
         <ol className="mt-3 flex flex-col gap-3 border-l border-zinc-200 pl-4 dark:border-zinc-800">
-          {changes.map((c) => {
-            const by = c.changedBy?.name ?? c.changedBy?.email;
+          {changes.map((change) => {
+            const by = change.changedBy?.name ?? change.changedBy?.email;
             return (
-              <li key={c.id} className="relative">
+              <li key={change.id} className="relative">
                 <span className="absolute top-1.5 -left-[1.3rem] size-2 rounded-full bg-zinc-300 dark:bg-zinc-700" />
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {c.fromStatus ? (
+                  {change.fromStatus ? (
                     <>
-                      <Chip status={c.fromStatus} />
+                      <Chip status={change.fromStatus} />
                       <span className="text-zinc-400">→</span>
-                      <Chip status={c.toStatus} />
+                      <Chip status={change.toStatus} />
                     </>
                   ) : (
                     <>
                       <span>Created as</span>
-                      <Chip status={c.toStatus} />
+                      <Chip status={change.toStatus} />
                     </>
                   )}
                 </div>
                 <p className="mt-1 text-xs text-zinc-500">
-                  {formatNoteTime(c.changedAt.toISOString())}
+                  {formatNoteTime(change.changedAt.toISOString())}
                   {by && <> · by {by}</>}
                 </p>
               </li>

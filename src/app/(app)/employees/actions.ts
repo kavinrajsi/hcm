@@ -28,7 +28,7 @@ export type EmployeeFormState = {
 const optionalTrimmed = z
   .string()
   .trim()
-  .transform((v) => (v === "" ? undefined : v))
+  .transform((value) => (value === "" ? undefined : value))
   .optional();
 
 const employeeSchema = z.object({
@@ -36,7 +36,7 @@ const employeeSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
   // The form's "—" option posts "" — treat it as not set.
   gender: z.preprocess(
-    (v) => (v === "" ? undefined : v),
+    (value) => (value === "" ? undefined : value),
     z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
   ),
   dateOfBirth: optionalTrimmed,
@@ -147,9 +147,9 @@ function sensitiveColumns(data: z.infer<typeof employeeSchema>) {
 /** YYYY-MM-DD for a parseable date (CSV imports vary); undefined if blank. */
 function isoDate(value: string | undefined): string | undefined {
   if (!value) return undefined;
-  const d = new Date(value);
-  if (isNaN(d.getTime())) throw new Error(`Invalid dateOfBirth: ${value}`);
-  return d.toISOString().slice(0, 10);
+  const date = new Date(value);
+  if (isNaN(date.getTime())) throw new Error(`Invalid dateOfBirth: ${value}`);
+  return date.toISOString().slice(0, 10);
 }
 
 /** Form fields that are stored encrypted (see lib/employee-pii.ts). */
@@ -170,17 +170,21 @@ async function findDuplicate(
   data: z.infer<typeof employeeSchema>,
   excludeId?: string,
 ): Promise<string | undefined> {
-  const or: Prisma.EmployeeWhereInput[] = [
+  const orConditions: Prisma.EmployeeWhereInput[] = [
     { empId: data.empId },
     { workEmail: data.workEmail },
   ];
-  if (data.pan) or.push({ panHash: blindIndex(data.pan) });
-  if (data.aadhaar) or.push({ aadhaarHash: blindIndex(data.aadhaar) });
+  if (data.pan) orConditions.push({ panHash: blindIndex(data.pan) });
+  if (data.aadhaar)
+    orConditions.push({ aadhaarHash: blindIndex(data.aadhaar) });
   if (data.bankAccount)
-    or.push({ bankAccountHash: blindIndex(data.bankAccount) });
+    orConditions.push({ bankAccountHash: blindIndex(data.bankAccount) });
 
   const existing = await db.employee.findFirst({
-    where: { OR: or, ...(excludeId ? { NOT: { id: excludeId } } : {}) },
+    where: {
+      OR: orConditions,
+      ...(excludeId ? { NOT: { id: excludeId } } : {}),
+    },
     select: {
       empId: true,
       workEmail: true,
@@ -191,8 +195,7 @@ async function findDuplicate(
   });
   if (!existing) return undefined;
   if (existing.empId === data.empId) return "Employee ID already exists";
-  if (existing.workEmail === data.workEmail)
-    return "Work email already exists";
+  if (existing.workEmail === data.workEmail) return "Work email already exists";
   if (data.pan && existing.panHash === blindIndex(data.pan))
     return "An employee with this PAN already exists";
   if (data.aadhaar && existing.aadhaarHash === blindIndex(data.aadhaar))
@@ -233,16 +236,23 @@ export async function createEmployee(
       : undefined;
   if (
     candidateId !== undefined &&
-    (await db.employee.findUnique({ where: { candidateId }, select: { id: true } }))
+    (await db.employee.findUnique({
+      where: { candidateId },
+      select: { id: true },
+    }))
   ) {
-    return { error: "This candidate has already been converted to an employee" };
+    return {
+      error: "This candidate has already been converted to an employee",
+    };
   }
 
   let blobKeys;
   try {
     blobKeys = await uploadFiles(data.empId, formData);
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "File upload failed" };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "File upload failed",
+    };
   }
 
   const joinDate = new Date(data.dateOfJoining);
@@ -310,8 +320,8 @@ export async function createEmployee(
           },
         });
       }
-    } catch (e) {
-      console.error("[employees] candidate note failed", e);
+    } catch (error) {
+      console.error("[employees] candidate note failed", error);
     }
   }
 
@@ -381,14 +391,16 @@ export async function importEmployees(
       bankAccountHash: true,
     },
   });
-  const seenEmpIds = new Set(existing.map((e) => e.empId));
-  const seenEmails = new Set(existing.map((e) => e.workEmail));
-  const seenPans = new Set(existing.map((e) => e.panHash).filter(Boolean));
+  const seenEmpIds = new Set(existing.map((employee) => employee.empId));
+  const seenEmails = new Set(existing.map((employee) => employee.workEmail));
+  const seenPans = new Set(
+    existing.map((employee) => employee.panHash).filter(Boolean),
+  );
   const seenAadhaars = new Set(
-    existing.map((e) => e.aadhaarHash).filter(Boolean),
+    existing.map((employee) => employee.aadhaarHash).filter(Boolean),
   );
   const seenBanks = new Set(
-    existing.map((e) => e.bankAccountHash).filter(Boolean),
+    existing.map((employee) => employee.bankAccountHash).filter(Boolean),
   );
 
   const managerLinks: { empId: string; managerEmpId: string; row: number }[] =
@@ -459,10 +471,10 @@ export async function importEmployees(
             : {}),
         },
       });
-    } catch (e) {
+    } catch (error) {
       failures.push({
         row: rowNumber,
-        message: e instanceof Error ? e.message : "Insert failed",
+        message: error instanceof Error ? error.message : "Insert failed",
       });
       continue;
     }
@@ -493,10 +505,12 @@ export async function importEmployees(
   // Second pass: managers may appear later in the file than their reports.
   if (managerLinks.length > 0) {
     const managers = await db.employee.findMany({
-      where: { empId: { in: managerLinks.map((l) => l.managerEmpId) } },
+      where: { empId: { in: managerLinks.map((link) => link.managerEmpId) } },
       select: { id: true, empId: true },
     });
-    const managerIdByEmpId = new Map(managers.map((m) => [m.empId, m.id]));
+    const managerIdByEmpId = new Map(
+      managers.map((manager) => [manager.empId, manager.id]),
+    );
     for (const link of managerLinks) {
       const managerId = managerIdByEmpId.get(link.managerEmpId);
       if (!managerId || link.managerEmpId === link.empId) {
@@ -540,14 +554,18 @@ export async function updateEmployee(
   let blobKeys;
   try {
     blobKeys = await uploadFiles(data.empId, formData);
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "File upload failed" };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "File upload failed",
+    };
   }
 
   // Sensitive fields: only overwrite when a new value was entered —
   // the form never round-trips decrypted values.
   const sensitive = Object.fromEntries(
-    Object.entries(sensitiveColumns(data)).filter(([, v]) => v !== undefined),
+    Object.entries(sensitiveColumns(data)).filter(
+      ([, value]) => value !== undefined,
+    ),
   );
 
   // Switched to Probation after creation: open a probation record so they
@@ -588,7 +606,8 @@ export async function updateEmployee(
       isFresher: data.isFresher,
       linkedinId: data.isFresher ? null : data.linkedinId,
       // Never allow an employee to manage themselves.
-      managerId: data.managerId === employeeId ? null : (data.managerId ?? null),
+      managerId:
+        data.managerId === employeeId ? null : (data.managerId ?? null),
       ...sensitive,
       ...encryptPii(piiInput(data)),
       ...blobKeys,

@@ -17,9 +17,9 @@ function plaintext(
   row: Record<string, unknown>,
   field: PiiField,
 ): string | null {
-  const v = row[field];
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
-  return typeof v === "string" && v !== "" ? v : null;
+  const value = row[field];
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return typeof value === "string" && value !== "" ? value : null;
 }
 
 async function main() {
@@ -37,13 +37,15 @@ async function main() {
   // than one employee is a duplicate and is left unset for HR to resolve.
   const bankHash = new Map<string, string>(); // employee id → hash
   const holders = new Map<string, string[]>(); // hash → emp ids
-  for (const e of employees) {
+  for (const employee of employees) {
     const hash =
-      e.bankAccountHash ??
-      (e.bankAccountEnc ? blindIndex(decryptField(e.bankAccountEnc)) : null);
+      employee.bankAccountHash ??
+      (employee.bankAccountEnc
+        ? blindIndex(decryptField(employee.bankAccountEnc))
+        : null);
     if (!hash) continue;
-    bankHash.set(e.id, hash);
-    holders.set(hash, [...(holders.get(hash) ?? []), e.empId]);
+    bankHash.set(employee.id, hash);
+    holders.set(hash, [...(holders.get(hash) ?? []), employee.empId]);
   }
   const duplicateGroups = [...holders.values()].filter((ids) => ids.length > 1);
   const duplicated = new Set(duplicateGroups.flat());
@@ -51,25 +53,25 @@ async function main() {
   let rows = 0;
   let fields = 0;
   let hashes = 0;
-  for (const e of employees) {
+  for (const employee of employees) {
     const data: Record<string, string | null> = {};
     for (const field of PII_FIELDS) {
-      const plain = plaintext(e, field);
+      const plain = plaintext(employee, field);
       if (plain === null) continue;
-      if (!e[`${field}Enc`]) {
+      if (!employee[`${field}Enc`]) {
         data[`${field}Enc`] = encryptField(plain);
         fields++;
       }
       data[field] = null; // plaintext retired either way
     }
-    const hash = bankHash.get(e.id);
-    if (hash && !e.bankAccountHash && !duplicated.has(e.empId)) {
+    const hash = bankHash.get(employee.id);
+    if (hash && !employee.bankAccountHash && !duplicated.has(employee.empId)) {
       data.bankAccountHash = hash;
       hashes++;
     }
     if (Object.keys(data).length === 0) continue;
     rows++;
-    if (apply) await db.employee.update({ where: { id: e.id }, data });
+    if (apply) await db.employee.update({ where: { id: employee.id }, data });
   }
 
   console.log(
@@ -100,8 +102,8 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
-    console.error(e instanceof Error ? e.message : e);
+  .catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
   })
   .finally(() => db.$disconnect());

@@ -31,11 +31,12 @@ function EmployeePicker({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const q = query.trim().toLowerCase();
-  const matches = q
+  const searchQuery = query.trim().toLowerCase();
+  const matches = searchQuery
     ? employees.filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) || e.empId.toLowerCase().includes(q),
+        (employee) =>
+          employee.name.toLowerCase().includes(searchQuery) ||
+          employee.empId.toLowerCase().includes(searchQuery),
       )
     : employees;
 
@@ -71,31 +72,31 @@ function EmployeePicker({
             autoFocus
             placeholder="Search name or Emp ID…"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(event) => setQuery(event.target.value)}
             className="h-11"
           />
           <ul className="max-h-[55dvh] overflow-y-auto overscroll-contain">
             {matches.length === 0 && (
               <li className="py-8 text-center text-zinc-500">No match.</li>
             )}
-            {matches.map((e) => (
-              <li key={e.id}>
+            {matches.map((employee) => (
+              <li key={employee.id}>
                 <button
                   type="button"
                   onClick={() => {
-                    onSelect(e.id);
+                    onSelect(employee.id);
                     setOpen(false);
                     setQuery("");
                   }}
                   className={cn(
                     "flex min-h-12 w-full items-center gap-3 rounded-lg px-3 text-left hover:bg-muted",
-                    selected?.id === e.id && "bg-muted font-medium",
+                    selected?.id === employee.id && "bg-muted font-medium",
                   )}
                 >
                   <span className="w-16 shrink-0 text-sm text-zinc-500 tabular-nums">
-                    {e.empId}
+                    {employee.empId}
                   </span>
-                  <span className="truncate">{e.name}</span>
+                  <span className="truncate">{employee.name}</span>
                 </button>
               </li>
             ))}
@@ -106,7 +107,8 @@ function EmployeePicker({
   );
 }
 
-const employeeLabel = (e: Employee) => `${e.empId} — ${e.name}`;
+const employeeLabel = (employee: Employee) =>
+  `${employee.empId} — ${employee.name}`;
 
 /** Desktop: type to filter by name or Emp ID, then pick from the list. */
 function EmployeeCombobox({
@@ -124,9 +126,13 @@ function EmployeeCombobox({
     <Combobox.Root
       items={employees}
       value={selected ?? null}
-      onValueChange={(e: Employee | null) => onSelect(e?.id ?? "")}
+      onValueChange={(employee: Employee | null) =>
+        onSelect(employee?.id ?? "")
+      }
       itemToStringLabel={employeeLabel}
-      isItemEqualToValue={(a: Employee, b: Employee) => a.id === b.id}
+      isItemEqualToValue={(left: Employee, right: Employee) =>
+        left.id === right.id
+      }
     >
       <Combobox.Input
         id={id}
@@ -140,16 +146,16 @@ function EmployeeCombobox({
               No match.
             </Combobox.Empty>
             <Combobox.List>
-              {(e: Employee) => (
+              {(employee: Employee) => (
                 <Combobox.Item
-                  key={e.id}
-                  value={e}
+                  key={employee.id}
+                  value={employee}
                   className="flex cursor-default items-center gap-3 rounded px-2 py-1.5 outline-none select-none data-highlighted:bg-muted data-selected:font-medium"
                 >
                   <span className="w-16 shrink-0 text-xs text-zinc-500 tabular-nums">
-                    {e.empId}
+                    {employee.empId}
                   </span>
-                  <span className="truncate">{e.name}</span>
+                  <span className="truncate">{employee.name}</span>
                 </Combobox.Item>
               )}
             </Combobox.List>
@@ -177,7 +183,7 @@ export function EmployeeSelect({
   selectedId: string;
   onSelect: (id: string) => void;
 }) {
-  const selected = employees.find((e) => e.id === selectedId);
+  const selected = employees.find((employee) => employee.id === selectedId);
   return (
     <>
       <input type="hidden" name={name} value={selected?.id ?? ""} />

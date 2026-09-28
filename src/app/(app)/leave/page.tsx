@@ -60,7 +60,10 @@ export const metadata = { title: "Leave" };
 export const maxDuration = 300;
 
 const TYPE_OPTIONS = [
-  ...LEAVE_TYPES.map((t) => ({ value: t, label: LEAVE_TYPE_LABELS[t] })),
+  ...LEAVE_TYPES.map((leaveType) => ({
+    value: leaveType,
+    label: LEAVE_TYPE_LABELS[leaveType],
+  })),
   { value: "UNCLASSIFIED", label: "Unclassified" },
   { value: "UNMATCHED", label: "No employee match" },
 ];
@@ -70,8 +73,8 @@ type Status = LeaveStatusValue;
 const STATUS_LABELS = LEAVE_STATUS_LABELS;
 const STATUS_CLASSES = LEAVE_STATUS_CLASSES;
 
-function day(d: Date | null): string {
-  return d ? d.toISOString().slice(0, 10) : "";
+function day(date: Date | null): string {
+  return date ? date.toISOString().slice(0, 10) : "";
 }
 
 function formatDates(start: string, end: string, postedOn: Date): string {
@@ -83,7 +86,7 @@ function formatDates(start: string, end: string, postedOn: Date): string {
 }
 
 function editEntry(
-  e: {
+  entry: {
     id: string;
     creatorName: string;
     message: string;
@@ -95,13 +98,13 @@ function editEntry(
   end: string,
 ) {
   return {
-    id: e.id,
-    creatorName: e.creatorName,
-    message: e.message,
-    type: e.type,
-    startDate: start || day(e.postedOn),
+    id: entry.id,
+    creatorName: entry.creatorName,
+    message: entry.message,
+    type: entry.type,
+    startDate: start || day(entry.postedOn),
     endDate: end,
-    days: e.days !== null ? String(e.days) : "1",
+    days: entry.days !== null ? String(entry.days) : "1",
   };
 }
 
@@ -115,7 +118,7 @@ function ReviewForm({
   status: Status;
   large?: boolean;
 }) {
-  const btn = large
+  const buttonClass = large
     ? "inline-flex size-10 items-center justify-center rounded-md border border-zinc-200 dark:border-zinc-800"
     : "inline-flex size-7 items-center justify-center rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800";
   const icon = large ? "size-5" : "size-4";
@@ -130,7 +133,10 @@ function ReviewForm({
             value="APPROVED"
             aria-label="Approve"
             title="Approve"
-            className={cn(btn, "text-emerald-600 dark:text-emerald-400")}
+            className={cn(
+              buttonClass,
+              "text-emerald-600 dark:text-emerald-400",
+            )}
           >
             <CheckIcon className={icon} />
           </button>
@@ -140,7 +146,7 @@ function ReviewForm({
             value="REJECTED"
             aria-label="Reject"
             title="Reject"
-            className={cn(btn, "text-rose-600 dark:text-rose-400")}
+            className={cn(buttonClass, "text-rose-600 dark:text-rose-400")}
           >
             <CloseIcon className={icon} />
           </button>
@@ -152,7 +158,7 @@ function ReviewForm({
           value="PENDING"
           aria-label="Undo review"
           title="Undo review"
-          className={cn(btn, "text-zinc-500 hover:text-foreground")}
+          className={cn(buttonClass, "text-zinc-500 hover:text-foreground")}
         >
           <UndoIcon className={icon} />
         </button>
@@ -189,7 +195,7 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
   else if (LEAVE_TYPES.includes(params.type as LeaveTypeValue)) {
     and.push({ type: params.type as LeaveTypeValue });
   }
-  const status = STATUSES.find((st) => st === raw.status);
+  const status = STATUSES.find((value) => value === raw.status);
   if (status) and.push({ status });
 
   // No ?view: day strip on phones, list on desktop. ?view=list / calendar
@@ -285,50 +291,61 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
   const topNames = new Map(
     (
       await db.employee.findMany({
-        where: { id: { in: yearTotals.map((t) => t.employeeId!) } },
+        where: {
+          id: { in: yearTotals.map((yearTotal) => yearTotal.employeeId!) },
+        },
         select: { id: true, name: true },
       })
-    ).map((e) => [e.id, e.name]),
+    ).map((employee) => [employee.id, employee.name]),
   );
 
   const hrefWith = (key: string, value?: string) => {
-    const qs = new URLSearchParams();
-    for (const [k, v] of Object.entries(raw)) {
-      if (typeof v === "string" && k !== key && k !== "page") qs.set(k, v);
+    const query = new URLSearchParams();
+    for (const [paramKey, paramValue] of Object.entries(raw)) {
+      if (
+        typeof paramValue === "string" &&
+        paramKey !== key &&
+        paramKey !== "page"
+      )
+        query.set(paramKey, paramValue);
     }
-    if (value) qs.set(key, value);
-    return `/leave${qs.size ? `?${qs}` : ""}`;
+    if (value) query.set(key, value);
+    return `/leave${query.size ? `?${query}` : ""}`;
   };
 
-  const calendar: CalendarEntry[] = calendarEntries.map((e) => ({
-    id: e.id,
-    name: e.employee?.name ?? e.creatorName,
-    employeeId: e.employee?.id ?? null,
-    type: e.type,
-    startDate: e.startDate,
-    endDate: e.endDate,
-    postedOn: e.postedOn,
-    days: e.days !== null ? Number(e.days) : null,
-    message: e.message,
-    status: e.status,
+  const calendar: CalendarEntry[] = calendarEntries.map((leaveEntry) => ({
+    id: leaveEntry.id,
+    name: leaveEntry.employee?.name ?? leaveEntry.creatorName,
+    employeeId: leaveEntry.employee?.id ?? null,
+    type: leaveEntry.type,
+    startDate: leaveEntry.startDate,
+    endDate: leaveEntry.endDate,
+    postedOn: leaveEntry.postedOn,
+    days: leaveEntry.days !== null ? Number(leaveEntry.days) : null,
+    message: leaveEntry.message,
+    status: leaveEntry.status,
   }));
 
   const todayKey = key(new Date());
   const stripDays: StripDay[] = [];
-  for (let t = month.getTime(); t < monthEnd.getTime(); t += 86_400_000) {
-    const d = new Date(t);
+  for (
+    let time = month.getTime();
+    time < monthEnd.getTime();
+    time += 86_400_000
+  ) {
+    const date = new Date(time);
     stripDays.push({
-      key: key(d),
-      weekday: "SMTWTFS"[d.getUTCDay()],
-      date: d.getUTCDate(),
-      label: d.toLocaleDateString("en-IN", {
+      key: key(date),
+      weekday: "SMTWTFS"[date.getUTCDay()],
+      date: date.getUTCDate(),
+      label: date.toLocaleDateString("en-IN", {
         weekday: "short",
         day: "numeric",
         month: "short",
         timeZone: "UTC",
       }),
-      isWeekend: isWeekend(d),
-      isToday: key(d) === todayKey,
+      isWeekend: isWeekend(date),
+      isToday: key(date) === todayKey,
     });
   }
 
@@ -385,15 +402,15 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
           </h2>
           {/* One swipeable row on phones, wrapping chips on desktop. */}
           <div className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0">
-            {yearTotals.map((t) => (
+            {yearTotals.map((yearTotal) => (
               <Link
-                key={t.employeeId}
-                href={`/employees/${t.employeeId}`}
+                key={yearTotal.employeeId}
+                href={`/employees/${yearTotal.employeeId}`}
                 className="flex min-h-10 shrink-0 items-center gap-1 rounded-md border border-zinc-200 px-2.5 text-sm whitespace-nowrap hover:bg-muted md:min-h-0 md:py-1 dark:border-zinc-800"
               >
-                {topNames.get(t.employeeId!) ?? "—"}{" "}
+                {topNames.get(yearTotal.employeeId!) ?? "—"}{" "}
                 <span className="tabular-nums text-zinc-500">
-                  {Number(t._sum.days ?? 0)}
+                  {Number(yearTotal._sum.days ?? 0)}
                 </span>
               </Link>
             ))}
@@ -408,23 +425,31 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
         <div className="hidden md:block">
           <Segmented
             label="View"
-            items={(["list", "calendar"] as const).map((v) => ({
-              key: v,
-              href: hrefWith("view", v === "calendar" ? "calendar" : undefined),
-              label: v === "list" ? "List" : "Calendar",
+            items={(["list", "calendar"] as const).map((viewOption) => ({
+              key: viewOption,
+              href: hrefWith(
+                "view",
+                viewOption === "calendar" ? "calendar" : undefined,
+              ),
+              label: viewOption === "list" ? "List" : "Calendar",
               active:
-                v === "calendar" ? view === "calendar" : view !== "calendar",
+                viewOption === "calendar"
+                  ? view === "calendar"
+                  : view !== "calendar",
             }))}
           />
         </div>
         <div className="md:hidden">
           <Segmented
             label="View"
-            items={(["calendar", "list"] as const).map((v) => ({
-              key: v,
-              href: hrefWith("view", v === "list" ? "list" : undefined),
-              label: v === "list" ? "List" : "Calendar",
-              active: v === "list" ? view === "list" : view !== "list",
+            items={(["calendar", "list"] as const).map((viewOption) => ({
+              key: viewOption,
+              href: hrefWith(
+                "view",
+                viewOption === "list" ? "list" : undefined,
+              ),
+              label: viewOption === "list" ? "List" : "Calendar",
+              active: viewOption === "list" ? view === "list" : view !== "list",
             }))}
           />
         </div>
@@ -442,7 +467,9 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
             days={stripDays}
             byDay={groupByDay(calendar)}
             initialKey={
-              stripDays.some((d) => d.isToday) ? todayKey : stripDays[0].key
+              stripDays.some((stripDay) => stripDay.isToday)
+                ? todayKey
+                : stripDays[0].key
             }
             links={monthLinks(month, raw)}
             filters={
@@ -465,21 +492,23 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
           <div className="mt-4">
             <Segmented
               label="Status"
-              items={([undefined, ...STATUSES] as const).map((st) => ({
-                key: st ?? "ALL",
-                href: hrefWith("status", st),
-                active: status === st,
-                label: (
-                  <>
-                    {st ? STATUS_LABELS[st] : "All"}
-                    {st === "PENDING" && pendingCount > 0 && (
-                      <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 text-xs font-medium text-white tabular-nums">
-                        {pendingCount}
-                      </span>
-                    )}
-                  </>
-                ),
-              }))}
+              items={([undefined, ...STATUSES] as const).map(
+                (statusOption) => ({
+                  key: statusOption ?? "ALL",
+                  href: hrefWith("status", statusOption),
+                  active: status === statusOption,
+                  label: (
+                    <>
+                      {statusOption ? STATUS_LABELS[statusOption] : "All"}
+                      {statusOption === "PENDING" && pendingCount > 0 && (
+                        <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 text-xs font-medium text-white tabular-nums">
+                          {pendingCount}
+                        </span>
+                      )}
+                    </>
+                  ),
+                }),
+              )}
             />
           </div>
 
@@ -488,21 +517,23 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
               isEmpty={entries.length === 0}
               empty="No leave entries."
             >
-              {entries.map((e) => {
-                const start = day(e.startDate);
-                const end = day(e.endDate);
+              {entries.map((leaveEntry) => {
+                const start = day(leaveEntry.startDate);
+                const end = day(leaveEntry.endDate);
                 return (
                   <ListCard
-                    key={e.id}
+                    key={leaveEntry.id}
                     href={
-                      e.employee ? `/employees/${e.employee.id}` : undefined
+                      leaveEntry.employee
+                        ? `/employees/${leaveEntry.employee.id}`
+                        : undefined
                     }
                     title={
-                      e.employee ? (
-                        e.employee.name
+                      leaveEntry.employee ? (
+                        leaveEntry.employee.name
                       ) : (
                         <>
-                          {e.creatorName}
+                          {leaveEntry.creatorName}
                           <span className="ml-1.5 text-xs font-normal text-zinc-400">
                             (no match)
                           </span>
@@ -513,62 +544,71 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
                       <span
                         className={cn(
                           "rounded px-1.5 py-0.5 text-xs font-medium",
-                          STATUS_CLASSES[e.status],
+                          STATUS_CLASSES[leaveEntry.status],
                         )}
                       >
-                        {STATUS_LABELS[e.status]}
+                        {STATUS_LABELS[leaveEntry.status]}
                       </span>
                     }
                     subtitle={
                       <p className="line-clamp-3 whitespace-pre-line">
-                        {e.message}
+                        {leaveEntry.message}
                       </p>
                     }
                     meta={
                       <>
                         <span className="tabular-nums">
-                          {formatDates(start, end, e.postedOn)}
+                          {formatDates(start, end, leaveEntry.postedOn)}
                         </span>
-                        {e.type ? (
+                        {leaveEntry.type ? (
                           <Badge
                             variant={
-                              e.type === "FULL_DAY" ? "default" : "secondary"
+                              leaveEntry.type === "FULL_DAY"
+                                ? "default"
+                                : "secondary"
                             }
                           >
-                            {LEAVE_TYPE_LABELS[e.type]}
+                            {LEAVE_TYPE_LABELS[leaveEntry.type]}
                           </Badge>
                         ) : (
                           <span className="text-zinc-400">unclassified</span>
                         )}
-                        {e.days !== null && (
+                        {leaveEntry.days !== null && (
                           <span className="tabular-nums">
-                            {Number(e.days)}d
+                            {Number(leaveEntry.days)}d
                           </span>
                         )}
-                        {e.classifiedBy === "manual" && (
+                        {leaveEntry.classifiedBy === "manual" && (
                           <span className="text-zinc-400">(edited)</span>
                         )}
-                        {e.reviewedBy && e.reviewedAt && (
+                        {leaveEntry.reviewedBy && leaveEntry.reviewedAt && (
                           <span>
-                            {STATUS_LABELS[e.status]} by{" "}
-                            {e.reviewedBy.name ?? e.reviewedBy.email}
+                            {STATUS_LABELS[leaveEntry.status]} by{" "}
+                            {leaveEntry.reviewedBy.name ??
+                              leaveEntry.reviewedBy.email}
                           </span>
                         )}
                       </>
                     }
                     actions={
                       <>
-                        <ReviewForm id={e.id} status={e.status} large />
+                        <ReviewForm
+                          id={leaveEntry.id}
+                          status={leaveEntry.status}
+                          large
+                        />
                         <LeaveEditDialog
                           asButton
-                          entry={editEntry(e, start, end)}
+                          entry={editEntry(leaveEntry, start, end)}
                         />
                         <LeaveHistoryDrawer
-                          entryId={e.id}
-                          name={e.employee?.name ?? e.creatorName}
+                          entryId={leaveEntry.id}
+                          name={
+                            leaveEntry.employee?.name ?? leaveEntry.creatorName
+                          }
                         />
                         <a
-                          href={e.link}
+                          href={leaveEntry.link}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex h-10 items-center px-2 text-sm text-zinc-500 underline underline-offset-4"
@@ -608,22 +648,22 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
                       </TableCell>
                     </TableRow>
                   )}
-                  {entries.map((e) => {
-                    const start = day(e.startDate);
-                    const end = day(e.endDate);
+                  {entries.map((leaveEntry) => {
+                    const start = day(leaveEntry.startDate);
+                    const end = day(leaveEntry.endDate);
                     return (
-                      <TableRow key={e.id}>
+                      <TableRow key={leaveEntry.id}>
                         <TableCell>
-                          {e.employee ? (
+                          {leaveEntry.employee ? (
                             <Link
-                              href={`/employees/${e.employee.id}`}
+                              href={`/employees/${leaveEntry.employee.id}`}
                               className="font-medium underline-offset-4 hover:underline"
                             >
-                              {e.employee.name}
+                              {leaveEntry.employee.name}
                             </Link>
                           ) : (
-                            <span title={e.creatorEmail}>
-                              {e.creatorName}
+                            <span title={leaveEntry.creatorEmail}>
+                              {leaveEntry.creatorName}
                               <span className="ml-1.5 text-xs text-zinc-400">
                                 (no match)
                               </span>
@@ -631,40 +671,44 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
                           )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap tabular-nums">
-                          {formatDates(start, end, e.postedOn)}
+                          {formatDates(start, end, leaveEntry.postedOn)}
                         </TableCell>
                         <TableCell>
-                          {e.type ? (
+                          {leaveEntry.type ? (
                             <Badge
                               variant={
-                                e.type === "FULL_DAY" ? "default" : "secondary"
+                                leaveEntry.type === "FULL_DAY"
+                                  ? "default"
+                                  : "secondary"
                               }
                             >
-                              {LEAVE_TYPE_LABELS[e.type]}
+                              {LEAVE_TYPE_LABELS[leaveEntry.type]}
                             </Badge>
                           ) : (
                             <span className="text-xs text-zinc-400">
                               unclassified
                             </span>
                           )}
-                          {e.classifiedBy === "manual" && (
+                          {leaveEntry.classifiedBy === "manual" && (
                             <span className="ml-1.5 text-xs text-zinc-400">
                               (edited)
                             </span>
                           )}
                         </TableCell>
                         <TableCell className="tabular-nums">
-                          {e.days !== null ? Number(e.days) : "—"}
+                          {leaveEntry.days !== null
+                            ? Number(leaveEntry.days)
+                            : "—"}
                         </TableCell>
                         <TableCell className="max-w-md">
                           <p
                             className="line-clamp-2 whitespace-normal text-sm"
-                            title={e.message}
+                            title={leaveEntry.message}
                           >
-                            {e.message}
+                            {leaveEntry.message}
                           </p>
                           <a
-                            href={e.link}
+                            href={leaveEntry.link}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-zinc-400 underline underline-offset-4"
@@ -677,21 +721,26 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
                             <span
                               className={cn(
                                 "rounded px-1.5 py-0.5 text-xs font-medium",
-                                STATUS_CLASSES[e.status],
+                                STATUS_CLASSES[leaveEntry.status],
                               )}
                               title={
-                                e.reviewedBy && e.reviewedAt
-                                  ? `${STATUS_LABELS[e.status]} by ${e.reviewedBy.name ?? e.reviewedBy.email} on ${day(e.reviewedAt)}`
+                                leaveEntry.reviewedBy && leaveEntry.reviewedAt
+                                  ? `${STATUS_LABELS[leaveEntry.status]} by ${leaveEntry.reviewedBy.name ?? leaveEntry.reviewedBy.email} on ${day(leaveEntry.reviewedAt)}`
                                   : undefined
                               }
                             >
-                              {STATUS_LABELS[e.status]}
+                              {STATUS_LABELS[leaveEntry.status]}
                             </span>
-                            <ReviewForm id={e.id} status={e.status} />
+                            <ReviewForm
+                              id={leaveEntry.id}
+                              status={leaveEntry.status}
+                            />
                           </div>
                         </TableCell>
                         <TableCell>
-                          <LeaveEditDialog entry={editEntry(e, start, end)} />
+                          <LeaveEditDialog
+                            entry={editEntry(leaveEntry, start, end)}
+                          />
                         </TableCell>
                       </TableRow>
                     );

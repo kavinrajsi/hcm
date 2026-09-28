@@ -25,7 +25,7 @@ describe("provisionLogin", () => {
     db.user.findUnique.mockResolvedValue(null);
     db.user.create.mockResolvedValue({ id: "u1" });
 
-    const r = await provisionLogin({
+    const result = await provisionLogin({
       email: " Asha@Madarth.com ",
       name: "Asha",
       role: "EMPLOYEE",
@@ -40,7 +40,7 @@ describe("provisionLogin", () => {
         employee: { connect: { id: "e1" } },
       },
     });
-    expect(r).toEqual({
+    expect(result).toEqual({
       userId: "u1",
       link: "http://app/reset-password?token=t",
       emailed: false,
@@ -52,8 +52,8 @@ describe("provisionLogin", () => {
     db.user.findUnique.mockResolvedValue(null);
     db.user.create.mockResolvedValue({ id: "u1" });
     sendEmail.mockResolvedValue({ skipped: false, id: "m1" });
-    const r = await provisionLogin({ email: "a@x.com", role: "EMPLOYEE" });
-    expect("emailed" in r && r.emailed).toBe(true);
+    const result = await provisionLogin({ email: "a@x.com", role: "EMPLOYEE" });
+    expect("emailed" in result && result.emailed).toBe(true);
   });
 
   it("still returns the link when sending fails", async () => {
@@ -61,13 +61,13 @@ describe("provisionLogin", () => {
     db.user.create.mockResolvedValue({ id: "u1" });
     sendEmail.mockRejectedValue(new Error("smtp down"));
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const r = await provisionLogin({ email: "a@x.com", role: "EMPLOYEE" });
-    expect(r).toMatchObject({ link: expect.any(String), emailed: false });
+    const result = await provisionLogin({ email: "a@x.com", role: "EMPLOYEE" });
+    expect(result).toMatchObject({ link: expect.any(String), emailed: false });
   });
 
   it("links an existing unlinked account instead of duplicating it", async () => {
     db.user.findUnique.mockResolvedValue({ id: "u7", employee: null });
-    const r = await provisionLogin({
+    const result = await provisionLogin({
       email: "a@x.com",
       role: "EMPLOYEE",
       employeeId: "e1",
@@ -77,19 +77,21 @@ describe("provisionLogin", () => {
       where: { id: "e1" },
       data: { userId: "u7" },
     });
-    expect(r).toEqual({
+    expect(result).toEqual({
       error: "Linked to the existing account with this email",
     });
   });
 
   it("refuses an email already used by another employee's login", async () => {
     db.user.findUnique.mockResolvedValue({ id: "u7", employee: { id: "e9" } });
-    const r = await provisionLogin({
+    const result = await provisionLogin({
       email: "a@x.com",
       role: "EMPLOYEE",
       employeeId: "e1",
     });
-    expect(r).toEqual({ error: "An account with this email already exists" });
+    expect(result).toEqual({
+      error: "An account with this email already exists",
+    });
     expect(db.employee.update).not.toHaveBeenCalled();
   });
 });

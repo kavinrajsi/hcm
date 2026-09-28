@@ -22,15 +22,19 @@ export function gatewayCost(providerMetadata: unknown): {
   costUsd: number | null;
   generationId: string | null;
 } {
-  const g =
+  const gateway =
     providerMetadata && typeof providerMetadata === "object"
       ? (providerMetadata as Record<string, unknown>).gateway
       : undefined;
-  if (!g || typeof g !== "object") return { costUsd: null, generationId: null };
-  const { cost, generationId } = g as Record<string, unknown>;
-  const n = typeof cost === "number" ? cost : Number(cost);
+  if (!gateway || typeof gateway !== "object")
+    return { costUsd: null, generationId: null };
+  const { cost, generationId } = gateway as Record<string, unknown>;
+  const numericCost = typeof cost === "number" ? cost : Number(cost);
   return {
-    costUsd: cost == null || cost === "" || !Number.isFinite(n) ? null : n,
+    costUsd:
+      cost == null || cost === "" || !Number.isFinite(numericCost)
+        ? null
+        : numericCost,
     generationId: typeof generationId === "string" ? generationId : null,
   };
 }
@@ -61,16 +65,16 @@ export async function recordAiUsage(row: {
         ok: row.ok ?? true,
       },
     });
-  } catch (err) {
-    console.error("[ai-usage] record failed", err);
+  } catch (error) {
+    console.error("[ai-usage] record failed", error);
   }
 }
 
 /** "$0", "$0.00042", "$1.23" — tiny per-call costs keep 2 significant digits. */
-export function formatUsd(v: number): string {
-  if (v === 0) return "$0";
-  if (Math.abs(v) < 0.01) return `$${Number(v.toPrecision(2))}`;
-  return `$${v.toFixed(2)}`;
+export function formatUsd(amount: number): string {
+  if (amount === 0) return "$0";
+  if (Math.abs(amount) < 0.01) return `$${Number(amount.toPrecision(2))}`;
+  return `$${amount.toFixed(2)}`;
 }
 
 export const AI_RANGES = ["month", "30d", "90d", "all"] as const;
@@ -85,8 +89,8 @@ export const AI_RANGE_LABELS: Record<AiRange, string> = {
 const IST_MS = 330 * 60_000;
 
 /** YYYY-MM-DD of an instant in Asia/Kolkata. */
-export function istDay(d: Date): string {
-  return new Date(d.getTime() + IST_MS).toISOString().slice(0, 10);
+export function istDay(date: Date): string {
+  return new Date(date.getTime() + IST_MS).toISOString().slice(0, 10);
 }
 
 /** Start of the range (midnight IST), or null for all time. */
@@ -96,7 +100,9 @@ export function rangeStart(range: AiRange, now = new Date()): Date | null {
   const day =
     range === "month"
       ? `${today.slice(0, 8)}01`
-      : istDay(new Date(now.getTime() - (range === "30d" ? 29 : 89) * 86_400_000));
+      : istDay(
+          new Date(now.getTime() - (range === "30d" ? 29 : 89) * 86_400_000),
+        );
   return new Date(new Date(`${day}T00:00:00Z`).getTime() - IST_MS);
 }
 
@@ -106,14 +112,14 @@ export function fillDays(
   from: string,
   to: string,
 ): { day: string; cost: number; requests: number }[] {
-  const byDay = new Map(rows.map((r) => [r.day, r]));
+  const byDay = new Map(rows.map((row) => [row.day, row]));
   const out = [];
   for (
-    let d = new Date(`${from}T00:00:00Z`);
-    d.toISOString().slice(0, 10) <= to;
-    d = new Date(d.getTime() + 86_400_000)
+    let cursor = new Date(`${from}T00:00:00Z`);
+    cursor.toISOString().slice(0, 10) <= to;
+    cursor = new Date(cursor.getTime() + 86_400_000)
   ) {
-    const day = d.toISOString().slice(0, 10);
+    const day = cursor.toISOString().slice(0, 10);
     out.push(byDay.get(day) ?? { day, cost: 0, requests: 0 });
   }
   return out;
@@ -182,20 +188,23 @@ export async function aiUsageSummary(range: AiRange, now = new Date()) {
     },
     daily: from ? fillDays(dailyRows, from, istDay(now)) : [],
     breakdown: breakdown
-      .map((b) => ({
-        feature: b.feature,
-        trigger: b.trigger,
-        model: b.model,
-        requests: b._count,
-        items: b._sum.items ?? 0,
-        inputTokens: b._sum.inputTokens ?? 0,
-        outputTokens: b._sum.outputTokens ?? 0,
-        cost: Number(b._sum.costUsd ?? 0),
+      .map((group) => ({
+        feature: group.feature,
+        trigger: group.trigger,
+        model: group.model,
+        requests: group._count,
+        items: group._sum.items ?? 0,
+        inputTokens: group._sum.inputTokens ?? 0,
+        outputTokens: group._sum.outputTokens ?? 0,
+        cost: Number(group._sum.costUsd ?? 0),
       }))
-      .sort((a, b) => b.cost - a.cost || b.requests - a.requests),
-    recent: recent.map((r) => ({
-      ...r,
-      costUsd: r.costUsd === null ? null : Number(r.costUsd),
+      .sort(
+        (left, right) =>
+          right.cost - left.cost || right.requests - left.requests,
+      ),
+    recent: recent.map((usage) => ({
+      ...usage,
+      costUsd: usage.costUsd === null ? null : Number(usage.costUsd),
     })),
   };
 }

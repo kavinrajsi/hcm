@@ -65,9 +65,9 @@ export function FreelancerAddForm() {
         className={`${selectClass} md:w-auto`}
         defaultValue="UNKNOWN"
       >
-        {AVAILABILITY_OPTIONS.map(([v, l]) => (
-          <option key={v} value={v}>
-            {l}
+        {AVAILABILITY_OPTIONS.map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
           </option>
         ))}
       </select>

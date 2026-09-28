@@ -19,7 +19,7 @@ async function ownsDocument(userId: string, key: string): Promise<boolean> {
 }
 
 export async function GET(
-  req: NextRequest,
+  request: NextRequest,
   ctx: RouteContext<"/api/files/[...path]">,
 ) {
   const { path } = await ctx.params;
@@ -37,7 +37,7 @@ export async function GET(
   }
   const headers = new Headers(Object.fromEntries(result.headers.entries()));
   // ?inline=1 lets PDFs render in an <iframe> preview instead of downloading.
-  if (req.nextUrl.searchParams.get("inline") === "1") {
+  if (request.nextUrl.searchParams.get("inline") === "1") {
     const name = path.at(-1) ?? "file";
     headers.set(
       "Content-Disposition",

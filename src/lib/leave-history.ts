@@ -26,14 +26,16 @@ export type LeaveSummary = {
 
 /** Year a post counts towards: its leave date, else the day it was posted. */
 export function entryYear(
-  e: Pick<HistoryEntry, "startDate" | "postedOn">,
+  entry: Pick<HistoryEntry, "startDate" | "postedOn">,
 ): number {
-  return (e.startDate ?? e.postedOn).getUTCFullYear();
+  return (entry.startDate ?? entry.postedOn).getUTCFullYear();
 }
 
 /** Distinct years with posts, newest first. */
 export function leaveYears(entries: HistoryEntry[]): number[] {
-  return [...new Set(entries.map(entryYear))].sort((a, b) => b - a);
+  return [...new Set(entries.map(entryYear))].sort(
+    (earlierYear, laterYear) => laterYear - earlierYear,
+  );
 }
 
 export function filterByYear<T extends HistoryEntry>(
@@ -42,11 +44,11 @@ export function filterByYear<T extends HistoryEntry>(
 ): T[] {
   return year === "all"
     ? entries
-    : entries.filter((e) => entryYear(e) === year);
+    : entries.filter((entry) => entryYear(entry) === year);
 }
 
 export function summarizeLeave(entries: HistoryEntry[]): LeaveSummary {
-  const s: LeaveSummary = {
+  const summary: LeaveSummary = {
     leaveDays: 0,
     fullDays: 0,
     halfDays: 0,
@@ -55,18 +57,18 @@ export function summarizeLeave(entries: HistoryEntry[]): LeaveSummary {
     wfh: 0,
     pending: 0,
   };
-  for (const e of entries) {
-    if (e.status === "PENDING") s.pending++;
-    if (e.status === "REJECTED") continue;
-    if (e.type === "FULL_DAY") {
-      s.fullDays += e.days ?? 1;
-      s.leaveDays += e.days ?? 1;
-    } else if (e.type === "HALF_DAY") {
-      s.halfDays++;
-      s.leaveDays += e.days ?? 0.5;
-    } else if (e.type === "LATE_ARRIVAL") s.late++;
-    else if (e.type === "EARLY_LOGOUT") s.early++;
-    else if (e.type === "WFH") s.wfh++;
+  for (const entry of entries) {
+    if (entry.status === "PENDING") summary.pending++;
+    if (entry.status === "REJECTED") continue;
+    if (entry.type === "FULL_DAY") {
+      summary.fullDays += entry.days ?? 1;
+      summary.leaveDays += entry.days ?? 1;
+    } else if (entry.type === "HALF_DAY") {
+      summary.halfDays++;
+      summary.leaveDays += entry.days ?? 0.5;
+    } else if (entry.type === "LATE_ARRIVAL") summary.late++;
+    else if (entry.type === "EARLY_LOGOUT") summary.early++;
+    else if (entry.type === "WFH") summary.wfh++;
   }
-  return s;
+  return summary;
 }

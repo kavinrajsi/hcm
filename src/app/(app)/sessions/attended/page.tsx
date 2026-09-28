@@ -96,11 +96,11 @@ export default async function SessionAttendedPage({
         <CollapsibleForm label="Log attendance">
           <AttendanceForm
             employees={employees}
-            sessions={sessions.map((s) => ({
-              id: s.id,
-              name: s.name,
-              trainer: s.trainer,
-              date: s.date.toISOString().slice(0, 10),
+            sessions={sessions.map((session) => ({
+              id: session.id,
+              name: session.name,
+              trainer: session.trainer,
+              date: session.date.toISOString().slice(0, 10),
             }))}
           />
         </CollapsibleForm>
@@ -112,34 +112,36 @@ export default async function SessionAttendedPage({
 
       <div className="mt-4">
         <MobileList isEmpty={rows.length === 0} empty="No attendance logged.">
-          {rows.map((r) => (
+          {rows.map((record) => (
             <ListCard
-              key={r.id}
-              href={`/employees/${r.employee.id}`}
-              title={r.employee.name}
+              key={record.id}
+              href={`/employees/${record.employee.id}`}
+              title={record.employee.name}
               subtitle={
                 <>
-                  {r.sessionName}
-                  {r.notes && (
-                    <span className="mt-1 line-clamp-3 block">{r.notes}</span>
+                  {record.sessionName}
+                  {record.notes && (
+                    <span className="mt-1 line-clamp-3 block">
+                      {record.notes}
+                    </span>
                   )}
                 </>
               }
               badge={
                 <span
                   className={
-                    r.attended
+                    record.attended
                       ? "rounded bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-950 dark:text-green-300"
                       : "rounded bg-muted px-1.5 py-0.5 text-xs font-medium"
                   }
                 >
-                  {r.attended ? "Attended" : "Not attended"}
+                  {record.attended ? "Attended" : "Not attended"}
                 </span>
               }
               meta={
                 <>
-                  <span>{r.date.toISOString().slice(0, 10)}</span>
-                  {r.trainer && <span>{r.trainer}</span>}
+                  <span>{record.date.toISOString().slice(0, 10)}</span>
+                  {record.trainer && <span>{record.trainer}</span>}
                 </>
               }
             />
@@ -167,22 +169,22 @@ export default async function SessionAttendedPage({
                 </TableCell>
               </TableRow>
             )}
-            {rows.map((r) => (
-              <TableRow key={r.id}>
+            {rows.map((record) => (
+              <TableRow key={record.id}>
                 <TableCell>
                   <Link
-                    href={`/employees/${r.employee.id}`}
+                    href={`/employees/${record.employee.id}`}
                     className="font-medium underline-offset-4 hover:underline"
                   >
-                    {r.employee.name}
+                    {record.employee.name}
                   </Link>
                 </TableCell>
-                <TableCell>{r.sessionName}</TableCell>
-                <TableCell>{r.date.toISOString().slice(0, 10)}</TableCell>
-                <TableCell>{r.attended ? "Yes" : "No"}</TableCell>
-                <TableCell>{r.trainer ?? "—"}</TableCell>
+                <TableCell>{record.sessionName}</TableCell>
+                <TableCell>{record.date.toISOString().slice(0, 10)}</TableCell>
+                <TableCell>{record.attended ? "Yes" : "No"}</TableCell>
+                <TableCell>{record.trainer ?? "—"}</TableCell>
                 <TableCell className="max-w-56 truncate">
-                  {r.notes ?? "—"}
+                  {record.notes ?? "—"}
                 </TableCell>
               </TableRow>
             ))}

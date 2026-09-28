@@ -17,20 +17,20 @@ export async function updateIdCardStatus(formData: FormData) {
 
   // Read the old value inside the transaction so concurrent moves each log
   // the status they actually replaced; unchanged selections log nothing.
-  const employeeId = await db.$transaction(async (tx) => {
-    const card = await tx.idCard.findUniqueOrThrow({
+  const employeeId = await db.$transaction(async (transaction) => {
+    const card = await transaction.idCard.findUniqueOrThrow({
       where: { id },
       select: { status: true, employeeId: true },
     });
     if (card.status === status) return card.employeeId;
-    await tx.idCard.update({
+    await transaction.idCard.update({
       where: { id },
       data: {
         status,
         issuedAt: status === "ISSUED" ? new Date() : undefined,
       },
     });
-    await tx.idCardStatusChange.create({
+    await transaction.idCardStatusChange.create({
       data: {
         idCardId: id,
         fromStatus: card.status,

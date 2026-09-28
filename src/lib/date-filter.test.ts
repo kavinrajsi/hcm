@@ -34,12 +34,12 @@ describe("instantRange", () => {
   });
 
   it("makes the end of a custom range inclusive", () => {
-    const r = instantRange({
+    const range = instantRange({
       from: "2026-09-01T00:00",
       to: "2026-09-28T23:59",
     });
-    expect(r?.gte?.toISOString()).toBe("2026-08-31T18:30:00.000Z");
-    expect(r?.lt?.toISOString()).toBe("2026-09-28T18:30:00.000Z");
+    expect(range?.gte?.toISOString()).toBe("2026-08-31T18:30:00.000Z");
+    expect(range?.lt?.toISOString()).toBe("2026-09-28T18:30:00.000Z");
     expect(instantRange({ to: "2026-09-28" })?.lt?.toISOString()).toBe(
       "2026-09-28T18:30:00.000Z",
     );
@@ -58,9 +58,9 @@ describe("instantRange", () => {
 
 describe("dayRange", () => {
   it("covers whole days as UTC midnights", () => {
-    const r = dayRange({ from: "2026-09-01", to: "2026-09-16" });
-    expect(r?.gte?.toISOString()).toBe("2026-09-01T00:00:00.000Z");
-    expect(r?.lt?.toISOString()).toBe("2026-09-17T00:00:00.000Z");
+    const range = dayRange({ from: "2026-09-01", to: "2026-09-16" });
+    expect(range?.gte?.toISOString()).toBe("2026-09-01T00:00:00.000Z");
+    expect(range?.lt?.toISOString()).toBe("2026-09-17T00:00:00.000Z");
   });
 
   it("uses the IST calendar for presets", () => {

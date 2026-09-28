@@ -18,8 +18,18 @@ import { useRef, useState } from "react";
 // DB-side WHERE — this component only writes the URL.
 
 const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 export function TableFilters({
@@ -67,7 +77,7 @@ export function TableFilters({
 
   const active = (dateFilters ? ["day", "month", "year"] : [])
     .concat(typeOptions ? ["type"] : [])
-    .filter((k) => searchParams.get(k)).length;
+    .filter((paramKey) => searchParams.get(paramKey)).length;
 
   // Rendered twice (inline on desktop, in a sheet on phones); only one is
   // visible, and both just write the URL.
@@ -79,12 +89,12 @@ export function TableFilters({
             aria-label="Day"
             className={selectClass}
             defaultValue={searchParams.get("day") ?? ""}
-            onChange={(e) => setParam("day", e.target.value)}
+            onChange={(event) => setParam("day", event.target.value)}
           >
             <option value="">Day</option>
-            {Array.from({ length: 31 }, (_, i) => (
-              <option key={i + 1} value={String(i + 1)}>
-                {i + 1}
+            {Array.from({ length: 31 }, (_, dayIndex) => (
+              <option key={dayIndex + 1} value={String(dayIndex + 1)}>
+                {dayIndex + 1}
               </option>
             ))}
           </select>
@@ -92,12 +102,12 @@ export function TableFilters({
             aria-label="Month"
             className={selectClass}
             defaultValue={searchParams.get("month") ?? ""}
-            onChange={(e) => setParam("month", e.target.value)}
+            onChange={(event) => setParam("month", event.target.value)}
           >
             <option value="">Month</option>
-            {MONTHS.map((m, i) => (
-              <option key={m} value={String(i + 1)}>
-                {m}
+            {MONTHS.map((monthName, monthIndex) => (
+              <option key={monthName} value={String(monthIndex + 1)}>
+                {monthName}
               </option>
             ))}
           </select>
@@ -105,14 +115,14 @@ export function TableFilters({
             aria-label="Year"
             className={selectClass}
             defaultValue={searchParams.get("year") ?? ""}
-            onChange={(e) => setParam("year", e.target.value)}
+            onChange={(event) => setParam("year", event.target.value)}
           >
             <option value="">Year</option>
-            {Array.from({ length: 10 }, (_, i) => {
-              const y = new Date().getFullYear() - i;
+            {Array.from({ length: 10 }, (_, yearOffset) => {
+              const year = new Date().getFullYear() - yearOffset;
               return (
-                <option key={y} value={String(y)}>
-                  {y}
+                <option key={year} value={String(year)}>
+                  {year}
                 </option>
               );
             })}
@@ -124,12 +134,12 @@ export function TableFilters({
           aria-label={typeLabel}
           className={selectClass}
           defaultValue={searchParams.get("type") ?? ""}
-          onChange={(e) => setParam("type", e.target.value)}
+          onChange={(event) => setParam("type", event.target.value)}
         >
           <option value="">{typeLabel}</option>
-          {typeOptions.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
+          {typeOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
             </option>
           ))}
         </select>
@@ -142,9 +152,9 @@ export function TableFilters({
       type="search"
       placeholder={searchPlaceholder}
       value={search}
-      onChange={(e) => {
-        setSearch(e.target.value);
-        setSearchDebounced(e.target.value);
+      onChange={(event) => {
+        setSearch(event.target.value);
+        setSearchDebounced(event.target.value);
       }}
       className={className}
     />
@@ -152,17 +162,17 @@ export function TableFilters({
 
   if (mobileSummary) {
     const type = searchParams.get("type");
-    const q = searchParams.get("q");
+    const searchQuery = searchParams.get("q");
     const summary = [
       type
-        ? (typeOptions?.find((o) => o.value === type)?.label ?? type)
+        ? (typeOptions?.find((option) => option.value === type)?.label ?? type)
         : `All ${typeLabel.toLowerCase()}s`,
       dateFilters &&
         ["day", "month", "year"]
-          .map((k) => searchParams.get(k))
+          .map((paramKey) => searchParams.get(paramKey))
           .filter(Boolean)
           .join("/"),
-      q ? `“${q}”` : "Anyone",
+      searchQuery ? `“${searchQuery}”` : "Anyone",
     ]
       .filter(Boolean)
       .join(", ");

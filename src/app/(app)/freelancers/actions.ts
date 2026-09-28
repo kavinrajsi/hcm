@@ -17,7 +17,7 @@ export type FreelancerFormState = { error?: string; ok?: boolean };
 const optional = z
   .string()
   .trim()
-  .transform((v) => (v === "" ? undefined : v))
+  .transform((value) => (value === "" ? undefined : value))
   .optional();
 
 const freelancerSchema = z.object({

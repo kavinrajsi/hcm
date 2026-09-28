@@ -29,10 +29,10 @@ const CHIP = {
   ANNIVERSARY: "bg-sky-100 text-sky-900 dark:bg-sky-500/20 dark:text-sky-200",
 };
 
-function label(c: Celebration) {
-  return c.type === "BIRTHDAY"
+function label(celebration: Celebration) {
+  return celebration.type === "BIRTHDAY"
     ? "🎂 Birthday"
-    : `🎉 ${ordinal(c.years ?? 1)} work anniversary`;
+    : `🎉 ${ordinal(celebration.years ?? 1)} work anniversary`;
 }
 
 const todayIst = () =>
@@ -45,11 +45,11 @@ export default async function BirthdaysPage({
   const raw = await searchParams;
   const today = todayIst();
 
-  const m =
+  const monthParam =
     typeof raw.month === "string" && /^\d{4}-\d{2}$/.test(raw.month)
       ? raw.month
       : today.slice(0, 7);
-  const [year, month] = m.split("-").map(Number);
+  const [year, month] = monthParam.split("-").map(Number);
   // Calendar is the default; ?view=list for the list.
   const view = raw.view === "list" ? "list" : "calendar";
   const type: TypeFilter =
@@ -72,39 +72,44 @@ export default async function BirthdaysPage({
     },
   });
   const all = celebrationsForMonth(
-    employees.map((e) => ({
-      id: e.id,
-      empId: e.empId,
-      name: e.name,
-      department: e.department,
-      dateOfBirth: readPii(e).dateOfBirth,
-      dateOfJoining: e.dateOfJoining.toISOString().slice(0, 10),
+    employees.map((employee) => ({
+      id: employee.id,
+      empId: employee.empId,
+      name: employee.name,
+      department: employee.department,
+      dateOfBirth: readPii(employee).dateOfBirth,
+      dateOfJoining: employee.dateOfJoining.toISOString().slice(0, 10),
     })),
     year,
     month,
   );
   const events = all.filter(
-    (c) =>
+    (celebration) =>
       type === "all" ||
-      (type === "birthdays" ? c.type === "BIRTHDAY" : c.type === "ANNIVERSARY"),
+      (type === "birthdays"
+        ? celebration.type === "BIRTHDAY"
+        : celebration.type === "ANNIVERSARY"),
   );
   const counts = {
-    birthdays: all.filter((c) => c.type === "BIRTHDAY").length,
-    anniversaries: all.filter((c) => c.type === "ANNIVERSARY").length,
+    birthdays: all.filter((celebration) => celebration.type === "BIRTHDAY")
+      .length,
+    anniversaries: all.filter(
+      (celebration) => celebration.type === "ANNIVERSARY",
+    ).length,
   };
 
   const href = (patch: Record<string, string | undefined>) => {
-    const qs = new URLSearchParams();
-    const next = { month: m, view, type, ...patch };
+    const query = new URLSearchParams();
+    const next = { month: monthParam, view, type, ...patch };
     if (next.month && next.month !== today.slice(0, 7))
-      qs.set("month", next.month);
-    if (next.view === "list") qs.set("view", "list");
-    if (next.type && next.type !== "all") qs.set("type", next.type);
-    return `/birthdays${qs.size ? `?${qs}` : ""}`;
+      query.set("month", next.month);
+    if (next.view === "list") query.set("view", "list");
+    if (next.type && next.type !== "all") query.set("type", next.type);
+    return `/birthdays${query.size ? `?${query}` : ""}`;
   };
   const shift = (delta: number) => {
-    const d = new Date(Date.UTC(year, month - 1 + delta, 1));
-    return d.toISOString().slice(0, 7);
+    const shifted = new Date(Date.UTC(year, month - 1 + delta, 1));
+    return shifted.toISOString().slice(0, 7);
   };
   const monthTitle = new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString(
     "en-IN",
@@ -148,16 +153,16 @@ export default async function BirthdaysPage({
         <div className="flex flex-wrap items-center gap-2">
           <Segmented
             label="Show"
-            items={(Object.keys(TYPES) as TypeFilter[]).map((t) => ({
-              key: t,
-              href: href({ type: t }),
-              active: type === t,
+            items={(Object.keys(TYPES) as TypeFilter[]).map((typeKey) => ({
+              key: typeKey,
+              href: href({ type: typeKey }),
+              active: type === typeKey,
               label: (
                 <>
-                  {TYPES[t]}
-                  {t !== "all" && (
+                  {TYPES[typeKey]}
+                  {typeKey !== "all" && (
                     <span className="ml-1.5 text-xs text-zinc-500 tabular-nums">
-                      {counts[t]}
+                      {counts[typeKey]}
                     </span>
                   )}
                 </>
@@ -166,11 +171,11 @@ export default async function BirthdaysPage({
           />
           <Segmented
             label="View"
-            items={(["list", "calendar"] as const).map((v) => ({
-              key: v,
-              href: href({ view: v }),
-              active: view === v,
-              label: v === "list" ? "List" : "Calendar",
+            items={(["list", "calendar"] as const).map((viewKey) => ({
+              key: viewKey,
+              href: href({ view: viewKey }),
+              active: view === viewKey,
+              label: viewKey === "list" ? "List" : "Calendar",
             }))}
           />
         </div>
@@ -196,21 +201,21 @@ export default async function BirthdaysPage({
 }
 
 function Name({
-  c,
+  celebration,
   canOpenEmployee,
 }: {
-  c: Celebration;
+  celebration: Celebration;
   canOpenEmployee: boolean;
 }) {
   return canOpenEmployee ? (
     <Link
-      href={`/employees/${c.employee.id}`}
+      href={`/employees/${celebration.employee.id}`}
       className="font-medium underline-offset-4 hover:underline"
     >
-      {c.employee.name}
+      {celebration.employee.name}
     </Link>
   ) : (
-    <span className="font-medium">{c.employee.name}</span>
+    <span className="font-medium">{celebration.employee.name}</span>
   );
 }
 
@@ -231,11 +236,11 @@ function ListView({
     );
   }
   // Group by date, in order.
-  const days = [...new Set(events.map((e) => e.date))];
+  const days = [...new Set(events.map((event) => event.date))];
   return (
     <ol className="mt-4 flex flex-col gap-4">
       {days.map((date) => {
-        const items = events.filter((e) => e.date === date);
+        const items = events.filter((event) => event.date === date);
         const isToday = date === today;
         return (
           <li key={date}>
@@ -256,27 +261,31 @@ function ListView({
               </span>
             </h3>
             <ul className="mt-2 flex flex-col gap-2">
-              {items.map((c) => (
+              {items.map((celebration) => (
                 <li
-                  key={c.key}
+                  key={celebration.key}
                   className={cn(
                     "flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 px-3 py-2.5 dark:border-zinc-800",
                     isToday && "border-emerald-300 dark:border-emerald-500/40",
                   )}
                 >
                   <div className="min-w-0">
-                    <Name c={c} canOpenEmployee={canOpenEmployee} />
+                    <Name
+                      celebration={celebration}
+                      canOpenEmployee={canOpenEmployee}
+                    />
                     <p className="text-xs text-zinc-500">
-                      {c.employee.empId} · {c.employee.department}
+                      {celebration.employee.empId} ·{" "}
+                      {celebration.employee.department}
                     </p>
                   </div>
                   <span
                     className={cn(
                       "rounded px-2 py-0.5 text-xs font-medium",
-                      CHIP[c.type],
+                      CHIP[celebration.type],
                     )}
                   >
-                    {label(c)}
+                    {label(celebration)}
                   </span>
                 </li>
               ))}
@@ -306,33 +315,35 @@ function CalendarView({
   const lead = (first.getUTCDay() + 6) % 7; // Monday-first
   const cells: (number | null)[] = [
     ...Array.from({ length: lead }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+    ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
   ];
   while (cells.length % 7) cells.push(null);
-  const pad = (n: number) => String(n).padStart(2, "0");
+  const pad = (value: number) => String(value).padStart(2, "0");
 
   return (
     // The grid scrolls sideways inside this box on phones; the page doesn't.
     <div className="mt-4 max-w-full overflow-x-auto">
       <div className="grid min-w-[640px] grid-cols-7 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
-        {WEEKDAYS.map((w) => (
+        {WEEKDAYS.map((weekday) => (
           <div
-            key={w}
+            key={weekday}
             className="border-b border-zinc-200 bg-muted/50 px-2 py-1.5 text-xs font-medium text-zinc-500 dark:border-zinc-800"
           >
-            {w}
+            {weekday}
           </div>
         ))}
-        {cells.map((day, i) => {
+        {cells.map((day, cellIndex) => {
           const date = day ? `${year}-${pad(month)}-${pad(day)}` : null;
-          const items = day ? events.filter((e) => e.day === day) : [];
+          const items = day ? events.filter((event) => event.day === day) : [];
           return (
             <div
-              key={i}
+              key={cellIndex}
               className={cn(
                 "min-h-24 border-r border-b border-zinc-200 p-1.5 dark:border-zinc-800 [&:nth-child(7n)]:border-r-0",
                 !day && "bg-muted/30",
-                (i % 7 === 5 || i % 7 === 6) && day && "bg-muted/20",
+                (cellIndex % 7 === 5 || cellIndex % 7 === 6) &&
+                  day &&
+                  "bg-muted/20",
               )}
             >
               {day && (
@@ -347,27 +358,28 @@ function CalendarView({
                 </div>
               )}
               <ul className="flex flex-col gap-0.5">
-                {items.map((c) => (
+                {items.map((celebration) => (
                   <li
-                    key={c.key}
-                    title={`${c.employee.name} — ${label(c)}`}
+                    key={celebration.key}
+                    title={`${celebration.employee.name} — ${label(celebration)}`}
                     className={cn(
                       "truncate rounded px-1.5 py-0.5 text-xs",
-                      CHIP[c.type],
+                      CHIP[celebration.type],
                     )}
                   >
-                    {c.type === "BIRTHDAY" ? "🎂 " : "🎉 "}
+                    {celebration.type === "BIRTHDAY" ? "🎂 " : "🎉 "}
                     {canOpenEmployee ? (
                       <Link
-                        href={`/employees/${c.employee.id}`}
+                        href={`/employees/${celebration.employee.id}`}
                         className="hover:underline"
                       >
-                        {c.employee.name}
+                        {celebration.employee.name}
                       </Link>
                     ) : (
-                      c.employee.name
+                      celebration.employee.name
                     )}
-                    {c.type === "ANNIVERSARY" && ` · ${c.years}y`}
+                    {celebration.type === "ANNIVERSARY" &&
+                      ` · ${celebration.years}y`}
                   </li>
                 ))}
               </ul>

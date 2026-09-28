@@ -105,33 +105,37 @@ export default async function FreelancersPage({
           isEmpty={freelancers.length === 0}
           empty="No freelancers found."
         >
-          {freelancers.map((f) => (
+          {freelancers.map((freelancer) => (
             <ListCard
-              key={f.id}
-              title={f.name}
+              key={freelancer.id}
+              title={freelancer.name}
               subtitle={
                 <>
-                  {f.skillset}
-                  {f.notes && (
-                    <span className="mt-1 line-clamp-3 block">{f.notes}</span>
+                  {freelancer.skillset}
+                  {freelancer.notes && (
+                    <span className="mt-1 line-clamp-3 block">
+                      {freelancer.notes}
+                    </span>
                   )}
                 </>
               }
               badge={
-                <Badge variant={badgeVariant[f.availability]}>
-                  {f.availability}
+                <Badge variant={badgeVariant[freelancer.availability]}>
+                  {freelancer.availability}
                 </Badge>
               }
               meta={
                 <>
-                  {f.email && <span className="break-all">{f.email}</span>}
-                  {f.phone && <span>{f.phone}</span>}
-                  {f.rate && <span>Rate {f.rate}</span>}
+                  {freelancer.email && (
+                    <span className="break-all">{freelancer.email}</span>
+                  )}
+                  {freelancer.phone && <span>{freelancer.phone}</span>}
+                  {freelancer.rate && <span>Rate {freelancer.rate}</span>}
                 </>
               }
               actions={
                 <form action={deleteFreelancer} className="ml-auto">
-                  <input type="hidden" name="id" value={f.id} />
+                  <input type="hidden" name="id" value={freelancer.id} />
                   <Button
                     type="submit"
                     variant="ghost"
@@ -168,25 +172,27 @@ export default async function FreelancersPage({
                 </TableCell>
               </TableRow>
             )}
-            {freelancers.map((f) => (
-              <TableRow key={f.id}>
-                <TableCell className="font-medium">{f.name}</TableCell>
+            {freelancers.map((freelancer) => (
+              <TableRow key={freelancer.id}>
+                <TableCell className="font-medium">{freelancer.name}</TableCell>
                 <TableCell className="text-sm">
-                  {[f.email, f.phone].filter(Boolean).join(" · ") || "—"}
+                  {[freelancer.email, freelancer.phone]
+                    .filter(Boolean)
+                    .join(" · ") || "—"}
                 </TableCell>
-                <TableCell>{f.skillset}</TableCell>
-                <TableCell>{f.rate ?? "—"}</TableCell>
+                <TableCell>{freelancer.skillset}</TableCell>
+                <TableCell>{freelancer.rate ?? "—"}</TableCell>
                 <TableCell>
-                  <Badge variant={badgeVariant[f.availability]}>
-                    {f.availability}
+                  <Badge variant={badgeVariant[freelancer.availability]}>
+                    {freelancer.availability}
                   </Badge>
                 </TableCell>
                 <TableCell className="max-w-48 truncate">
-                  {f.notes ?? "—"}
+                  {freelancer.notes ?? "—"}
                 </TableCell>
                 <TableCell>
                   <form action={deleteFreelancer}>
-                    <input type="hidden" name="id" value={f.id} />
+                    <input type="hidden" name="id" value={freelancer.id} />
                     <button
                       type="submit"
                       className="text-xs text-zinc-400 hover:text-red-600"

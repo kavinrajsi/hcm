@@ -35,42 +35,42 @@ export type LeaveHistoryRow = HistoryEntry & {
   reviewedBy: string | null;
 };
 
-const day = (d: Date) => d.toISOString().slice(0, 10);
+const day = (date: Date) => date.toISOString().slice(0, 10);
 
-function dates(e: LeaveHistoryRow) {
-  const start = e.startDate ?? e.postedOn;
-  return e.endDate && e.startDate && e.endDate > e.startDate
-    ? `${day(start)} → ${day(e.endDate)}`
+function dates(entry: LeaveHistoryRow) {
+  const start = entry.startDate ?? entry.postedOn;
+  return entry.endDate && entry.startDate && entry.endDate > entry.startDate
+    ? `${day(start)} → ${day(entry.endDate)}`
     : day(start);
 }
 
-function TypeBadge({ e }: { e: LeaveHistoryRow }) {
+function TypeBadge({ entry }: { entry: LeaveHistoryRow }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      {e.type ? (
-        <Badge variant={e.type === "FULL_DAY" ? "default" : "secondary"}>
-          {LEAVE_TYPE_LABELS[e.type]}
+      {entry.type ? (
+        <Badge variant={entry.type === "FULL_DAY" ? "default" : "secondary"}>
+          {LEAVE_TYPE_LABELS[entry.type]}
         </Badge>
       ) : (
         <span className="text-xs text-zinc-400">Unclassified</span>
       )}
-      {e.classifiedBy === "manual" && (
+      {entry.classifiedBy === "manual" && (
         <span className="text-xs text-zinc-400">(edited)</span>
       )}
     </span>
   );
 }
 
-function StatusChip({ e }: { e: LeaveHistoryRow }) {
+function StatusChip({ entry }: { entry: LeaveHistoryRow }) {
   return (
     <span
       className={cn(
         "rounded px-1.5 py-0.5 text-xs font-medium",
-        LEAVE_STATUS_CLASSES[e.status],
+        LEAVE_STATUS_CLASSES[entry.status],
       )}
-      title={e.reviewedBy ? `by ${e.reviewedBy}` : undefined}
+      title={entry.reviewedBy ? `by ${entry.reviewedBy}` : undefined}
     >
-      {LEAVE_STATUS_LABELS[e.status]}
+      {LEAVE_STATUS_LABELS[entry.status]}
     </span>
   );
 }
@@ -97,17 +97,17 @@ export function LeaveHistory({
           ? thisYear
           : (years[0] ?? thisYear);
   const shown = filterByYear(entries, year);
-  const s = summarizeLeave(shown);
+  const summary = summarizeLeave(shown);
   const period = year === "all" ? "all time" : String(year);
 
   const tiles = [
-    ["Leave days", s.leaveDays],
-    ["Full days", s.fullDays],
-    ["Half days", s.halfDays],
-    ["Late arrivals", s.late],
-    ["Early logouts", s.early],
-    ["WFH", s.wfh],
-    ["Pending review", s.pending],
+    ["Leave days", summary.leaveDays],
+    ["Full days", summary.fullDays],
+    ["Half days", summary.halfDays],
+    ["Late arrivals", summary.late],
+    ["Early logouts", summary.early],
+    ["WFH", summary.wfh],
+    ["Pending review", summary.pending],
   ] as const;
 
   return (
@@ -130,11 +130,11 @@ export function LeaveHistory({
           <Segmented
             label="Year"
             items={[
-              ...years.map((y) => ({
-                key: String(y),
-                href: `/employees/${employeeId}?leaveYear=${y}#leave-history`,
-                label: String(y),
-                active: year === y,
+              ...years.map((yearOption) => ({
+                key: String(yearOption),
+                href: `/employees/${employeeId}?leaveYear=${yearOption}#leave-history`,
+                label: String(yearOption),
+                active: year === yearOption,
               })),
               {
                 key: "all",
@@ -164,23 +164,25 @@ export function LeaveHistory({
           isEmpty={shown.length === 0}
           empty={`No leave posts for this employee in ${period}.`}
         >
-          {shown.map((e) => (
+          {shown.map((entry) => (
             <ListCard
-              key={e.id}
-              title={<span className="tabular-nums">{dates(e)}</span>}
-              badge={<StatusChip e={e} />}
+              key={entry.id}
+              title={<span className="tabular-nums">{dates(entry)}</span>}
+              badge={<StatusChip entry={entry} />}
               subtitle={
-                <p className="line-clamp-3 whitespace-pre-line">{e.message}</p>
+                <p className="line-clamp-3 whitespace-pre-line">
+                  {entry.message}
+                </p>
               }
               meta={
                 <>
-                  <TypeBadge e={e} />
-                  {e.days !== null && (
-                    <span className="tabular-nums">{e.days}d</span>
+                  <TypeBadge entry={entry} />
+                  {entry.days !== null && (
+                    <span className="tabular-nums">{entry.days}d</span>
                   )}
-                  {e.reviewedBy && <span>by {e.reviewedBy}</span>}
+                  {entry.reviewedBy && <span>by {entry.reviewedBy}</span>}
                   <a
-                    href={e.link}
+                    href={entry.link}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="underline underline-offset-4"
@@ -213,21 +215,23 @@ export function LeaveHistory({
                 </TableCell>
               </TableRow>
             )}
-            {shown.map((e) => (
-              <TableRow key={e.id}>
+            {shown.map((entry) => (
+              <TableRow key={entry.id}>
                 <TableCell className="whitespace-nowrap tabular-nums">
-                  {dates(e)}
+                  {dates(entry)}
                 </TableCell>
                 <TableCell>
-                  <TypeBadge e={e} />
+                  <TypeBadge entry={entry} />
                 </TableCell>
-                <TableCell className="tabular-nums">{e.days ?? "—"}</TableCell>
+                <TableCell className="tabular-nums">
+                  {entry.days ?? "—"}
+                </TableCell>
                 <TableCell>
                   <div className="flex flex-col items-start gap-0.5">
-                    <StatusChip e={e} />
-                    {e.reviewedBy && (
+                    <StatusChip entry={entry} />
+                    {entry.reviewedBy && (
                       <span className="text-xs text-zinc-400">
-                        by {e.reviewedBy}
+                        by {entry.reviewedBy}
                       </span>
                     )}
                   </div>
@@ -235,12 +239,12 @@ export function LeaveHistory({
                 <TableCell className="max-w-md">
                   <p
                     className="line-clamp-2 whitespace-normal"
-                    title={e.message}
+                    title={entry.message}
                   >
-                    {e.message}
+                    {entry.message}
                   </p>
                   <a
-                    href={e.link}
+                    href={entry.link}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-zinc-400 underline underline-offset-4"

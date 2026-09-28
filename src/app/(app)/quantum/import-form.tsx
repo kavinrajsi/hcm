@@ -26,17 +26,17 @@ export function BasecampImportForm({
     >
       <select name="employeeId" required className={`${selectClass} md:w-52`}>
         <option value="">Import for employee…</option>
-        {employees.map((e) => (
-          <option key={e.id} value={e.id}>
-            {e.empId} — {e.name}
+        {employees.map((employee) => (
+          <option key={employee.id} value={employee.id}>
+            {employee.empId} — {employee.name}
           </option>
         ))}
       </select>
       <select name="projectId" required className={`${selectClass} md:w-52`}>
         <option value="">Basecamp project…</option>
-        {projects.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
+        {projects.map((project) => (
+          <option key={project.id} value={project.id}>
+            {project.name}
           </option>
         ))}
       </select>

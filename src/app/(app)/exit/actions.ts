@@ -32,7 +32,8 @@ export async function markExit(
     include: { idCard: true, probation: true },
   });
   if (!employee) return { error: "Employee not found" };
-  if (employee.dateOfExit) return { error: "Employee already marked as exited" };
+  if (employee.dateOfExit)
+    return { error: "Employee already marked as exited" };
 
   // Exiting disables the linked login — never the last active HR admin's.
   if (employee.userId) {
@@ -110,8 +111,8 @@ export async function markExit(
         dateOfExit: parsed.data.dateOfExit,
       }),
     });
-  } catch (e) {
-    console.error("[exit] clearance email failed", e);
+  } catch (error) {
+    console.error("[exit] clearance email failed", error);
   }
 
   revalidatePath("/exit");
@@ -128,15 +129,15 @@ export async function undoExit(formData: FormData) {
   const employeeId = formData.get("employeeId");
   if (typeof employeeId !== "string") throw new Error("Missing employeeId");
 
-  await db.$transaction(async (tx) => {
-    const employee = await tx.employee.update({
+  await db.$transaction(async (transaction) => {
+    const employee = await transaction.employee.update({
       where: { id: employeeId },
       data: { dateOfExit: null },
       include: { idCard: true, probation: true },
     });
 
     if (employee.userId) {
-      await tx.user.update({
+      await transaction.user.update({
         where: { id: employee.userId },
         data: { disabledAt: null },
       });
@@ -144,7 +145,7 @@ export async function undoExit(formData: FormData) {
 
     // Probation closed by the exit goes back to where it was.
     if (employee.probation?.status === "EXITED") {
-      await tx.probationRecord.update({
+      await transaction.probationRecord.update({
         where: { id: employee.probation.id },
         data: {
           status: employee.probation.extendedTo ? "EXTENDED" : "PENDING",
@@ -157,16 +158,17 @@ export async function undoExit(formData: FormData) {
     // returned stays returned.
     const card = employee.idCard;
     if (card?.status === "RETURN_PENDING") {
-      const flagged = await tx.idCardStatusChange.findFirst({
+      const flagged = await transaction.idCardStatusChange.findFirst({
         where: { idCardId: card.id, toStatus: "RETURN_PENDING" },
         orderBy: { changedAt: "desc" },
         select: { fromStatus: true },
       });
       const restored =
         ID_CARD_STATUS_VALUES.find(
-          (s) => s === flagged?.fromStatus && s !== "RETURN_PENDING",
+          (status) =>
+            status === flagged?.fromStatus && status !== "RETURN_PENDING",
         ) ?? "ISSUED";
-      await tx.idCard.update({
+      await transaction.idCard.update({
         where: { id: card.id },
         data: {
           status: restored,

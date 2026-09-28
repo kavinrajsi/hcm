@@ -57,7 +57,7 @@ describe("createLoginsForAll", () => {
       .mockRejectedValueOnce(new Error("db down"));
     vi.spyOn(console, "error").mockImplementation(() => {});
 
-    const r = await createLoginsForAll();
+    const result = await createLoginsForAll();
 
     expect(provisionLogin).toHaveBeenCalledWith({
       email: "a@x.com",
@@ -65,7 +65,7 @@ describe("createLoginsForAll", () => {
       role: "EMPLOYEE",
       employeeId: "e1",
     });
-    expect(r).toEqual({
+    expect(result).toEqual({
       created: 2,
       emailed: 1,
       linked: 1,

@@ -37,21 +37,21 @@ const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MAX_CHIPS = 4;
 const DAY_MS = 86_400_000;
 
-export function key(d: Date): string {
-  return d.toISOString().slice(0, 10);
+export function key(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }
 
-export function isWeekend(d: Date): boolean {
-  const day = d.getUTCDay();
+export function isWeekend(date: Date): boolean {
+  const day = date.getUTCDay();
   return day === 0 || day === 6;
 }
 
 /** Parses ?month=YYYY-MM, defaulting to the current month (UTC). */
 export function parseMonth(raw: string | undefined): Date {
-  const m = raw?.match(/^(\d{4})-(\d{2})$/);
+  const match = raw?.match(/^(\d{4})-(\d{2})$/);
   const now = new Date();
-  const year = m ? Number(m[1]) : now.getUTCFullYear();
-  const month = m ? Number(m[2]) - 1 : now.getUTCMonth();
+  const year = match ? Number(match[1]) : now.getUTCFullYear();
+  const month = match ? Number(match[2]) - 1 : now.getUTCMonth();
   return new Date(Date.UTC(year, month, 1));
 }
 
@@ -60,15 +60,15 @@ export function parseMonth(raw: string | undefined): Date {
  * one range with days = 2; when the range holds more working days than the
  * entry's day count, only the first and last day are marked.
  */
-function entryDays(e: CalendarEntry): string[] {
-  const start = e.startDate ?? e.postedOn;
-  const end = e.endDate && e.endDate > start ? e.endDate : start;
+function entryDays(entry: CalendarEntry): string[] {
+  const start = entry.startDate ?? entry.postedOn;
+  const end = entry.endDate && entry.endDate > start ? entry.endDate : start;
   const all: Date[] = [];
-  for (let t = start.getTime(); t <= end.getTime(); t += DAY_MS) {
-    const d = new Date(t);
-    if (!isWeekend(d) || t === start.getTime()) all.push(d);
+  for (let time = start.getTime(); time <= end.getTime(); time += DAY_MS) {
+    const date = new Date(time);
+    if (!isWeekend(date) || time === start.getTime()) all.push(date);
   }
-  if (e.days !== null && all.length > Math.max(1, Math.ceil(e.days))) {
+  if (entry.days !== null && all.length > Math.max(1, Math.ceil(entry.days))) {
     return [key(start), key(end)];
   }
   return all.map(key);
@@ -79,8 +79,8 @@ export function groupByDay(
   entries: CalendarEntry[],
 ): Record<string, CalendarEntry[]> {
   const byDay: Record<string, CalendarEntry[]> = {};
-  for (const e of entries) {
-    for (const k of entryDays(e)) (byDay[k] ??= []).push(e);
+  for (const entry of entries) {
+    for (const dayKey of entryDays(entry)) (byDay[dayKey] ??= []).push(entry);
   }
   return byDay;
 }
@@ -96,15 +96,19 @@ export function monthLinks(
     now.getUTCMonth() -
     (month.getUTCFullYear() * 12 + month.getUTCMonth());
   const href = (offset: number) => {
-    const d = new Date(
+    const target = new Date(
       Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + offset, 1),
     );
     const params = new URLSearchParams();
-    for (const [k, v] of Object.entries(searchParams)) {
-      if (typeof v === "string" && k !== "month" && k !== "page")
-        params.set(k, v);
+    for (const [paramKey, paramValue] of Object.entries(searchParams)) {
+      if (
+        typeof paramValue === "string" &&
+        paramKey !== "month" &&
+        paramKey !== "page"
+      )
+        params.set(paramKey, paramValue);
     }
-    params.set("month", key(d).slice(0, 7));
+    params.set("month", key(target).slice(0, 7));
     return `/leave?${params}`;
   };
   return { prev: href(-1), today: href(todayOffset), next: href(1) };
@@ -133,8 +137,12 @@ export function LeaveCalendar({
     last.getTime() + ((7 - last.getUTCDay()) % 7) * DAY_MS,
   );
   const cells: Date[] = [];
-  for (let t = gridStart.getTime(); t <= gridEnd.getTime(); t += DAY_MS) {
-    cells.push(new Date(t));
+  for (
+    let time = gridStart.getTime();
+    time <= gridEnd.getTime();
+    time += DAY_MS
+  ) {
+    cells.push(new Date(time));
   }
 
   const todayKey = key(new Date());
@@ -175,14 +183,16 @@ export function LeaveCalendar({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2 text-xs">
-        {(Object.keys(LEAVE_TYPE_LABELS) as LeaveTypeValue[]).map((t) => (
-          <span
-            key={t}
-            className={cn("rounded px-1.5 py-0.5", TYPE_CLASSES[t])}
-          >
-            {LEAVE_TYPE_LABELS[t]}
-          </span>
-        ))}
+        {(Object.keys(LEAVE_TYPE_LABELS) as LeaveTypeValue[]).map(
+          (leaveType) => (
+            <span
+              key={leaveType}
+              className={cn("rounded px-1.5 py-0.5", TYPE_CLASSES[leaveType])}
+            >
+              {LEAVE_TYPE_LABELS[leaveType]}
+            </span>
+          ),
+        )}
         <span
           className={cn("rounded px-1.5 py-0.5", TYPE_CLASSES.UNCLASSIFIED)}
         >
@@ -196,61 +206,61 @@ export function LeaveCalendar({
       {/* The grid scrolls sideways inside this box; the page itself doesn't. */}
       <div className="mt-3 max-w-full overflow-x-auto">
         <div className="grid min-w-[640px] grid-cols-7 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
-          {WEEKDAYS.map((w) => (
+          {WEEKDAYS.map((weekday) => (
             <div
-              key={w}
+              key={weekday}
               className="border-b border-zinc-200 bg-muted/50 px-2 py-1.5 text-xs font-medium text-zinc-500 dark:border-zinc-800"
             >
-              {w}
+              {weekday}
             </div>
           ))}
-          {cells.map((d) => {
-            const k = key(d);
-            const inMonth = d.getUTCMonth() === month.getUTCMonth();
-            const list = byDay[k] ?? [];
+          {cells.map((cellDate) => {
+            const dayKey = key(cellDate);
+            const inMonth = cellDate.getUTCMonth() === month.getUTCMonth();
+            const list = byDay[dayKey] ?? [];
             return (
               <div
-                key={k}
+                key={dayKey}
                 className={cn(
                   "min-h-24 border-b border-r border-zinc-200 p-1.5 dark:border-zinc-800 [&:nth-child(7n)]:border-r-0",
                   !inMonth && "bg-muted/30 text-zinc-400",
-                  isWeekend(d) && inMonth && "bg-muted/20",
+                  isWeekend(cellDate) && inMonth && "bg-muted/20",
                 )}
               >
                 <div
                   className={cn(
                     "mb-1 flex size-8 items-center justify-center rounded-full text-sm tabular-nums md:size-6 md:text-xs",
-                    k === todayKey &&
+                    dayKey === todayKey &&
                       "bg-primary font-semibold text-primary-foreground",
                   )}
                 >
-                  {d.getUTCDate()}
+                  {cellDate.getUTCDate()}
                 </div>
                 <ul className="flex flex-col gap-0.5">
-                  {list.slice(0, MAX_CHIPS).map((e) => (
+                  {list.slice(0, MAX_CHIPS).map((chip) => (
                     <li
-                      key={e.id}
-                      title={`${e.name} — ${e.type ? LEAVE_TYPE_LABELS[e.type] : "Unclassified"}${e.status === "PENDING" ? " (awaiting approval)" : ""}\n${e.message}`}
+                      key={chip.id}
+                      title={`${chip.name} — ${chip.type ? LEAVE_TYPE_LABELS[chip.type] : "Unclassified"}${chip.status === "PENDING" ? " (awaiting approval)" : ""}\n${chip.message}`}
                       className={cn(
                         "truncate rounded px-1.5 py-0.5 text-xs",
-                        TYPE_CLASSES[e.type ?? "UNCLASSIFIED"],
-                        e.status === "PENDING" && "italic",
+                        TYPE_CLASSES[chip.type ?? "UNCLASSIFIED"],
+                        chip.status === "PENDING" && "italic",
                       )}
                     >
-                      {e.status === "PENDING" && <span aria-hidden>◷ </span>}
-                      {e.name}
+                      {chip.status === "PENDING" && <span aria-hidden>◷ </span>}
+                      {chip.name}
                     </li>
                   ))}
                   {list.length > MAX_CHIPS && (
                     <li>
                       <Link
-                        href={`/leave?day=${d.getUTCDate()}&month=${d.getUTCMonth() + 1}&year=${d.getUTCFullYear()}`}
+                        href={`/leave?day=${cellDate.getUTCDate()}&month=${cellDate.getUTCMonth() + 1}&year=${cellDate.getUTCFullYear()}`}
                         className="inline-flex min-h-8 items-center px-1.5 text-xs text-zinc-500 hover:text-foreground md:min-h-0 md:hover:underline"
                         title={list
                           .slice(MAX_CHIPS)
                           .map(
-                            (e) =>
-                              `${e.name} — ${e.type ? LEAVE_TYPE_LABELS[e.type] : "Unclassified"}`,
+                            (hidden) =>
+                              `${hidden.name} — ${hidden.type ? LEAVE_TYPE_LABELS[hidden.type] : "Unclassified"}`,
                           )
                           .join("\n")}
                       >

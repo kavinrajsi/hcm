@@ -14,7 +14,9 @@ export function ExitForm({ activeEmployees }: { activeEmployees: Employee[] }) {
   // Shared by the phone picker and the desktop select. An employee who has
   // just exited drops out of the list, which clears the selection.
   const [selectedId, setSelectedId] = useState("");
-  const selected = activeEmployees.find((e) => e.id === selectedId);
+  const selected = activeEmployees.find(
+    (employee) => employee.id === selectedId,
+  );
 
   return (
     <form

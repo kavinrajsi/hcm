@@ -22,7 +22,7 @@ const entrySchema = z.object({
   link: z
     .string()
     .trim()
-    .transform((v) => (v === "" ? undefined : v))
+    .transform((value) => (value === "" ? undefined : value))
     .optional(),
   durationMins: z.coerce.number().int().min(0),
 });
@@ -89,14 +89,19 @@ export async function importQuantumEntries(
   if ("error" in parsed) return { error: parsed.error };
 
   const employees = await db.employee.findMany({
-    where: { empId: { in: parsed.rows.map((r) => r.empId).filter(Boolean) } },
+    where: {
+      empId: { in: parsed.rows.map((row) => row.empId).filter(Boolean) },
+    },
     select: { id: true, empId: true },
   });
-  const idByEmpId = new Map(employees.map((e) => [e.empId, e.id]));
+  const idByEmpId = new Map(
+    employees.map((employee) => [employee.empId, employee.id]),
+  );
 
   const { valid, failures } = collectRows(parsed.rows, (row) => {
     const employeeId = idByEmpId.get(row.empId ?? "");
-    if (!employeeId) throw new Error(`Unknown empId: ${row.empId || "(empty)"}`);
+    if (!employeeId)
+      throw new Error(`Unknown empId: ${row.empId || "(empty)"}`);
     const result = entrySchema.safeParse({
       employeeId,
       date: row.date,
@@ -139,7 +144,9 @@ export async function importFromBasecamp(
   if (!auth) return { error: "Basecamp not connected — connect it first" };
 
   const projects = await listProjects(auth.accessToken, auth.accountId);
-  const project = projects.find((p) => String(p.id) === projectId);
+  const project = projects.find(
+    (basecampProject) => String(basecampProject.id) === projectId,
+  );
   if (!project) return { error: "Project not found" };
 
   const todos = await listProjectTodos(

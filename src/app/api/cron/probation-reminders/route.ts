@@ -6,8 +6,8 @@ import { probationReminderEmail } from "@/lib/emails";
 
 // Daily Vercel cron: reminds HR of probation confirmations due within 14
 // days. Protected by CRON_SECRET (Vercel sends it as a Bearer token).
-export async function GET(req: NextRequest) {
-  if (!isAuthorizedCron(req)) {
+export async function GET(request: NextRequest) {
+  if (!isAuthorizedCron(request)) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -33,19 +33,19 @@ export async function GET(req: NextRequest) {
     if (hrAdmins.length > 0) {
       try {
         const result = await sendEmail({
-          to: hrAdmins.map((u) => u.email),
+          to: hrAdmins.map((admin) => admin.email),
           ...probationReminderEmail({
-            rows: due.map((r) => ({
-              name: r.employee.name,
-              empId: r.employee.empId,
-              dueDate: r.dueDate.toISOString(),
-              status: r.status,
+            rows: due.map((record) => ({
+              name: record.employee.name,
+              empId: record.employee.empId,
+              dueDate: record.dueDate.toISOString(),
+              status: record.status,
             })),
           }),
         });
         emailed = !result.skipped;
-      } catch (e) {
-        console.error("[probation-reminders] email failed", e);
+      } catch (error) {
+        console.error("[probation-reminders] email failed", error);
       }
     }
   }

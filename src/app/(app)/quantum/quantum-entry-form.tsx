@@ -37,9 +37,9 @@ export function QuantumEntryForm({
             className="h-10 w-full rounded-md border border-input bg-transparent px-2 text-base md:h-9 md:w-52 md:text-sm dark:bg-input/30"
           >
             <option value="">Select…</option>
-            {employees.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.empId} — {e.name}
+            {employees.map((employee) => (
+              <option key={employee.id} value={employee.id}>
+                {employee.empId} — {employee.name}
               </option>
             ))}
           </select>

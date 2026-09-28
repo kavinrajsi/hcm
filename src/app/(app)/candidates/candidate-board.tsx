@@ -30,28 +30,32 @@ type Counts = Record<CandidateStatus, number>;
 
 /** Insert keeping the column newest-first (appliedOn desc). */
 function insertSorted(list: CandidateDetail[], card: CandidateDetail) {
-  const i = list.findIndex((c) => c.appliedOn < card.appliedOn);
-  return i === -1
+  const insertIndex = list.findIndex(
+    (candidate) => candidate.appliedOn < card.appliedOn,
+  );
+  return insertIndex === -1
     ? [...list, card]
-    : [...list.slice(0, i), card, ...list.slice(i)];
+    : [...list.slice(0, insertIndex), card, ...list.slice(insertIndex)];
 }
 
-function CardBody({ c }: { c: CandidateDetail }) {
+function CardBody({ candidate }: { candidate: CandidateDetail }) {
   return (
     <>
       <div className="flex items-start justify-between gap-2">
-        <span className="font-medium leading-snug">{c.name}</span>
-        {c.resumeHref && (
+        <span className="font-medium leading-snug">{candidate.name}</span>
+        {candidate.resumeHref && (
           <FileText
             className="mt-0.5 size-3.5 shrink-0 text-zinc-400"
             aria-label="Has resume"
           />
         )}
       </div>
-      <div className="mt-0.5 text-xs text-zinc-500">{c.jobRole ?? "—"}</div>
+      <div className="mt-0.5 text-xs text-zinc-500">
+        {candidate.jobRole ?? "—"}
+      </div>
       <div className="mt-2 flex items-center justify-between text-xs text-zinc-400">
-        <span>{c.position ?? "—"}</span>
-        <span className="tabular-nums">{c.appliedOn}</span>
+        <span>{candidate.position ?? "—"}</span>
+        <span className="tabular-nums">{candidate.appliedOn}</span>
       </div>
     </>
   );
@@ -61,27 +65,27 @@ const cardClass =
   "rounded-lg border border-zinc-200 bg-background p-2.5 text-sm shadow-xs dark:border-zinc-800";
 
 function BoardCard({
-  c,
+  candidate,
   onOpen,
   onMove,
 }: {
-  c: CandidateDetail;
+  candidate: CandidateDetail;
   onOpen: () => void;
   onMove: (status: CandidateStatus) => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: c.id,
+    id: candidate.id,
   });
   return (
     <li
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      aria-label={`${c.name}, ${c.jobRole ?? "no role"}. Space to move, Enter to open.`}
+      aria-label={`${candidate.name}, ${candidate.jobRole ?? "no role"}. Space to move, Enter to open.`}
       onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") onOpen();
-        else listeners?.onKeyDown?.(e);
+      onKeyDown={(event) => {
+        if (event.key === "Enter") onOpen();
+        else listeners?.onKeyDown?.(event);
       }}
       className={cn(
         cardClass,
@@ -89,25 +93,27 @@ function BoardCard({
         isDragging && "opacity-40",
       )}
     >
-      <CardBody c={c} />
+      <CardBody candidate={candidate} />
       {/* Non-drag fallback (touch / keyboard users). */}
       <select
         aria-label="Move to"
         value=""
-        onChange={(e) => onMove(e.target.value as CandidateStatus)}
-        onClick={(e) => e.stopPropagation()}
-        onPointerDown={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
+        onChange={(event) => onMove(event.target.value as CandidateStatus)}
+        onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
+        onKeyDown={(event) => event.stopPropagation()}
         className="mt-2 hidden h-7 w-full rounded-md border border-input bg-transparent px-1.5 text-xs group-has-focus-visible:block pointer-coarse:block dark:bg-input/30"
       >
         <option value="" disabled>
           Move to…
         </option>
-        {CANDIDATE_STATUSES.filter((s) => s !== c.status).map((s) => (
-          <option key={s} value={s}>
-            {s}
-          </option>
-        ))}
+        {CANDIDATE_STATUSES.filter((status) => status !== candidate.status).map(
+          (status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ),
+        )}
       </select>
     </li>
   );
@@ -208,7 +214,8 @@ export function CandidateBoard({
   );
 
   const all = Object.values(columns).flat();
-  const find = (id: string | null) => all.find((c) => c.id === id) ?? null;
+  const find = (id: string | null) =>
+    all.find((candidate) => candidate.id === id) ?? null;
   const active = find(activeId);
   const open = find(openId);
 
@@ -220,7 +227,7 @@ export function CandidateBoard({
     const moved = { ...card, status: to };
     setColumns({
       ...columns,
-      [from]: columns[from].filter((c) => c.id !== id),
+      [from]: columns[from].filter((candidate) => candidate.id !== id),
       [to]: insertSorted(columns[to], moved),
     });
     setCounts({ ...counts, [from]: counts[from] - 1, [to]: counts[to] + 1 });
@@ -244,11 +251,16 @@ export function CandidateBoard({
         columns[status].length,
         filters,
       );
-      setColumns((cols) => {
-        const seen = new Set(cols[status].map((c) => c.id));
+      setColumns((currentColumns) => {
+        const seen = new Set(
+          currentColumns[status].map((candidate) => candidate.id),
+        );
         return {
-          ...cols,
-          [status]: [...cols[status], ...more.filter((c) => !seen.has(c.id))],
+          ...currentColumns,
+          [status]: [
+            ...currentColumns[status],
+            ...more.filter((candidate) => !seen.has(candidate.id)),
+          ],
         };
       });
     } catch {
@@ -258,13 +270,14 @@ export function CandidateBoard({
     }
   }
 
-  function onDragStart(e: DragStartEvent) {
-    setActiveId(String(e.active.id));
+  function onDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id));
   }
 
-  function onDragEnd(e: DragEndEvent) {
+  function onDragEnd(event: DragEndEvent) {
     setActiveId(null);
-    if (e.over) move(String(e.active.id), e.over.id as CandidateStatus);
+    if (event.over)
+      move(String(event.active.id), event.over.id as CandidateStatus);
   }
 
   return (
@@ -291,12 +304,12 @@ export function CandidateBoard({
               loading={loadingCol === status}
               onLoadMore={() => loadMore(status)}
             >
-              {columns[status].map((c) => (
+              {columns[status].map((candidate) => (
                 <BoardCard
-                  key={c.id}
-                  c={c}
-                  onOpen={() => setOpenId(c.id)}
-                  onMove={(to) => move(c.id, to)}
+                  key={candidate.id}
+                  candidate={candidate}
+                  onOpen={() => setOpenId(candidate.id)}
+                  onMove={(to) => move(candidate.id, to)}
                 />
               ))}
             </BoardColumn>
@@ -305,7 +318,7 @@ export function CandidateBoard({
         <DragOverlay>
           {active && (
             <div className={cn(cardClass, "w-68 cursor-grabbing shadow-lg")}>
-              <CardBody c={active} />
+              <CardBody candidate={active} />
             </div>
           )}
         </DragOverlay>
@@ -316,7 +329,7 @@ export function CandidateBoard({
           key={open.id}
           candidate={open}
           open
-          onOpenChange={(o) => !o && setOpenId(null)}
+          onOpenChange={(isOpen) => !isOpen && setOpenId(null)}
         />
       )}
     </>

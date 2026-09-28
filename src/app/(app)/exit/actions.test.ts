@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // card, probation, login) and what undo restores.
 
 const db = vi.hoisted(() => {
-  const m = {
+  const mockDb = {
     employee: { findUnique: vi.fn(), update: vi.fn() },
     user: { findUnique: vi.fn(), count: vi.fn(), update: vi.fn() },
     idCard: { update: vi.fn() },
@@ -13,12 +13,12 @@ const db = vi.hoisted(() => {
     $transaction: vi.fn(),
   };
   // Array form: run the queued updates; callback form: hand over the mock.
-  m.$transaction.mockImplementation(async (arg: unknown) =>
+  mockDb.$transaction.mockImplementation(async (arg: unknown) =>
     Array.isArray(arg)
       ? Promise.all(arg)
-      : (arg as (tx: typeof m) => unknown)(m),
+      : (arg as (transaction: typeof mockDb) => unknown)(mockDb),
   );
-  return m;
+  return mockDb;
 });
 const sendEmail = vi.hoisted(() => vi.fn(async () => ({ skipped: true })));
 
@@ -32,9 +32,9 @@ vi.mock("@/lib/email", () => ({ sendEmail }));
 const { markExit, undoExit } = await import("./actions");
 
 function form(fields: Record<string, string>) {
-  const f = new FormData();
-  for (const [k, v] of Object.entries(fields)) f.set(k, v);
-  return f;
+  const formData = new FormData();
+  for (const [key, value] of Object.entries(fields)) formData.set(key, value);
+  return formData;
 }
 
 const baseEmployee = {
@@ -53,7 +53,7 @@ beforeEach(() => {
   db.$transaction.mockImplementation(async (arg: unknown) =>
     Array.isArray(arg)
       ? Promise.all(arg)
-      : (arg as (tx: typeof db) => unknown)(db),
+      : (arg as (transaction: typeof db) => unknown)(db),
   );
 });
 
@@ -62,12 +62,12 @@ describe("markExit", () => {
     db.employee.findUnique.mockResolvedValue(baseEmployee);
     db.user.findUnique.mockResolvedValue({ role: "EMPLOYEE" });
 
-    const r = await markExit(
+    const result = await markExit(
       {},
       form({ employeeId: "e1", dateOfExit: "2026-10-01" }),
     );
 
-    expect(r).toEqual({ ok: true });
+    expect(result).toEqual({ ok: true });
     expect(db.employee.update.mock.calls[0][0].data.dateOfExit).toEqual(
       new Date("2026-10-01"),
     );
@@ -111,11 +111,11 @@ describe("markExit", () => {
     db.employee.findUnique.mockResolvedValue(baseEmployee);
     db.user.findUnique.mockResolvedValue({ role: "HR_ADMIN" });
     db.user.count.mockResolvedValue(0);
-    const r = await markExit(
+    const result = await markExit(
       {},
       form({ employeeId: "e1", dateOfExit: "2026-10-01" }),
     );
-    expect(r.error).toMatch(/only HR admin/);
+    expect(result.error).toMatch(/only HR admin/);
     expect(db.$transaction).not.toHaveBeenCalled();
   });
 
@@ -124,16 +124,16 @@ describe("markExit", () => {
       ...baseEmployee,
       dateOfExit: new Date(),
     });
-    const r = await markExit(
+    const result = await markExit(
       {},
       form({ employeeId: "e1", dateOfExit: "2026-10-01" }),
     );
-    expect(r.error).toMatch(/already marked/);
+    expect(result.error).toMatch(/already marked/);
   });
 
   it("needs an employee and a date", async () => {
-    const r = await markExit({}, form({ employeeId: "e1" }));
-    expect(r.error).toMatch(/required/);
+    const result = await markExit({}, form({ employeeId: "e1" }));
+    expect(result.error).toMatch(/required/);
   });
 });
 

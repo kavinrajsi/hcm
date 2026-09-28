@@ -51,12 +51,12 @@ describe("sendEmail (ZeptoMail)", () => {
   });
 
   it("posts ZeptoMail's message format with the token header", async () => {
-    const r = await sendEmail({
+    const result = await sendEmail({
       to: ["a@x.com", "b@x.com"],
       subject: "Hello",
       html: "<b>Hi</b>",
     });
-    expect(r).toEqual({ skipped: false, id: "r1" });
+    expect(result).toEqual({ skipped: false, id: "r1" });
 
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("https://cpaas.zoho.com/v1.1/email");

@@ -32,10 +32,14 @@ export const metadata = { title: "AI usage" };
 // Rough rupee view of USD costs; set USD_INR_RATE to change it.
 const INR_RATE = Number(process.env.USD_INR_RATE) || 88;
 
-const num = (n: number) => n.toLocaleString("en-IN");
+const formatNumber = (value: number) => value.toLocaleString("en-IN");
 const inr = (usd: number) => {
-  const v = usd * INR_RATE;
-  return v === 0 ? "₹0" : v < 1 ? `₹${v.toFixed(2)}` : `₹${Math.round(v).toLocaleString("en-IN")}`;
+  const amount = usd * INR_RATE;
+  return amount === 0
+    ? "₹0"
+    : amount < 1
+      ? `₹${amount.toFixed(2)}`
+      : `₹${Math.round(amount).toLocaleString("en-IN")}`;
 };
 const shortDay = (day: string) =>
   new Date(`${day}T00:00:00Z`).toLocaleDateString("en-IN", {
@@ -43,8 +47,8 @@ const shortDay = (day: string) =>
     month: "short",
     timeZone: "UTC",
   });
-const when = (d: Date) =>
-  d.toLocaleString("en-IN", {
+const when = (date: Date) =>
+  date.toLocaleString("en-IN", {
     day: "numeric",
     month: "short",
     hour: "2-digit",
@@ -56,8 +60,8 @@ const when = (d: Date) =>
 async function gatewayBalance(): Promise<number | null> {
   try {
     const { balance } = await gateway.getCredits();
-    const n = Number(balance);
-    return Number.isFinite(n) ? n : null;
+    const credits = Number(balance);
+    return Number.isFinite(credits) ? credits : null;
   } catch {
     return null;
   }
@@ -101,8 +105,10 @@ function Section({
   );
 }
 
-const feature = (f: string) => AI_FEATURE_LABELS[f] ?? f;
-const trigger = (t: string | null) => (t ? (AI_TRIGGER_LABELS[t] ?? t) : "—");
+const feature = (featureKey: string) =>
+  AI_FEATURE_LABELS[featureKey] ?? featureKey;
+const trigger = (triggerKey: string | null) =>
+  triggerKey ? (AI_TRIGGER_LABELS[triggerKey] ?? triggerKey) : "—";
 
 export default async function AiUsagePage({
   searchParams,
@@ -113,11 +119,11 @@ export default async function AiUsagePage({
     ? (raw as AiRange)
     : "month";
 
-  const [s, balance] = await Promise.all([
+  const [summary, balance] = await Promise.all([
     aiUsageSummary(range),
     gatewayBalance(),
   ]);
-  const t = s.totals;
+  const totals = summary.totals;
 
   return (
     <PageShell>
@@ -126,10 +132,10 @@ export default async function AiUsagePage({
         description={
           <>
             What HCM&apos;s AI features cost, as reported by the Vercel AI
-            Gateway for each request. Amounts in US dollars; ₹ at ≈ ₹
-            {INR_RATE}/$.
-            {s.firstRecordedAt &&
-              ` Recorded since ${when(s.firstRecordedAt)}.`}
+            Gateway for each request. Amounts in US dollars; ₹ at ≈ ₹{INR_RATE}
+            /$.
+            {summary.firstRecordedAt &&
+              ` Recorded since ${when(summary.firstRecordedAt)}.`}
           </>
         }
       />
@@ -137,46 +143,57 @@ export default async function AiUsagePage({
       <div className="mt-5">
         <Segmented
           label="Period"
-          items={AI_RANGES.map((r) => ({
-            key: r,
-            href: r === "month" ? "/ai-usage" : `/ai-usage?range=${r}`,
-            label: AI_RANGE_LABELS[r],
-            active: r === range,
+          items={AI_RANGES.map((option) => ({
+            key: option,
+            href:
+              option === "month" ? "/ai-usage" : `/ai-usage?range=${option}`,
+            label: AI_RANGE_LABELS[option],
+            active: option === range,
           }))}
         />
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        <Tile label="Cost" value={formatUsd(t.cost)} sub={`≈ ${inr(t.cost)}`} />
+        <Tile
+          label="Cost"
+          value={formatUsd(totals.cost)}
+          sub={`≈ ${inr(totals.cost)}`}
+        />
         <Tile
           label="Requests"
-          value={num(t.requests)}
-          sub={t.failed > 0 ? `${num(t.failed)} failed` : undefined}
+          value={formatNumber(totals.requests)}
+          sub={
+            totals.failed > 0
+              ? `${formatNumber(totals.failed)} failed`
+              : undefined
+          }
         />
-        <Tile label="Posts classified" value={num(t.items)} />
+        <Tile label="Posts classified" value={formatNumber(totals.items)} />
         <Tile
           label="Tokens"
-          value={num(t.inputTokens + t.outputTokens)}
-          sub={`${num(t.inputTokens)} in · ${num(t.outputTokens)} out`}
+          value={formatNumber(totals.inputTokens + totals.outputTokens)}
+          sub={`${formatNumber(totals.inputTokens)} in · ${formatNumber(totals.outputTokens)} out`}
         />
         <Tile
           label="Cost per post"
-          value={formatUsd(t.costPerItem)}
-          sub={t.items > 0 ? `≈ ${inr(t.costPerItem * 1000)} per 1,000` : undefined}
+          value={formatUsd(totals.costPerItem)}
+          sub={
+            totals.items > 0
+              ? `≈ ${inr(totals.costPerItem * 1000)} per 1,000`
+              : undefined
+          }
         />
         <Tile
           label="Gateway credit left"
           value={balance === null ? "—" : formatUsd(balance)}
-          sub={
-            balance === null ? "Unavailable" : "Whole Vercel team, all apps"
-          }
+          sub={balance === null ? "Unavailable" : "Whole Vercel team, all apps"}
         />
       </div>
 
-      {t.requests === 0 ? (
+      {totals.requests === 0 ? (
         <p className="mt-8 rounded-xl border border-dashed border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500 dark:border-zinc-800">
           No AI requests in this period.
-          {!s.firstRecordedAt &&
+          {!summary.firstRecordedAt &&
             " Costs are recorded from now on; earlier usage wasn't tracked."}
         </p>
       ) : (
@@ -186,12 +203,12 @@ export default async function AiUsagePage({
               <BarChart
                 formatTick="usd"
                 ariaLabel={`Daily AI cost, ${AI_RANGE_LABELS[range]}. Totals in the tables below.`}
-                bars={s.daily.map((d) => ({
-                  key: d.day,
-                  label: shortDay(d.day),
-                  value: d.cost,
-                  display: formatUsd(d.cost),
-                  detail: `${num(d.requests)} request${d.requests === 1 ? "" : "s"}`,
+                bars={summary.daily.map((bucket) => ({
+                  key: bucket.day,
+                  label: shortDay(bucket.day),
+                  value: bucket.cost,
+                  display: formatUsd(bucket.cost),
+                  detail: `${formatNumber(bucket.requests)} request${bucket.requests === 1 ? "" : "s"}`,
                 }))}
               />
             </div>
@@ -199,17 +216,17 @@ export default async function AiUsagePage({
 
           <Section title="Breakdown" subtitle="By feature, trigger and model">
             <MobileList isEmpty={false} empty="">
-              {s.breakdown.map((b) => (
+              {summary.breakdown.map((row) => (
                 <ListCard
-                  key={`${b.feature}|${b.trigger}|${b.model}`}
-                  title={feature(b.feature)}
-                  subtitle={`${trigger(b.trigger)} · ${b.model}`}
+                  key={`${row.feature}|${row.trigger}|${row.model}`}
+                  title={feature(row.feature)}
+                  subtitle={`${trigger(row.trigger)} · ${row.model}`}
                   badge={
                     <span className="font-semibold tabular-nums">
-                      {formatUsd(b.cost)}
+                      {formatUsd(row.cost)}
                     </span>
                   }
-                  meta={`${num(b.requests)} requests · ${num(b.items)} posts · ${num(b.inputTokens + b.outputTokens)} tokens`}
+                  meta={`${formatNumber(row.requests)} requests · ${formatNumber(row.items)} posts · ${formatNumber(row.inputTokens + row.outputTokens)} tokens`}
                 />
               ))}
             </MobileList>
@@ -222,27 +239,34 @@ export default async function AiUsagePage({
                     <TableHead>Model</TableHead>
                     <TableHead className="text-right">Requests</TableHead>
                     <TableHead className="text-right">Posts</TableHead>
-                    <TableHead className="text-right">Tokens in / out</TableHead>
+                    <TableHead className="text-right">
+                      Tokens in / out
+                    </TableHead>
                     <TableHead className="text-right">Cost</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {s.breakdown.map((b) => (
-                    <TableRow key={`${b.feature}|${b.trigger}|${b.model}`}>
-                      <TableCell>{feature(b.feature)}</TableCell>
-                      <TableCell>{trigger(b.trigger)}</TableCell>
-                      <TableCell className="text-zinc-500">{b.model}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {num(b.requests)}
+                  {summary.breakdown.map((row) => (
+                    <TableRow
+                      key={`${row.feature}|${row.trigger}|${row.model}`}
+                    >
+                      <TableCell>{feature(row.feature)}</TableCell>
+                      <TableCell>{trigger(row.trigger)}</TableCell>
+                      <TableCell className="text-zinc-500">
+                        {row.model}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {num(b.items)}
+                        {formatNumber(row.requests)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {num(b.inputTokens)} / {num(b.outputTokens)}
+                        {formatNumber(row.items)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatNumber(row.inputTokens)} /{" "}
+                        {formatNumber(row.outputTokens)}
                       </TableCell>
                       <TableCell className="text-right font-medium tabular-nums">
-                        {formatUsd(b.cost)}
+                        {formatUsd(row.cost)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -253,18 +277,20 @@ export default async function AiUsagePage({
 
           <Section
             title="Recent requests"
-            subtitle={`Latest ${s.recent.length} in this period`}
+            subtitle={`Latest ${summary.recent.length} in this period`}
           >
             <MobileList isEmpty={false} empty="">
-              {s.recent.map((r) => (
+              {summary.recent.map((request) => (
                 <ListCard
-                  key={r.id}
-                  title={when(r.createdAt)}
-                  subtitle={`${feature(r.feature)} · ${trigger(r.trigger)}`}
+                  key={request.id}
+                  title={when(request.createdAt)}
+                  subtitle={`${feature(request.feature)} · ${trigger(request.trigger)}`}
                   badge={
-                    r.ok ? (
+                    request.ok ? (
                       <span className="font-semibold tabular-nums">
-                        {r.costUsd === null ? "—" : formatUsd(r.costUsd)}
+                        {request.costUsd === null
+                          ? "—"
+                          : formatUsd(request.costUsd)}
                       </span>
                     ) : (
                       <span className="text-xs font-medium text-rose-600 dark:text-rose-400">
@@ -272,7 +298,7 @@ export default async function AiUsagePage({
                       </span>
                     )
                   }
-                  meta={`${num(r.items)} posts · ${num(r.inputTokens)} in / ${num(r.outputTokens)} out`}
+                  meta={`${formatNumber(request.items)} posts · ${formatNumber(request.inputTokens)} in / ${formatNumber(request.outputTokens)} out`}
                 />
               ))}
             </MobileList>
@@ -284,30 +310,33 @@ export default async function AiUsagePage({
                     <TableHead>Feature</TableHead>
                     <TableHead>Trigger</TableHead>
                     <TableHead className="text-right">Posts</TableHead>
-                    <TableHead className="text-right">Tokens in / out</TableHead>
+                    <TableHead className="text-right">
+                      Tokens in / out
+                    </TableHead>
                     <TableHead className="text-right">Cost</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {s.recent.map((r) => (
-                    <TableRow key={r.id}>
+                  {summary.recent.map((request) => (
+                    <TableRow key={request.id}>
                       <TableCell className="whitespace-nowrap">
-                        {when(r.createdAt)}
+                        {when(request.createdAt)}
                       </TableCell>
-                      <TableCell>{feature(r.feature)}</TableCell>
-                      <TableCell>{trigger(r.trigger)}</TableCell>
+                      <TableCell>{feature(request.feature)}</TableCell>
+                      <TableCell>{trigger(request.trigger)}</TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {num(r.items)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {num(r.inputTokens)} / {num(r.outputTokens)}
+                        {formatNumber(request.items)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {r.ok ? (
-                          r.costUsd === null ? (
+                        {formatNumber(request.inputTokens)} /{" "}
+                        {formatNumber(request.outputTokens)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {request.ok ? (
+                          request.costUsd === null ? (
                             "—"
                           ) : (
-                            formatUsd(r.costUsd)
+                            formatUsd(request.costUsd)
                           )
                         ) : (
                           <span className="text-rose-600 dark:text-rose-400">

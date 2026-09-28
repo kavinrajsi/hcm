@@ -5,7 +5,9 @@ import type { NextRequest } from "next/server";
  * required: without it the job routes refuse every request, so a missing
  * env var can't leave them open to the internet.
  */
-export function isAuthorizedCron(req: NextRequest): boolean {
+export function isAuthorizedCron(request: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
-  return !!secret && req.headers.get("authorization") === `Bearer ${secret}`;
+  return (
+    !!secret && request.headers.get("authorization") === `Bearer ${secret}`
+  );
 }

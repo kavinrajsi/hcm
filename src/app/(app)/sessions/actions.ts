@@ -24,7 +24,7 @@ const sessionSchema = z.object({
   notes: z
     .string()
     .trim()
-    .transform((v) => (v === "" ? undefined : v))
+    .transform((value) => (value === "" ? undefined : value))
     .optional(),
 });
 
@@ -86,7 +86,11 @@ export async function registerForSession(formData: FormData) {
   let employeeId = formData.get("employeeId");
   if (typeof sessionId !== "string") throw new Error("Missing sessionId");
 
-  if (user.role !== "HR_ADMIN" || typeof employeeId !== "string" || !employeeId) {
+  if (
+    user.role !== "HR_ADMIN" ||
+    typeof employeeId !== "string" ||
+    !employeeId
+  ) {
     // Self-registration: resolve the caller's employee record.
     const self = await db.employee.findFirst({
       where: { OR: [{ userId: user.id }, { workEmail: user.email }] },
@@ -110,7 +114,7 @@ const attendanceSchema = z.object({
   employeeId: z.string().min(1, "Employee is required"),
   sessionId: z
     .string()
-    .transform((v) => (v === "" ? undefined : v))
+    .transform((value) => (value === "" ? undefined : value))
     .optional(),
   sessionName: z.string().trim().min(1, "Session name is required"),
   date: z.string().min(1, "Date is required"),
@@ -118,12 +122,12 @@ const attendanceSchema = z.object({
   trainer: z
     .string()
     .trim()
-    .transform((v) => (v === "" ? undefined : v))
+    .transform((value) => (value === "" ? undefined : value))
     .optional(),
   notes: z
     .string()
     .trim()
-    .transform((v) => (v === "" ? undefined : v))
+    .transform((value) => (value === "" ? undefined : value))
     .optional(),
 });
 
@@ -163,21 +167,27 @@ export async function importAttendance(
 
   // Rows reference employees by their human-facing empId.
   const employees = await db.employee.findMany({
-    where: { empId: { in: parsed.rows.map((r) => r.empId).filter(Boolean) } },
+    where: {
+      empId: { in: parsed.rows.map((row) => row.empId).filter(Boolean) },
+    },
     select: { id: true, empId: true },
   });
-  const idByEmpId = new Map(employees.map((e) => [e.empId, e.id]));
+  const idByEmpId = new Map(
+    employees.map((employee) => [employee.empId, employee.id]),
+  );
 
   const { valid, failures } = collectRows(parsed.rows, (row) => {
     const employeeId = idByEmpId.get(row.empId ?? "");
-    if (!employeeId) throw new Error(`Unknown empId: ${row.empId || "(empty)"}`);
+    if (!employeeId)
+      throw new Error(`Unknown empId: ${row.empId || "(empty)"}`);
     if (!cell(row, "sessionName")) throw new Error("sessionName is required");
     return {
       employeeId,
       sessionName: row.sessionName,
       date: parseCsvDate(cell(row, "date"), "date"),
       // Blank cell means present; only explicit false/no/0 marks absent.
-      attended: cell(row, "attended") === undefined || parseCsvBoolean(row.attended),
+      attended:
+        cell(row, "attended") === undefined || parseCsvBoolean(row.attended),
       trainer: cell(row, "trainer"),
       notes: cell(row, "notes"),
     };

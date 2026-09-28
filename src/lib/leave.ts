@@ -52,7 +52,10 @@ export function htmlToText(html: string): string {
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(p|div|li|h\d)>/gi, "\n")
     .replace(/<[^>]+>/g, "")
-    .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (m) => ENTITIES[m] ?? m)
+    .replace(
+      /&(amp|lt|gt|quot|#39|nbsp);/g,
+      (entity) => ENTITIES[entity] ?? entity,
+    )
     .replace(/[ \t]+/g, " ")
     .replace(/\s*\n\s*/g, "\n")
     .trim();
@@ -67,11 +70,13 @@ export function buildEmailIndex(
   }[],
 ): Map<string, string> {
   const index = new Map<string, string>();
-  for (const e of employees) {
+  for (const employee of employees) {
     // Work email wins if someone's personal email collides with another's work email.
-    if (e.personalEmail) index.set(e.personalEmail.toLowerCase(), e.id);
+    if (employee.personalEmail)
+      index.set(employee.personalEmail.toLowerCase(), employee.id);
   }
-  for (const e of employees) index.set(e.workEmail.toLowerCase(), e.id);
+  for (const employee of employees)
+    index.set(employee.workEmail.toLowerCase(), employee.id);
   return index;
 }
 
@@ -93,7 +98,7 @@ type DateRange = { gte: Date; lt: Date };
  * Plain objects so this file stays import-free; the page ANDs them with its scope.
  */
 export function leaveTotalsConditions({
-  q,
+  q: searchQuery,
   type,
   status,
   range,
@@ -115,12 +120,12 @@ export function leaveTotalsConditions({
       ? { OR: [{ startDate: range }, { startDate: null, postedOn: range }] }
       : { startDate: { gte: yearStart } },
   ];
-  if (q) {
+  if (searchQuery) {
     conditions.push({
       OR: [
-        { creatorName: { contains: q, mode: "insensitive" } },
-        { employee: { name: { contains: q, mode: "insensitive" } } },
-        { message: { contains: q, mode: "insensitive" } },
+        { creatorName: { contains: searchQuery, mode: "insensitive" } },
+        { employee: { name: { contains: searchQuery, mode: "insensitive" } } },
+        { message: { contains: searchQuery, mode: "insensitive" } },
       ],
     });
   }
@@ -132,10 +137,10 @@ export function leaveTotalsPeriod(
   { day, month, year }: { day?: number; month?: number; year?: number },
   now: Date = new Date(),
 ): string {
-  const y = year ?? now.getUTCFullYear();
-  if (!day && !month) return `in ${y}`;
-  const m = month ?? now.getUTCMonth() + 1;
-  const date = new Date(Date.UTC(y, m - 1, day ?? 1));
+  const resolvedYear = year ?? now.getUTCFullYear();
+  if (!day && !month) return `in ${resolvedYear}`;
+  const resolvedMonth = month ?? now.getUTCMonth() + 1;
+  const date = new Date(Date.UTC(resolvedYear, resolvedMonth - 1, day ?? 1));
   if (!day) {
     return `in ${date.toLocaleString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" })}`;
   }

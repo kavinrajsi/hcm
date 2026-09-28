@@ -40,15 +40,18 @@ async function moveCandidate(
   toStatus: CandidateStatus,
   userId: string,
 ): Promise<void> {
-  await db.$transaction(async (tx) => {
-    const { status } = await tx.candidate.findUniqueOrThrow({
+  await db.$transaction(async (transaction) => {
+    const { status } = await transaction.candidate.findUniqueOrThrow({
       where: { id },
       select: { status: true },
     });
     const fromStatus = statusOf(status);
     if (fromStatus === toStatus) return;
-    await tx.candidate.update({ where: { id }, data: { status: toStatus } });
-    await tx.candidateStatusChange.create({
+    await transaction.candidate.update({
+      where: { id },
+      data: { status: toStatus },
+    });
+    await transaction.candidateStatusChange.create({
       data: { candidateId: id, fromStatus, toStatus, changedById: userId },
     });
   });
@@ -104,10 +107,12 @@ export async function loadMoreCandidates(
   filters: CandidateFilters,
 ): Promise<CandidateDetail[]> {
   await requireRole("HR_ADMIN");
-  const s = z.enum(CANDIDATE_STATUSES).parse(status);
-  const f = filtersSchema.parse(filters);
+  const parsedStatus = z.enum(CANDIDATE_STATUSES).parse(status);
+  const parsedFilters = filtersSchema.parse(filters);
   const rows = await db.candidate.findMany({
-    where: { AND: [...candidateWhere(f), statusWhere(s)] },
+    where: {
+      AND: [...candidateWhere(parsedFilters), statusWhere(parsedStatus)],
+    },
     orderBy: { createdAt: "desc" },
     skip: Math.max(0, Math.floor(offset)),
     take: BOARD_PAGE_SIZE,
@@ -134,12 +139,12 @@ export async function addCandidateNote(
     return { error: parsed.error.issues[0]?.message ?? "Invalid note" };
   }
   const id = BigInt(parsed.data.id);
-  await db.$transaction(async (tx) => {
-    const row = await tx.candidate.findUniqueOrThrow({
+  await db.$transaction(async (transaction) => {
+    const row = await transaction.candidate.findUniqueOrThrow({
       where: { id },
       select: { notes: true },
     });
-    await tx.candidate.update({
+    await transaction.candidate.update({
       where: { id },
       data: { notes: appendNote(row.notes, parsed.data.text) },
     });
@@ -154,15 +159,15 @@ export async function deleteCandidateNote(
 ): Promise<void> {
   await requireRole("HR_ADMIN");
   const id = BigInt(z.string().regex(/^\d+$/).parse(candidateId));
-  const nid = z.string().min(1).max(64).parse(noteId);
-  await db.$transaction(async (tx) => {
-    const row = await tx.candidate.findUniqueOrThrow({
+  const parsedNoteId = z.string().min(1).max(64).parse(noteId);
+  await db.$transaction(async (transaction) => {
+    const row = await transaction.candidate.findUniqueOrThrow({
       where: { id },
       select: { notes: true },
     });
-    await tx.candidate.update({
+    await transaction.candidate.update({
       where: { id },
-      data: { notes: removeNote(row.notes, nid) },
+      data: { notes: removeNote(row.notes, parsedNoteId) },
     });
   });
   revalidatePath("/candidates");
@@ -172,7 +177,7 @@ const optionalTrimmed = z
   .string()
   .trim()
   .max(500)
-  .transform((v) => (v === "" ? undefined : v))
+  .transform((value) => (value === "" ? undefined : value))
   .optional();
 
 const createSchema = z.object({
@@ -268,12 +273,12 @@ export async function getCandidateHistory(
       changedBy: { select: { name: true, email: true } },
     },
   });
-  return rows.map((r) => ({
-    id: r.id,
-    fromStatus: r.fromStatus,
-    toStatus: r.toStatus,
-    when: formatNoteTime(r.changedAt.toISOString()),
-    by: r.changedBy?.name ?? r.changedBy?.email ?? null,
+  return rows.map((row) => ({
+    id: row.id,
+    fromStatus: row.fromStatus,
+    toStatus: row.toStatus,
+    when: formatNoteTime(row.changedAt.toISOString()),
+    by: row.changedBy?.name ?? row.changedBy?.email ?? null,
   }));
 }
 
