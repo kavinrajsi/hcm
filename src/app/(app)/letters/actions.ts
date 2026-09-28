@@ -7,7 +7,8 @@ import { PII_SELECT, readPii } from "@/lib/employee-pii";
 import { requireRole } from "@/lib/rbac";
 import { sendEmail } from "@/lib/email";
 import { letterEmail } from "@/lib/emails";
-import { fillTemplate, LETTER_TEMPLATES } from "@/lib/letter-templates";
+import { fillTemplate, getLetterTemplate } from "@/lib/letter-templates";
+import { isBlankHtml, toEmailHtml } from "@/lib/email-html";
 
 export type LetterFormState = {
   error?: string;
@@ -52,7 +53,7 @@ export async function generateLetter(
   });
   if (!employee) return { error: "Employee not found" };
 
-  const template = LETTER_TEMPLATES[parsed.data.type];
+  const template = await getLetterTemplate(parsed.data.type);
   return {
     draft: {
       employeeId: employee.id,
@@ -84,6 +85,9 @@ export async function sendLetter(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid letter" };
   }
+  // Never trust the browser's HTML: keep only what email clients support.
+  const bodyHtml = toEmailHtml(parsed.data.bodyHtml);
+  if (isBlankHtml(bodyHtml)) return { error: "Body is required" };
 
   const employee = await db.employee.findUnique({
     where: { id: parsed.data.employeeId },
@@ -106,7 +110,7 @@ export async function sendLetter(
       to,
       ...letterEmail({
         subject: parsed.data.subject,
-        bodyHtml: parsed.data.bodyHtml,
+        bodyHtml,
       }),
     });
     sent = !result.skipped;
@@ -125,7 +129,7 @@ export async function sendLetter(
       employeeId: parsed.data.employeeId,
       type: parsed.data.type,
       subject: parsed.data.subject,
-      bodyHtml: parsed.data.bodyHtml,
+      bodyHtml,
       sentAt: sent ? new Date() : null,
       sentTo: sent ? to : null,
     },
@@ -136,4 +140,53 @@ export async function sendLetter(
     ok: true,
     error: sendError,
   };
+}
+
+const templateSchema = z.object({
+  type: z.enum(["OFFER", "INTERN", "COMPENSATION"]),
+  subject: z.string().trim().min(1, "Subject is required").max(200),
+  body: z.string().trim().min(1, "Body is required").max(100_000),
+});
+
+export type TemplateFormState = { error?: string; ok?: boolean };
+
+/** Saves HR's version of a starting template (placeholders kept). */
+export async function saveLetterTemplate(
+  _prev: TemplateFormState,
+  formData: FormData,
+): Promise<TemplateFormState> {
+  const user = await requireRole("HR_ADMIN");
+  const parsed = templateSchema.safeParse({
+    type: formData.get("type"),
+    subject: formData.get("subject"),
+    body: formData.get("body"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid template" };
+  }
+  const body = toEmailHtml(parsed.data.body);
+  if (isBlankHtml(body)) return { error: "Body is required" };
+
+  await db.letterTemplate.upsert({
+    where: { type: parsed.data.type },
+    create: {
+      type: parsed.data.type,
+      subject: parsed.data.subject,
+      body,
+      updatedById: user.id,
+    },
+    update: { subject: parsed.data.subject, body, updatedById: user.id },
+  });
+  revalidatePath("/letters");
+  return { ok: true };
+}
+
+/** Drops HR's version so the built-in default is used again. */
+export async function resetLetterTemplate(formData: FormData): Promise<void> {
+  await requireRole("HR_ADMIN");
+  const type = z
+    .enum(["OFFER", "INTERN", "COMPENSATION"])
+    .parse(formData.get("type"));
+  await db.letterTemplate.deleteMany({ where: { type } });
+  revalidatePath("/letters");
 }

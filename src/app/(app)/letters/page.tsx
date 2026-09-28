@@ -18,14 +18,22 @@ import {
 import { ListCard } from "@/components/list-card";
 import { CollapsibleForm } from "@/components/collapsible-form";
 import { LetterComposer } from "./letter-composer";
-import { formatInstantDay } from "@/lib/format-date";
+import { TemplateEditor } from "./template-editor";
+import { getLetterTemplate } from "@/lib/letter-templates";
+import { formatDateTime, formatInstantDay } from "@/lib/format-date";
+
+const TEMPLATE_TYPES = [
+  ["OFFER", "Offer letter"],
+  ["INTERN", "Intern letter"],
+  ["COMPENSATION", "Revised compensation"],
+] as const;
 
 export const metadata = { title: "Letters" };
 
 export default async function LettersPage() {
   await requireRole("HR_ADMIN");
 
-  const [employees, letters] = await Promise.all([
+  const [employees, letters, templates] = await Promise.all([
     db.employee.findMany({
       where: { dateOfExit: null },
       orderBy: { name: "asc" },
@@ -36,6 +44,7 @@ export default async function LettersPage() {
       take: 50,
       include: { employee: { select: { id: true, empId: true, name: true } } },
     }),
+    Promise.all(TEMPLATE_TYPES.map(([type]) => getLetterTemplate(type))),
   ]);
 
   return (
@@ -48,6 +57,36 @@ export default async function LettersPage() {
       <div className="mt-5 md:mt-6">
         <CollapsibleForm label="New letter">
           <LetterComposer employees={employees} />
+        </CollapsibleForm>
+      </div>
+
+      <div className="mt-4">
+        <CollapsibleForm label="Templates">
+          <p className="mb-3 text-sm text-zinc-500">
+            Starting text for each letter type. Placeholders like {"{{name}}"}{" "}
+            are filled with the employee&apos;s details when a draft is
+            generated.
+          </p>
+          <div className="flex flex-col gap-4">
+            {TEMPLATE_TYPES.map(([type, label], index) => {
+              const template = templates[index];
+              return (
+                <TemplateEditor
+                  key={`${type}-${template.updatedAt?.getTime() ?? "default"}`}
+                  type={type}
+                  label={label}
+                  subject={template.subject}
+                  body={template.body}
+                  custom={template.custom}
+                  editedNote={
+                    template.updatedAt
+                      ? `Edited by ${template.updatedBy ?? "HR"} on ${formatDateTime(template.updatedAt)}`
+                      : null
+                  }
+                />
+              );
+            })}
+          </div>
         </CollapsibleForm>
       </div>
 

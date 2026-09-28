@@ -101,6 +101,7 @@ model User {
   candidateStatusChanges CandidateStatusChange[]
   idCardStatusChanges    IdCardStatusChange[]
   chatThreads            ChatThread[]
+  letterTemplateEdits    LetterTemplate[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 }
@@ -518,3 +519,15 @@ model ChatMessage {
 
   @@index([threadId, createdAt])
 }
+
+// HR-edited starting templates for Letters. No row = the default template in
+// src/lib/letter-templates.ts; "Reset to default" deletes the row.
+model LetterTemplate {
+  type        LetterType @id
+  subject     String
+  body        String // email-safe HTML with {{placeholders}}
+  updatedAt   DateTime   @updatedAt
+  updatedBy   User?      @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+  updatedById String?
+}
+

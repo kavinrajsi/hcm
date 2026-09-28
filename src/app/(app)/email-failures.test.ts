@@ -68,10 +68,28 @@ describe("sendLetter", () => {
     const mail = sendEmail.mock.calls[0][0];
     expect(mail.to).toBe("asha@madarth.com");
     expect(mail.subject).toBe("Revised compensation");
-    expect(mail.html).toContain("<p>Dear Asha</p>");
+    expect(mail.html).toContain('<p style="margin:0 0 12px">Dear Asha</p>');
     expect(mail.html).toContain("HCM · Madarth");
     expect(db.letter.create.mock.calls[0][0].data.sentTo).toBe(
       "asha@madarth.com",
+    );
+  });
+
+  it("sends and archives only email-safe HTML", async () => {
+    sendEmail.mockResolvedValue({ skipped: false, id: "m2" });
+    await sendLetter(
+      {},
+      form({
+        employeeId: "e1",
+        type: "COMPENSATION",
+        subject: "Revised compensation",
+        bodyHtml: '<p onclick="x()">Hi</p><script>alert(1)</script>',
+      }),
+    );
+    const mail = sendEmail.mock.calls[0][0];
+    expect(mail.html).not.toMatch(/script|onclick/);
+    expect(db.letter.create.mock.calls[0][0].data.bodyHtml).toBe(
+      '<p style="margin:0 0 12px">Hi</p>',
     );
   });
 

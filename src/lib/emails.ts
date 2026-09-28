@@ -1,4 +1,5 @@
 import { appUrl, escapeHtml, renderEmail } from "@/lib/email-template";
+import { letterEmailHtml } from "@/lib/letter-email-html";
 
 // Subject + HTML for every email HCM sends. Keep wording here so it can be
 // reviewed in one place; senders only pass data in.
@@ -114,12 +115,5 @@ export function letterEmail({
   subject: string;
   bodyHtml: string;
 }): Email {
-  return {
-    subject,
-    html: renderEmail({
-      preheader: subject,
-      heading: subject,
-      body: bodyHtml,
-    }),
-  };
+  return { subject, html: letterEmailHtml(subject, bodyHtml) };
 }

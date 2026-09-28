@@ -209,3 +209,21 @@
   --viz-other: #71717a;
   --viz-bar: #3987e5;
 }
+
+/* Tiptap email editor: mirror the email-safe defaults in lib/email-html.ts. */
+.email-editor p { margin: 0 0 12px; }
+.email-editor h2 { margin: 16px 0 8px; font-size: 20px; line-height: 28px; font-weight: 700; }
+.email-editor h3 { margin: 14px 0 6px; font-size: 17px; line-height: 24px; font-weight: 700; }
+.email-editor ul { margin: 0 0 12px; padding-left: 20px; list-style: disc; }
+.email-editor ol { margin: 0 0 12px; padding-left: 20px; list-style: decimal; }
+.email-editor li > p { margin: 0 0 4px; }
+.email-editor blockquote { margin: 0 0 12px; padding: 4px 0 4px 12px; border-left: 3px solid #d4d4d8; color: #71717a; }
+.email-editor hr { border: 0; border-top: 1px solid #d4d4d8; margin: 16px 0; }
+.email-editor a { color: #2563eb; text-decoration: underline; }
+.email-editor table { border-collapse: collapse; width: 100%; margin: 0 0 12px; table-layout: fixed; }
+.email-editor th, .email-editor td { border: 1px solid #d4d4d8; padding: 6px 10px; vertical-align: top; }
+.email-editor th { background: var(--muted); font-weight: 600; text-align: left; }
+.email-editor th p, .email-editor td p { margin: 0; }
+.email-editor .selectedCell { background: color-mix(in oklab, #2563eb 12%, transparent); }
+.email-editor mark { border-radius: 2px; padding: 0 1px; }
+

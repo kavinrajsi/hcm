@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { EmailEditor } from "@/components/email-editor";
 import { generateLetter, sendLetter, type LetterFormState } from "./actions";
 
 const selectClass =
@@ -30,6 +30,10 @@ export function LetterComposer({
   >(sendLetter, {});
 
   const draft = genState.draft;
+  // Keyed per draft below, so a new draft resets the editor and subject.
+  const draftKey = draft
+    ? `${draft.employeeId}-${draft.type}-${draft.subject}`
+    : "none";
 
   return (
     <div className="flex flex-col gap-4">
@@ -80,6 +84,33 @@ export function LetterComposer({
       </form>
 
       {draft && (
+        <DraftForm
+          key={draftKey}
+          draft={draft}
+          sendAction={sendAction}
+          sendState={sendState}
+          sendPending={sendPending}
+        />
+      )}
+    </div>
+  );
+}
+
+function DraftForm({
+  draft,
+  sendAction,
+  sendState,
+  sendPending,
+}: {
+  draft: NonNullable<LetterFormState["draft"]>;
+  sendAction: (formData: FormData) => void;
+  sendState: LetterFormState;
+  sendPending: boolean;
+}) {
+  const [subject, setSubject] = useState(draft.subject);
+  return (
+    <>
+      {
         <form
           action={sendAction}
           className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
@@ -93,21 +124,20 @@ export function LetterComposer({
             <Input
               id="l-subject"
               name="subject"
-              defaultValue={draft.subject}
+              value={subject}
+              onChange={(event) => setSubject(event.target.value)}
               required
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="l-body" className="text-sm font-medium">
-              Body (HTML) — edit before sending
-            </label>
-            <Textarea
-              id="l-body"
+            <span className="text-sm font-medium">
+              Body — edit before sending
+            </span>
+            <EmailEditor
               name="bodyHtml"
               defaultValue={draft.bodyHtml}
-              required
-              rows={12}
-              className="font-mono text-xs"
+              subject={subject}
+              label="Letter body"
             />
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -124,7 +154,7 @@ export function LetterComposer({
             )}
           </div>
         </form>
-      )}
-    </div>
+      }
+    </>
   );
 }

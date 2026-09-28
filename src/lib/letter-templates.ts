@@ -1,3 +1,4 @@
+import { db } from "@/lib/db";
 import { formatDay } from "@/lib/format-date";
 
 // Editable starting templates for Letters. Placeholders are replaced with
@@ -48,4 +49,35 @@ export function fillTemplate(
     .replaceAll("{{designation}}", employee.designation)
     .replaceAll("{{department}}", employee.department)
     .replaceAll("{{dateOfJoining}}", formatDay(employee.dateOfJoining));
+}
+
+/** The template HR saved for this type, or the built-in default. */
+export async function getLetterTemplate(type: LetterTypeKey): Promise<{
+  subject: string;
+  body: string;
+  custom: boolean;
+  updatedAt: Date | null;
+  updatedBy: string | null;
+}> {
+  const saved = await db.letterTemplate.findUnique({
+    where: { type },
+    include: { updatedBy: { select: { name: true, email: true } } },
+  });
+  if (!saved) {
+    const fallback = LETTER_TEMPLATES[type];
+    return {
+      subject: fallback.subject,
+      body: fallback.body,
+      custom: false,
+      updatedAt: null,
+      updatedBy: null,
+    };
+  }
+  return {
+    subject: saved.subject,
+    body: saved.body,
+    custom: true,
+    updatedAt: saved.updatedAt,
+    updatedBy: saved.updatedBy?.name || saved.updatedBy?.email || null,
+  };
 }
