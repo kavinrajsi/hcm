@@ -248,21 +248,23 @@ export type BasecampAnswer = {
  * check-in day (group_on) desc, so with `sinceDay` (YYYY-MM-DD) paging stops
  * once a whole page is older — incremental syncs fetch only a page or two.
  */
-export async function listCheckinAnswers(
+/**
+ * Every page of a Basecamp list endpoint (follows the Link header, waits
+ * out 429s). `stop` ends early once a page makes the rest irrelevant.
+ */
+async function fetchAllPages<T>(
   accessToken: string,
-  accountId: string,
-  bucketId: string,
-  questionId: string,
-  sinceDay?: string,
-): Promise<BasecampAnswer[]> {
-  const answers: BasecampAnswer[] = [];
-  let url: string | null =
-    `https://3.basecampapi.com/${accountId}/buckets/${bucketId}/questions/${questionId}/answers.json`;
+  firstUrl: string,
+  userAgent: string,
+  stop?: (page: T[]) => boolean,
+): Promise<T[]> {
+  const items: T[] = [];
+  let url: string | null = firstUrl;
   while (url) {
     const response: Response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        "User-Agent": "HCM Leave Sync (internal)",
+        "User-Agent": userAgent,
       },
     });
     if (response.status === 429) {
@@ -271,12 +273,30 @@ export async function listCheckinAnswers(
       continue;
     }
     if (!response.ok)
-      throw new Error(`Basecamp answers fetch failed: ${response.status}`);
-    const page = (await response.json()) as BasecampAnswer[];
-    answers.push(...page);
-    if (sinceDay && page.every((answer) => answer.group_on < sinceDay)) break;
+      throw new Error(`Basecamp fetch failed: ${response.status} ${firstUrl}`);
+    const page = (await response.json()) as T[];
+    items.push(...page);
+    if (stop?.(page)) break;
     url = parseNextLink(response.headers.get("Link"));
   }
+  return items;
+}
+
+export async function listCheckinAnswers(
+  accessToken: string,
+  accountId: string,
+  bucketId: string,
+  questionId: string,
+  sinceDay?: string,
+): Promise<BasecampAnswer[]> {
+  const answers = await fetchAllPages<BasecampAnswer>(
+    accessToken,
+    `https://3.basecampapi.com/${accountId}/buckets/${bucketId}/questions/${questionId}/answers.json`,
+    "HCM Leave Sync (internal)",
+    sinceDay
+      ? (page) => page.every((answer) => answer.group_on < sinceDay)
+      : undefined,
+  );
   return sinceDay
     ? answers.filter((answer) => answer.group_on >= sinceDay)
     : answers;
@@ -348,4 +368,48 @@ export async function ensureLeaveWebhook(
   if (!response.ok)
     throw new Error(`Webhook create failed: ${response.status}`);
   return { created: true, webhook: (await response.json()) as BasecampWebhook };
+}
+
+// --- People (profile sync) ---
+
+export type BasecampPerson = {
+  id: number;
+  name: string;
+  email_address: string | null;
+  avatar_url: string | null;
+  title: string | null;
+  personable_type: string; // "User" for people; bots and integrations differ
+  client: boolean;
+};
+
+/** Everyone visible to the connected account. */
+export async function listPeople(
+  accessToken: string,
+  accountId: string,
+): Promise<BasecampPerson[]> {
+  return fetchAllPages<BasecampPerson>(
+    accessToken,
+    `https://3.basecampapi.com/${accountId}/people.json`,
+    "HCM People Sync (internal)",
+  );
+}
+
+/** Downloads a Basecamp avatar (sent with the token in case it's private). */
+export async function downloadAvatar(
+  accessToken: string,
+  url: string,
+): Promise<{ bytes: Buffer; contentType: string }> {
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "User-Agent": "HCM People Sync (internal)",
+    },
+  });
+  if (!response.ok)
+    throw new Error(`Avatar download failed: ${response.status}`);
+  const contentType = response.headers.get("content-type") ?? "image/png";
+  if (!contentType.startsWith("image/")) {
+    throw new Error(`Avatar is not an image: ${contentType}`);
+  }
+  return { bytes: Buffer.from(await response.arrayBuffer()), contentType };
 }

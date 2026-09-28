@@ -17,6 +17,7 @@ import {
 } from "../../users/user-controls";
 import { idCardStatusLabel } from "@/lib/id-card-status";
 import { formatDay, formatInstantDay } from "@/lib/format-date";
+import { EmployeeAvatar } from "@/components/employee-avatar";
 
 export const metadata = { title: "Employee" };
 
@@ -100,12 +101,19 @@ export default async function EmployeePage({
   return (
     <PageShell>
       <div className="flex flex-col-reverse gap-2 md:flex-row md:items-baseline md:justify-between">
-        <h1 className="text-xl font-semibold tracking-tight md:text-2xl">
-          {employee.name}
-          <span className="block text-base font-normal text-zinc-500 md:ml-3 md:inline">
-            {employee.empId} · {employee.designation}
-          </span>
-        </h1>
+        <div className="flex items-center gap-4">
+          <EmployeeAvatar
+            name={employee.name}
+            avatarKey={employee.avatarBlobKey}
+            size="lg"
+          />
+          <h1 className="text-xl font-semibold tracking-tight md:text-2xl">
+            {employee.name}
+            <span className="block text-base font-normal text-zinc-500 md:ml-3 md:inline">
+              {employee.empId} · {employee.designation}
+            </span>
+          </h1>
+        </div>
         <Link
           href="/employees"
           className="text-sm text-zinc-500 underline-offset-4 hover:underline"

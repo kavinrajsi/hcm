@@ -27,6 +27,8 @@ import { EMPLOYEE_IMPORT_COLUMNS } from "@/lib/import-columns";
 import { importEmployees } from "./actions";
 import type { Prisma } from "@/generated/prisma/client";
 import { formatDay } from "@/lib/format-date";
+import { EmployeeAvatar } from "@/components/employee-avatar";
+import { BasecampSyncButton } from "./basecamp-sync";
 
 export const metadata = { title: "Employees" };
 
@@ -105,6 +107,7 @@ export default async function EmployeesPage({
           designation: true,
           empType: true,
           empTypeEndsOn: true,
+          avatarBlobKey: true,
           probation: { select: { dueDate: true } },
         },
       }),
@@ -135,6 +138,7 @@ export default async function EmployeesPage({
         title="Employees"
         actions={
           <>
+            {user.role === "HR_ADMIN" && <BasecampSyncButton />}
             <BulkImportForm
               action={importEmployees}
               columns={EMPLOYEE_IMPORT_COLUMNS}
@@ -194,6 +198,12 @@ export default async function EmployeesPage({
             <ListCard
               key={employee.id}
               href={`/employees/${employee.id}`}
+              leading={
+                <EmployeeAvatar
+                  name={employee.name}
+                  avatarKey={employee.avatarBlobKey}
+                />
+              }
               title={employee.name}
               subtitle={[employee.designation, employee.department]
                 .filter(Boolean)
@@ -248,7 +258,15 @@ export default async function EmployeesPage({
                     {employee.empId}
                   </Link>
                 </TableCell>
-                <TableCell>{employee.name}</TableCell>
+                <TableCell>
+                  <span className="flex items-center gap-2.5">
+                    <EmployeeAvatar
+                      name={employee.name}
+                      avatarKey={employee.avatarBlobKey}
+                    />
+                    {employee.name}
+                  </span>
+                </TableCell>
                 <TableCell>{formatDay(employee.dateOfJoining)}</TableCell>
                 <TableCell>{employee.department}</TableCell>
                 <TableCell>{employee.designation}</TableCell>

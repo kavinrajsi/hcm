@@ -6,6 +6,8 @@ import { requireUser } from "@/lib/rbac";
 
 // Streams private employee documents after an access check: HR admins read
 // any document; everyone else only the files on their own employee record.
+// Basecamp profile pictures (avatars/) are readable by any signed-in user —
+// colleagues already see them in Basecamp.
 
 async function ownsDocument(userId: string, key: string): Promise<boolean> {
   const own = await db.employee.findFirst({
@@ -27,7 +29,12 @@ export async function GET(
 
   // Signed out → /login (requireUser); signed in without access → 403.
   const user = await requireUser();
-  if (user.role !== "HR_ADMIN" && !(await ownsDocument(user.id, key))) {
+  const isAvatar = key.startsWith("avatars/") && !key.includes("..");
+  if (
+    !isAvatar &&
+    user.role !== "HR_ADMIN" &&
+    !(await ownsDocument(user.id, key))
+  ) {
     return new Response("Forbidden", { status: 403 });
   }
 

@@ -14,6 +14,7 @@ export function ListCard({
   badge,
   meta,
   actions,
+  leading,
 }: {
   href?: string;
   onSelect?: () => void;
@@ -22,9 +23,12 @@ export function ListCard({
   badge?: React.ReactNode;
   meta?: React.ReactNode;
   actions?: React.ReactNode;
+  /** Shown before the title block, e.g. an avatar. */
+  leading?: React.ReactNode;
 }) {
   const body = (
     <>
+      {leading}
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <span className="min-w-0 font-medium leading-snug break-words">

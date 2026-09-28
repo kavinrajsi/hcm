@@ -4,7 +4,7 @@
 // credits that include typesafe-ai/jev.
 //
 //   npx tsx scripts/compare-jev.ts 200
-import "dotenv/config";
+import "./load-env";
 import { db } from "@/lib/db";
 import { jevLeaveTypes } from "@/lib/leave-type-jev";
 import type { LeavePost } from "@/lib/leave-classify";

@@ -149,6 +149,11 @@ model Employee {
   // on ProbationRecord.dueDate.
   empTypeEndsOn DateTime? @db.Date
 
+  // Basecamp profile sync (the passport Photo above stays HR-managed).
+  basecampPersonId String? @unique
+  avatarBlobKey    String? // private blob, avatars/<empId>…
+  avatarSourceUrl  String? // Basecamp avatar_url last downloaded
+
   // Statutory (plaintext-safe identifiers)
   pfNumber  String?
   uanNumber String?

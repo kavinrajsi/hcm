@@ -26,6 +26,7 @@ import { QuantumEntryForm } from "../quantum/quantum-entry-form";
 import { LEAVE_TYPE_LABELS } from "@/lib/leave";
 import { NameForm, PasswordForm } from "./profile-forms";
 import { formatDateTime, formatDay, formatInstantDay } from "@/lib/format-date";
+import { EmployeeAvatar } from "@/components/employee-avatar";
 
 export const metadata = { title: "My Profile" };
 
@@ -156,12 +157,19 @@ export default async function ProfilePage() {
 
   return (
     <PageShell>
-      <h1 className="text-xl font-semibold tracking-tight md:text-2xl">
-        {employee.name}
-        <span className="ml-3 text-base font-normal text-zinc-500">
-          {employee.empId} · {employee.designation} · {employee.department}
-        </span>
-      </h1>
+      <div className="flex items-center gap-4">
+        <EmployeeAvatar
+          name={employee.name}
+          avatarKey={employee.avatarBlobKey}
+          size="lg"
+        />
+        <h1 className="text-xl font-semibold tracking-tight md:text-2xl">
+          {employee.name}
+          <span className="block text-base font-normal text-zinc-500 md:ml-3 md:inline">
+            {employee.empId} · {employee.designation} · {employee.department}
+          </span>
+        </h1>
+      </div>
 
       <dl className="mt-6 grid grid-cols-2 gap-4 rounded-lg border border-zinc-200 p-5 text-sm sm:grid-cols-4 dark:border-zinc-800">
         <div>
