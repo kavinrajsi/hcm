@@ -23,6 +23,7 @@ import { CandidateDialog, type CandidateDetail } from "./candidate-dialog";
 import { CandidateBoard } from "./candidate-board";
 import { AddCandidate } from "./add-candidate";
 import { CandidateCard } from "./candidate-card";
+import { AddFilter } from "./add-filter";
 import { FileOpenIcon } from "@/components/icons";
 import {
   BOARD_PAGE_SIZE,
@@ -54,9 +55,15 @@ export default async function CandidatesPage({
   const params = parseTableParams(raw);
   const view = raw.view === "board" ? "board" : "list";
   const position = POSITIONS.find((p) => p === raw.position);
+  const str = (v: unknown) =>
+    typeof v === "string" && v.trim() ? v.trim().slice(0, 200) : undefined;
   const filters: CandidateFilters = {
     q: params.q,
     position,
+    role: str(raw.role),
+    created: str(raw.created),
+    from: str(raw.from),
+    to: str(raw.to),
   };
   const and = candidateWhere(filters);
 
@@ -66,6 +73,29 @@ export default async function CandidatesPage({
     where: NOT_SPAM,
     _count: true,
   });
+  // Role menu options: distinct job roles, case-insensitively merged under
+  // the most common spelling, most applications first.
+  const roleGroups = await db.candidate.groupBy({
+    by: ["jobRole"],
+    where: { AND: [NOT_SPAM, { jobRole: { not: null } }] },
+    _count: true,
+  });
+  const roleMap = new Map<string, { value: string; count: number; top: number }>();
+  for (const g of roleGroups) {
+    const value = g.jobRole?.trim();
+    if (!value) continue;
+    const key = value.toLowerCase();
+    const r = roleMap.get(key);
+    if (!r) roleMap.set(key, { value, count: g._count, top: g._count });
+    else {
+      r.count += g._count;
+      if (g._count > r.top) Object.assign(r, { value, top: g._count });
+    }
+  }
+  const roles = [...roleMap.values()]
+    .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value))
+    .map(({ value, count }) => ({ value, count }));
+
   const countByStatus = new Map<CandidateStatus, number>();
   for (const s of statusCounts) {
     const k = statusOf(s.status);
@@ -139,6 +169,10 @@ export default async function CandidatesPage({
             }))}
           />
         </div>
+      </div>
+
+      <div className="mt-3">
+        <AddFilter roles={roles} />
       </div>
 
       <div className="mt-4">

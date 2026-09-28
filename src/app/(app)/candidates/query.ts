@@ -2,6 +2,7 @@ import type { Candidate, Prisma } from "@/generated/prisma/client";
 import type { CandidateDetail } from "./candidate-dialog";
 import { CANDIDATE_STATUSES, type CandidateStatus } from "./statuses";
 import { formatNoteTime, parseNotes } from "./notes";
+import { createdRange } from "./created";
 
 // Shared by the list view, the board view and the board's "Load more" action.
 
@@ -13,6 +14,13 @@ export const MANUAL_SOURCE = "hcm";
 export type CandidateFilters = {
   q?: string;
   position?: string;
+  /** Exact job role (case-insensitive). */
+  role?: string;
+  /** Preset key from CREATED_PRESETS; ignored when from/to are set. */
+  created?: string;
+  /** Custom range, IST: "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM" (to is inclusive). */
+  from?: string;
+  to?: string;
 };
 
 /** Non-empty honeypot = bot submission; never shown. */
@@ -27,6 +35,10 @@ export function candidateWhere(
   and.push(...searchWhere(f.q));
   const position = POSITIONS.find((p) => p === f.position);
   if (position) and.push({ position });
+  const role = f.role?.trim();
+  if (role) and.push({ jobRole: { equals: role, mode: "insensitive" } });
+  const created = createdRange(f);
+  if (created) and.push({ createdAt: created });
   return and;
 }
 

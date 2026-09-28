@@ -91,6 +91,10 @@ export async function setCandidateStatus(
 const filtersSchema = z.object({
   q: z.string().max(200).optional(),
   position: z.string().max(50).optional(),
+  role: z.string().max(200).optional(),
+  created: z.string().max(10).optional(),
+  from: z.string().max(20).optional(),
+  to: z.string().max(20).optional(),
 });
 
 /** Next page of one board column, with the board's current filters. */
