@@ -77,12 +77,21 @@ function dateLabel(range: {
   return DATE_PRESETS[range.preset as DatePreset] ?? null;
 }
 
+/** Free-text search typed straight into the menu, e.g. ?q=. */
+export type SearchField = {
+  param: string;
+  /** What the search matches, shown under the "Search" row. */
+  hint?: string;
+};
+
 export function AddFilter({
   fields,
   date,
+  search,
 }: {
   fields: OptionField[];
   date: DateField;
+  search?: SearchField;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -118,9 +127,9 @@ export function AddFilter({
     requestAnimationFrame(() => inputRef.current?.focus());
   }
 
-  function openAt(next: Step) {
+  function openAt(next: Step, presetQuery = "") {
     setStep(next);
-    setQuery("");
+    setQuery(presetQuery);
     setHighlight(0);
     setOpen(true);
   }
@@ -208,6 +217,27 @@ export function AddFilter({
     ];
   }
   rows = rows.filter((row) => matches(row.text));
+  // Typing in the menu also offers a plain search, after any matching field.
+  const typed = query.trim();
+  if (search && step === "menu" && typed) {
+    rows.push({
+      key: "__search",
+      label: (
+        <span className="min-w-0">
+          <span className="block truncate">
+            Search <span className="font-medium">“{typed}”</span>
+          </span>
+          {search.hint && (
+            <span className="block truncate text-xs text-zinc-500">
+              {search.hint}
+            </span>
+          )}
+        </span>
+      ),
+      text: typed,
+      set: { [search.param]: typed },
+    });
+  }
   const active = Math.min(highlight, rows.length - 1);
 
   function choose(row: Row | undefined) {
@@ -267,6 +297,14 @@ export function AddFilter({
           Add Filter
         </Popover.Trigger>
 
+        {search && searchParams.get(search.param) && (
+          <Chip
+            field="Search"
+            value={searchParams.get(search.param)!}
+            onOpen={() => openAt("menu", searchParams.get(search.param)!)}
+            onClear={() => update({ [search.param]: null })}
+          />
+        )}
         {fields.map((optionField) => {
           const value = searchParams.get(optionField.param);
           if (!value) return null;
@@ -330,7 +368,13 @@ export function AddFilter({
                       setHighlight(0);
                     }}
                     onKeyDown={onKeyDown}
-                    placeholder={step === "menu" ? "Filter by…" : "Filter to…"}
+                    placeholder={
+                      step !== "menu"
+                        ? "Filter to…"
+                        : search
+                          ? "Search or filter by…"
+                          : "Filter by…"
+                    }
                     aria-label={step === "menu" ? "Filter by" : "Filter to"}
                     className="h-11 min-w-0 flex-1 bg-transparent px-3 outline-none placeholder:text-zinc-400"
                   />

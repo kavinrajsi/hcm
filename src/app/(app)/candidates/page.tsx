@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import { parseTableParams } from "@/lib/table-params";
-import { TableFilters } from "@/components/data-table/filters";
 import { AddFilter } from "@/components/data-table/add-filter";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
@@ -170,14 +169,11 @@ export default async function CandidatesPage({
         ))}
       </div>
 
-      {/* Phones: stacked. Desktop: search, filters and view in one row. */}
+      {/* Phones: stacked. Desktop: filters (incl. search) and view in one row. */}
       <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:items-center">
-        <TableFilters
-          dateFilters={false}
-          searchPlaceholder="Name, email, phone, role…"
-        />
         <div className="min-w-0 md:flex-1">
           <AddFilter
+            search={{ param: "q", hint: "Name, email, phone or role" }}
             fields={[
               // Board columns are the statuses, so no status filter there.
               ...(view === "list"
