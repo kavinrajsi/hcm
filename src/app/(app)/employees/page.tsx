@@ -40,6 +40,20 @@ const EMP_TYPE_LABELS: Record<string, string> = Object.fromEntries(
   EMP_TYPE_OPTIONS.map((option) => [option.value, option.label]),
 );
 
+/** Internship / contract end, or probation confirmation due. */
+function typeEnds(employee: {
+  empType: string;
+  empTypeEndsOn: Date | null;
+  probation: { dueDate: Date } | null;
+}): Date | null {
+  if (employee.empType === "PROBATION")
+    return employee.probation?.dueDate ?? null;
+  if (employee.empType === "INTERN" || employee.empType === "CONTRACT") {
+    return employee.empTypeEndsOn;
+  }
+  return null;
+}
+
 export default async function EmployeesPage({
   searchParams,
 }: PageProps<"/employees">) {
@@ -90,6 +104,8 @@ export default async function EmployeesPage({
           department: true,
           designation: true,
           empType: true,
+          empTypeEndsOn: true,
+          probation: { select: { dueDate: true } },
         },
       }),
       db.employee.count({ where }),
@@ -191,6 +207,9 @@ export default async function EmployeesPage({
                 <>
                   <span>{employee.empId}</span>
                   <span>Joined {formatDay(employee.dateOfJoining)}</span>
+                  {typeEnds(employee) && (
+                    <span>Ends {formatDay(typeEnds(employee))}</span>
+                  )}
                 </>
               }
             />
@@ -208,12 +227,13 @@ export default async function EmployeesPage({
               <TableHead>Department</TableHead>
               <TableHead>Designation</TableHead>
               <TableHead>Emp Type</TableHead>
+              <TableHead>Type ends</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {employees.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-zinc-500">
+                <TableCell colSpan={7} className="text-center text-zinc-500">
                   No employees found.
                 </TableCell>
               </TableRow>
@@ -233,6 +253,9 @@ export default async function EmployeesPage({
                 <TableCell>{employee.department}</TableCell>
                 <TableCell>{employee.designation}</TableCell>
                 <TableCell>{employee.empType}</TableCell>
+                <TableCell className="whitespace-nowrap">
+                  {formatDay(typeEnds(employee)) || "—"}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

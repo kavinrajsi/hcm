@@ -629,8 +629,20 @@ export async function updateEmployee(
     },
   });
 
+  // The onboarding log shows joining date, designation and type; keep it
+  // in step with the employee record.
+  await db.onboardingRecord.updateMany({
+    where: { employeeId },
+    data: {
+      joinDate,
+      designation: data.designation,
+      empType: data.empType,
+    },
+  });
+
   revalidatePath("/employees");
   revalidatePath(`/employees/${employeeId}`);
   revalidatePath("/probation");
+  revalidatePath("/onboarding");
   redirect(`/employees/${employeeId}`);
 }

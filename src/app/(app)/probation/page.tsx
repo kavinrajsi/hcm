@@ -56,7 +56,16 @@ export default async function ProbationPage({
     lt: new Date(Date.UTC(year, month, 1)),
   };
 
+  // Open probations only count while the employee is still on Probation;
+  // confirmed / exited records stay as history.
+  const current: Prisma.ProbationRecordWhereInput = {
+    OR: [
+      { status: { in: ["CONFIRMED", "EXITED"] } },
+      { employee: { empType: "PROBATION" } },
+    ],
+  };
   const where: Prisma.ProbationRecordWhereInput = {
+    ...current,
     dueDate: monthRange,
     ...(params.q
       ? { employee: { name: { contains: params.q, mode: "insensitive" } } }
@@ -81,15 +90,19 @@ export default async function ProbationPage({
       where: {
         dueDate: monthRange,
         status: { notIn: ["CONFIRMED", "EXITED"] },
+        employee: { empType: "PROBATION" },
       },
     }),
   ]);
 
-  const monthLabel = new Date(Date.UTC(year, month - 1)).toLocaleString("en-IN", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  const monthLabel = new Date(Date.UTC(year, month - 1)).toLocaleString(
+    "en-IN",
+    {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    },
+  );
 
   return (
     <PageShell>

@@ -48,6 +48,8 @@ export function resolveTypeEnd(
  * Employee update fields for the type's end date. Switching into Probation
  * reopens a confirmed or exited probation record; moving the date on an
  * ongoing probation only changes the due date (status and extensions stay).
+ * Moving from Probation to Permanent confirms an open probation, like the
+ * Confirm button on /probation.
  */
 export function typeEndUpdateData({
   empType,
@@ -63,7 +65,19 @@ export function typeEndUpdateData({
   if (empType === "INTERN" || empType === "CONTRACT") {
     return { empTypeEndsOn: endDate };
   }
-  if (empType === "PERMANENT") return { empTypeEndsOn: null };
+  if (empType === "PERMANENT") {
+    const confirm =
+      previousType === "PROBATION" &&
+      (probation?.status === "PENDING" || probation?.status === "EXTENDED");
+    return confirm
+      ? {
+          empTypeEndsOn: null,
+          probation: {
+            update: { status: "CONFIRMED", confirmedAt: new Date() },
+          },
+        }
+      : { empTypeEndsOn: null };
+  }
 
   if (!probation) {
     return { empTypeEndsOn: null, probation: { create: { dueDate: endDate } } };

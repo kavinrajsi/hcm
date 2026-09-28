@@ -54,6 +54,18 @@ describe("typeEndUpdateData", () => {
     ).toEqual({ empTypeEndsOn: endDate });
   });
 
+  it("confirms an open probation when made permanent", () => {
+    const update = typeEndUpdateData({
+      empType: "PERMANENT",
+      previousType: "PROBATION",
+      endDate,
+      probation: { status: "PENDING" },
+    });
+    expect(update.probation).toEqual({
+      update: { status: "CONFIRMED", confirmedAt: expect.any(Date) },
+    });
+  });
+
   it("clears the end date for permanent employees", () => {
     expect(
       typeEndUpdateData({
