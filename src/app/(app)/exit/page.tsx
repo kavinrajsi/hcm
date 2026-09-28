@@ -23,6 +23,7 @@ import {
 import { ExitForm } from "./exit-form";
 import type { Prisma } from "@/generated/prisma/client";
 import { formatDay } from "@/lib/format-date";
+import { EmployeeAvatar } from "@/components/employee-avatar";
 
 export const metadata = { title: "Exit / Offboarding" };
 
@@ -59,6 +60,7 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
         id: true,
         empId: true,
         name: true,
+        avatarBlobKey: true,
         dateOfJoining: true,
         dateOfExit: true,
         designation: true,
@@ -93,6 +95,12 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
             <ListCard
               key={exitedEmployee.id}
               href={`/employees/${exitedEmployee.id}`}
+              leading={
+                <EmployeeAvatar
+                  name={exitedEmployee.name}
+                  avatarKey={exitedEmployee.avatarBlobKey}
+                />
+              }
               title={exitedEmployee.name}
               subtitle={exitedEmployee.designation}
               badge={
@@ -143,7 +151,15 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
                     {exitedEmployee.empId}
                   </Link>
                 </TableCell>
-                <TableCell>{exitedEmployee.name}</TableCell>
+                <TableCell>
+                  <span className="flex items-center gap-2.5">
+                    <EmployeeAvatar
+                      name={exitedEmployee.name}
+                      avatarKey={exitedEmployee.avatarBlobKey}
+                    />
+                    {exitedEmployee.name}
+                  </span>
+                </TableCell>
                 <TableCell>{formatDay(exitedEmployee.dateOfJoining)}</TableCell>
                 <TableCell>{formatDay(exitedEmployee.dateOfExit)}</TableCell>
                 <TableCell>{exitedEmployee.designation}</TableCell>

@@ -13,6 +13,7 @@ import { PageHeader, PageShell } from "@/components/page";
 import { Segmented } from "@/components/segmented";
 import { cn } from "@/lib/utils";
 import type { Prisma } from "@/generated/prisma/client";
+import { EmployeeAvatar } from "@/components/employee-avatar";
 
 export const metadata = { title: "Birthdays & Anniversaries" };
 
@@ -68,6 +69,7 @@ export default async function BirthdaysPage({
       name: true,
       department: true,
       dateOfJoining: true,
+      avatarBlobKey: true,
       ...PII_SELECT,
     },
   });
@@ -186,6 +188,14 @@ export default async function BirthdaysPage({
           events={events}
           today={today}
           canOpenEmployee={canOpenEmployee}
+          avatars={
+            new Map(
+              employees.map((employee) => [
+                employee.id,
+                employee.avatarBlobKey,
+              ]),
+            )
+          }
         />
       ) : (
         <CalendarView
@@ -223,10 +233,13 @@ function ListView({
   events,
   today,
   canOpenEmployee,
+  avatars,
 }: {
   events: Celebration[];
   today: string;
   canOpenEmployee: boolean;
+  /** Employee id → Basecamp picture. */
+  avatars: Map<string, string | null>;
 }) {
   if (events.length === 0) {
     return (
@@ -269,15 +282,21 @@ function ListView({
                     isToday && "border-emerald-300 dark:border-emerald-500/40",
                   )}
                 >
-                  <div className="min-w-0">
-                    <Name
-                      celebration={celebration}
-                      canOpenEmployee={canOpenEmployee}
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <EmployeeAvatar
+                      name={celebration.employee.name}
+                      avatarKey={avatars.get(celebration.employee.id)}
                     />
-                    <p className="text-xs text-zinc-500">
-                      {celebration.employee.empId} ·{" "}
-                      {celebration.employee.department}
-                    </p>
+                    <div className="min-w-0">
+                      <Name
+                        celebration={celebration}
+                        canOpenEmployee={canOpenEmployee}
+                      />
+                      <p className="text-xs text-zinc-500">
+                        {celebration.employee.empId} ·{" "}
+                        {celebration.employee.department}
+                      </p>
+                    </div>
                   </div>
                   <span
                     className={cn(

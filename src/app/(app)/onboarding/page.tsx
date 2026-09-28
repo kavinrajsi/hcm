@@ -22,6 +22,7 @@ import {
 } from "@/components/page";
 import type { Prisma } from "@/generated/prisma/client";
 import { formatDay } from "@/lib/format-date";
+import { EmployeeAvatar } from "@/components/employee-avatar";
 
 export const metadata = { title: "Onboarding" };
 
@@ -58,7 +59,9 @@ export default async function OnboardingPage({
       skip: params.skip,
       take: params.take,
       include: {
-        employee: { select: { id: true, empId: true, name: true } },
+        employee: {
+          select: { id: true, empId: true, name: true, avatarBlobKey: true },
+        },
       },
     }),
     db.onboardingRecord.count({ where }),
@@ -88,6 +91,12 @@ export default async function OnboardingPage({
             <ListCard
               key={record.id}
               href={`/employees/${record.employee.id}`}
+              leading={
+                <EmployeeAvatar
+                  name={record.employee.name}
+                  avatarKey={record.employee.avatarBlobKey}
+                />
+              }
               title={record.employee.name}
               subtitle={record.designation}
               badge={
@@ -135,7 +144,15 @@ export default async function OnboardingPage({
                     {record.employee.empId}
                   </Link>
                 </TableCell>
-                <TableCell>{record.employee.name}</TableCell>
+                <TableCell>
+                  <span className="flex items-center gap-2.5">
+                    <EmployeeAvatar
+                      name={record.employee.name}
+                      avatarKey={record.employee.avatarBlobKey}
+                    />
+                    {record.employee.name}
+                  </span>
+                </TableCell>
                 <TableCell>{formatDay(record.joinDate)}</TableCell>
                 <TableCell>{record.designation}</TableCell>
                 <TableCell>{record.empType}</TableCell>

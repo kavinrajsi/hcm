@@ -23,6 +23,7 @@ import { ID_CARD_STATUSES } from "@/lib/id-card-status";
 import { IdCardStatusSelect } from "./status-select";
 import type { Prisma } from "@/generated/prisma/client";
 import { formatInstantDay } from "@/lib/format-date";
+import { EmployeeAvatar } from "@/components/employee-avatar";
 
 export const metadata = { title: "ID Cards" };
 
@@ -53,7 +54,13 @@ export default async function IdCardsPage({
       take: params.take,
       include: {
         employee: {
-          select: { id: true, empId: true, name: true, department: true },
+          select: {
+            id: true,
+            empId: true,
+            name: true,
+            department: true,
+            avatarBlobKey: true,
+          },
         },
       },
     }),
@@ -77,6 +84,12 @@ export default async function IdCardsPage({
             <ListCard
               key={card.id}
               href={`/employees/${card.employee.id}`}
+              leading={
+                <EmployeeAvatar
+                  name={card.employee.name}
+                  avatarKey={card.employee.avatarBlobKey}
+                />
+              }
               title={card.employee.name}
               subtitle={card.employee.department}
               meta={
@@ -123,7 +136,15 @@ export default async function IdCardsPage({
                     {card.employee.empId}
                   </Link>
                 </TableCell>
-                <TableCell>{card.employee.name}</TableCell>
+                <TableCell>
+                  <span className="flex items-center gap-2.5">
+                    <EmployeeAvatar
+                      name={card.employee.name}
+                      avatarKey={card.employee.avatarBlobKey}
+                    />
+                    {card.employee.name}
+                  </span>
+                </TableCell>
                 <TableCell>{card.employee.department}</TableCell>
                 <TableCell>
                   <IdCardStatusSelect id={card.id} status={card.status} />

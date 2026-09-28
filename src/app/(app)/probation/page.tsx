@@ -23,6 +23,7 @@ import {
 import { ProbationRowActions } from "./probation-row-actions";
 import type { Prisma } from "@/generated/prisma/client";
 import { formatDay } from "@/lib/format-date";
+import { EmployeeAvatar } from "@/components/employee-avatar";
 
 export const metadata = { title: "Probation & Confirmation" };
 
@@ -81,7 +82,13 @@ export default async function ProbationPage({
       take: params.take,
       include: {
         employee: {
-          select: { id: true, empId: true, name: true, department: true },
+          select: {
+            id: true,
+            empId: true,
+            name: true,
+            department: true,
+            avatarBlobKey: true,
+          },
         },
       },
     }),
@@ -135,6 +142,12 @@ export default async function ProbationPage({
             <ListCard
               key={record.id}
               href={`/employees/${record.employee.id}`}
+              leading={
+                <EmployeeAvatar
+                  name={record.employee.name}
+                  avatarKey={record.employee.avatarBlobKey}
+                />
+              }
               title={record.employee.name}
               subtitle={record.employee.department}
               badge={
@@ -190,7 +203,15 @@ export default async function ProbationPage({
                     {record.employee.empId}
                   </Link>
                 </TableCell>
-                <TableCell>{record.employee.name}</TableCell>
+                <TableCell>
+                  <span className="flex items-center gap-2.5">
+                    <EmployeeAvatar
+                      name={record.employee.name}
+                      avatarKey={record.employee.avatarBlobKey}
+                    />
+                    {record.employee.name}
+                  </span>
+                </TableCell>
                 <TableCell>{record.employee.department}</TableCell>
                 <TableCell>{formatDay(record.dueDate)}</TableCell>
                 <TableCell>
