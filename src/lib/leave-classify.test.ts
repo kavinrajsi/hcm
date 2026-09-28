@@ -12,8 +12,10 @@ vi.mock("@/lib/ai-usage", async (importOriginal) => ({
   recordAiUsage,
 }));
 vi.mock("@/lib/db", () => ({ db: {} }));
+const jevLeaveTypes = vi.hoisted(() => vi.fn(async () => null));
+vi.mock("@/lib/leave-type-jev", () => ({ jevLeaveTypes }));
 
-const { classifyLeavePosts } = await import("./leave-classify");
+const { applyJevType, classifyLeavePosts } = await import("./leave-classify");
 
 const post = {
   id: "a",
@@ -67,5 +69,35 @@ describe("classifyLeavePosts usage logging", () => {
     expect(await classifyLeavePosts([])).toEqual([]);
     expect(generateText).not.toHaveBeenCalled();
     expect(recordAiUsage).not.toHaveBeenCalled();
+  });
+});
+
+describe("Jev leave type", () => {
+  const full = { ...item, type: "FULL_DAY" as const, days: 2 };
+
+  it("keeps the language model's answer when Jev agrees or has none", () => {
+    expect(applyJevType(full, undefined)).toBe(full);
+    expect(applyJevType(full, "FULL_DAY")).toBe(full);
+  });
+
+  it("takes Jev's type and fixes days to match", () => {
+    expect(applyJevType(full, "HALF_DAY")).toMatchObject({
+      type: "HALF_DAY",
+      days: 0.5,
+    });
+    expect(applyJevType(full, "WFH")).toMatchObject({ type: "WFH", days: 0 });
+    expect(
+      applyJevType({ ...item, type: "WFH", days: 0 }, "FULL_DAY"),
+    ).toMatchObject({ type: "FULL_DAY", days: 1 });
+  });
+
+  it("overrides the type in classifyLeavePosts", async () => {
+    generateText.mockResolvedValue({
+      output: { items: [item] },
+      usage: { inputTokens: 1, outputTokens: 1 },
+    });
+    jevLeaveTypes.mockResolvedValueOnce(new Map([["a", "HALF_DAY"]]) as never);
+    const [out] = await classifyLeavePosts([post]);
+    expect(out).toMatchObject({ type: "HALF_DAY", days: 0.5 });
   });
 });

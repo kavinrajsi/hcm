@@ -2,6 +2,8 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { LEAVE_TYPES } from "@/lib/leave";
 import { gatewayCost, recordAiUsage, type AiTrigger } from "@/lib/ai-usage";
+import { jevLeaveTypes } from "@/lib/leave-type-jev";
+import type { LeaveTypeValue } from "@/lib/leave";
 
 // Classifies free-text leave posts via Vercel AI Gateway. Auth comes from
 // AI_GATEWAY_API_KEY or the Vercel OIDC token (VERCEL_OIDC_TOKEN).
@@ -56,6 +58,25 @@ days = number of working days actually absent, NOT the span between dates:
 "23rd Sep and 16th Oct" is 2 days; "Mon to Wed" is 3 days.
 Return one item per post, using the same id.`;
 
+/**
+ * Takes Jev's type over the language model's when they disagree, keeping
+ * days consistent with it: half day 0.5, late/early/WFH/other 0, and a
+ * full day at least 1.
+ */
+export function applyJevType(
+  item: LeaveClassification,
+  jevType: LeaveTypeValue | undefined,
+): LeaveClassification {
+  if (!jevType || jevType === item.type) return item;
+  const days =
+    jevType === "FULL_DAY"
+      ? Math.max(1, item.type === "FULL_DAY" ? item.days : 1)
+      : jevType === "HALF_DAY"
+        ? 0.5
+        : 0;
+  return { ...item, type: jevType, days };
+}
+
 export async function classifyLeavePosts(
   posts: LeavePost[],
   trigger?: AiTrigger,
@@ -67,6 +88,8 @@ export async function classifyLeavePosts(
     model: MODEL,
     items: posts.length,
   };
+  // Jev (type only) runs alongside; it never fails the classification.
+  const jevTypes = jevLeaveTypes(posts, trigger);
   let result;
   try {
     result = await generateText({
@@ -77,6 +100,7 @@ export async function classifyLeavePosts(
       prompt: JSON.stringify(posts),
     });
   } catch (error) {
+    await jevTypes;
     await recordAiUsage({ ...usage, ok: false });
     throw error;
   }
@@ -88,5 +112,8 @@ export async function classifyLeavePosts(
   });
   const { output } = result;
   const ids = new Set(posts.map((post) => post.id));
-  return output.items.filter((item) => ids.has(item.id));
+  const types = await jevTypes;
+  return output.items
+    .filter((item) => ids.has(item.id))
+    .map((item) => applyJevType(item, types?.get(item.id)));
 }
