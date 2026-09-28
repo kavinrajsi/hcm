@@ -16,6 +16,7 @@ import {
   PageHeader,
   PageShell,
 } from "@/components/page";
+import { formatDay } from "@/lib/format-date";
 
 export const metadata = { title: "Review Meetings" };
 
@@ -53,7 +54,7 @@ export default async function ReviewsPage() {
               meta={
                 <>
                   <span>{meeting.employee.empId}</span>
-                  <span>{meeting.date.toISOString().slice(0, 10)}</span>
+                  <span>{formatDay(meeting.date)}</span>
                 </>
               }
             />
@@ -89,9 +90,7 @@ export default async function ReviewsPage() {
                       {meeting.employee.name}
                     </Link>
                   </TableCell>
-                  <TableCell>
-                    {meeting.date.toISOString().slice(0, 10)}
-                  </TableCell>
+                  <TableCell>{formatDay(meeting.date)}</TableCell>
                   <TableCell>{meeting.notes ?? "—"}</TableCell>
                 </TableRow>
               ))}

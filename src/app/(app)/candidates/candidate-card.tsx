@@ -5,6 +5,7 @@ import { ListCard } from "@/components/list-card";
 import { cn } from "@/lib/utils";
 import { CandidateDialog, type CandidateDetail } from "./candidate-dialog";
 import { CANDIDATE_STATUS_CLASSES, type CandidateStatus } from "./statuses";
+import { formatDay } from "@/lib/format-date";
 
 /** Phone list row; tapping opens the same details drawer as "View". */
 export function CandidateCard({ candidate }: { candidate: CandidateDetail }) {
@@ -29,7 +30,9 @@ export function CandidateCard({ candidate }: { candidate: CandidateDetail }) {
         meta={
           <>
             {candidate.position && <span>{candidate.position}</span>}
-            <span className="tabular-nums">{candidate.appliedOn}</span>
+            <span className="tabular-nums">
+              {formatDay(candidate.appliedOn)}
+            </span>
             {candidate.resumeHref && <span>Resume</span>}
           </>
         }

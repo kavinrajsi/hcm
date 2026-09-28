@@ -37,6 +37,7 @@ import type { CandidateNote } from "./notes";
 import { StatusHistory } from "./status-history";
 import { ConvertToEmployee } from "./convert-to-employee";
 import { CANDIDATE_STATUSES } from "./statuses";
+import { formatDay } from "@/lib/format-date";
 
 export type CandidateDetail = {
   id: string;
@@ -218,7 +219,7 @@ export function CandidateDialog({
           <SheetTitle>{candidate.name}</SheetTitle>
           <SheetDescription>
             {candidate.jobRole ?? "—"} · {candidate.position ?? "—"} · applied{" "}
-            {candidate.appliedOn}
+            {formatDay(candidate.appliedOn)}
           </SheetDescription>
         </SheetHeader>
 

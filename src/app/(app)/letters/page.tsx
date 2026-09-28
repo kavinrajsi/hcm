@@ -18,6 +18,7 @@ import {
 import { ListCard } from "@/components/list-card";
 import { CollapsibleForm } from "@/components/collapsible-form";
 import { LetterComposer } from "./letter-composer";
+import { formatInstantDay } from "@/lib/format-date";
 
 export const metadata = { title: "Letters" };
 
@@ -67,9 +68,7 @@ export default async function LettersPage() {
               meta={
                 <>
                   <span className="tabular-nums">
-                    {letter.sentAt
-                      ? letter.sentAt.toISOString().slice(0, 10)
-                      : "draft"}
+                    {letter.sentAt ? formatInstantDay(letter.sentAt) : "draft"}
                   </span>
                   <span className="break-all">{letter.sentTo ?? "—"}</span>
                 </>
@@ -111,9 +110,7 @@ export default async function LettersPage() {
                     {letter.subject}
                   </TableCell>
                   <TableCell>
-                    {letter.sentAt
-                      ? letter.sentAt.toISOString().slice(0, 10)
-                      : "draft"}
+                    {letter.sentAt ? formatInstantDay(letter.sentAt) : "draft"}
                   </TableCell>
                   <TableCell>{letter.sentTo ?? "—"}</TableCell>
                 </TableRow>

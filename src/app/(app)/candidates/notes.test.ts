@@ -23,12 +23,12 @@ describe("candidate notes", () => {
     expect(parseNotes("  ")).toEqual([]);
   });
 
-  it("formats in IST like 10 Jun 2026 at 11:44 am", () => {
+  it("formats in IST like 10/06/2026, 11:44 am", () => {
     expect(formatNoteTime("2026-06-10T06:14:02.221Z")).toBe(
-      "10 Jun 2026 at 11:44 am",
+      "10/06/2026, 11:44 am",
     );
     expect(formatNoteTime("2026-06-10T12:05:00Z")).toBe(
-      "10 Jun 2026 at 5:35 pm",
+      "10/06/2026, 5:35 pm",
     );
     expect(formatNoteTime(null)).toBeNull();
   });

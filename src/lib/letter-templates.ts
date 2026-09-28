@@ -1,3 +1,5 @@
+import { formatDay } from "@/lib/format-date";
+
 // Editable starting templates for Letters. Placeholders are replaced with
 // employee data at generation time; HR edits the result before sending.
 
@@ -45,8 +47,5 @@ export function fillTemplate(
     .replaceAll("{{empId}}", employee.empId)
     .replaceAll("{{designation}}", employee.designation)
     .replaceAll("{{department}}", employee.department)
-    .replaceAll(
-      "{{dateOfJoining}}",
-      employee.dateOfJoining.toISOString().slice(0, 10),
-    );
+    .replaceAll("{{dateOfJoining}}", formatDay(employee.dateOfJoining));
 }

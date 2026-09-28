@@ -26,6 +26,7 @@ import { BulkImportForm } from "@/components/bulk-import-form";
 import { EMPLOYEE_IMPORT_COLUMNS } from "@/lib/import-columns";
 import { importEmployees } from "./actions";
 import type { Prisma } from "@/generated/prisma/client";
+import { formatDay } from "@/lib/format-date";
 
 export const metadata = { title: "Employees" };
 
@@ -189,9 +190,7 @@ export default async function EmployeesPage({
               meta={
                 <>
                   <span>{employee.empId}</span>
-                  <span>
-                    Joined {employee.dateOfJoining.toISOString().slice(0, 10)}
-                  </span>
+                  <span>Joined {formatDay(employee.dateOfJoining)}</span>
                 </>
               }
             />
@@ -230,9 +229,7 @@ export default async function EmployeesPage({
                   </Link>
                 </TableCell>
                 <TableCell>{employee.name}</TableCell>
-                <TableCell>
-                  {employee.dateOfJoining.toISOString().slice(0, 10)}
-                </TableCell>
+                <TableCell>{formatDay(employee.dateOfJoining)}</TableCell>
                 <TableCell>{employee.department}</TableCell>
                 <TableCell>{employee.designation}</TableCell>
                 <TableCell>{employee.empType}</TableCell>

@@ -26,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatDateTime } from "@/lib/format-date";
 
 export const metadata = { title: "AI usage" };
 
@@ -47,14 +48,7 @@ const shortDay = (day: string) =>
     month: "short",
     timeZone: "UTC",
   });
-const when = (date: Date) =>
-  date.toLocaleString("en-IN", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Asia/Kolkata",
-  });
+const when = (date: Date) => formatDateTime(date);
 
 /** Remaining AI Gateway credit for the Vercel team; null if unavailable. */
 async function gatewayBalance(): Promise<number | null> {

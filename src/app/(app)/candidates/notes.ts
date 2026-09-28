@@ -1,3 +1,5 @@
+import { formatDateTime } from "@/lib/format-date";
+
 // candidates.notes holds a JSON log written by the previous (Supabase) app:
 // [{ "id": "<ms epoch>", "text": "…", "timestamp": "<ISO>" }]. Keep writing
 // the same shape so both apps can read it. Plain text is tolerated as one
@@ -52,23 +54,10 @@ export function removeNote(raw: string | null, noteId: string): string | null {
   return notes.length ? JSON.stringify(notes) : null;
 }
 
-/** "10 Jun 2026 at 11:44 am" in Asia/Kolkata. */
+/** "10/06/2026, 11:44 am" in Asia/Kolkata. */
 export function formatNoteTime(iso: string | null): string | null {
   if (!iso) return null;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return null;
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Asia/Kolkata",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    })
-      .formatToParts(date)
-      .map((part) => [part.type, part.value]),
-  );
-  return `${parts.day} ${parts.month} ${parts.year} at ${parts.hour}:${parts.minute} ${String(parts.dayPeriod).toLowerCase()}`;
+  return formatDateTime(date);
 }

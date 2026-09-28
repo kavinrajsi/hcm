@@ -22,6 +22,7 @@ import {
 } from "@/components/page";
 import { ExitForm } from "./exit-form";
 import type { Prisma } from "@/generated/prisma/client";
+import { formatDay } from "@/lib/format-date";
 
 export const metadata = { title: "Exit / Offboarding" };
 
@@ -103,14 +104,8 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
               meta={
                 <>
                   <span>{exitedEmployee.empId}</span>
-                  <span>
-                    Joined{" "}
-                    {exitedEmployee.dateOfJoining.toISOString().slice(0, 10)}
-                  </span>
-                  <span>
-                    Exited{" "}
-                    {exitedEmployee.dateOfExit?.toISOString().slice(0, 10)}
-                  </span>
+                  <span>Joined {formatDay(exitedEmployee.dateOfJoining)}</span>
+                  <span>Exited {formatDay(exitedEmployee.dateOfExit)}</span>
                 </>
               }
             />
@@ -149,12 +144,8 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
                   </Link>
                 </TableCell>
                 <TableCell>{exitedEmployee.name}</TableCell>
-                <TableCell>
-                  {exitedEmployee.dateOfJoining.toISOString().slice(0, 10)}
-                </TableCell>
-                <TableCell>
-                  {exitedEmployee.dateOfExit?.toISOString().slice(0, 10)}
-                </TableCell>
+                <TableCell>{formatDay(exitedEmployee.dateOfJoining)}</TableCell>
+                <TableCell>{formatDay(exitedEmployee.dateOfExit)}</TableCell>
                 <TableCell>{exitedEmployee.designation}</TableCell>
                 <TableCell>{exitedEmployee.empType}</TableCell>
               </TableRow>

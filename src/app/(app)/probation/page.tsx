@@ -22,6 +22,7 @@ import {
 } from "@/components/page";
 import { ProbationRowActions } from "./probation-row-actions";
 import type { Prisma } from "@/generated/prisma/client";
+import { formatDay } from "@/lib/format-date";
 
 export const metadata = { title: "Probation & Confirmation" };
 
@@ -84,7 +85,7 @@ export default async function ProbationPage({
     }),
   ]);
 
-  const monthLabel = new Date(Date.UTC(year, month - 1)).toLocaleString("en", {
+  const monthLabel = new Date(Date.UTC(year, month - 1)).toLocaleString("en-IN", {
     month: "long",
     year: "numeric",
     timeZone: "UTC",
@@ -131,7 +132,7 @@ export default async function ProbationPage({
               meta={
                 <>
                   <span>{record.employee.empId}</span>
-                  <span>Due {record.dueDate.toISOString().slice(0, 10)}</span>
+                  <span>Due {formatDay(record.dueDate)}</span>
                   {record.notes && <span>{record.notes}</span>}
                 </>
               }
@@ -178,9 +179,7 @@ export default async function ProbationPage({
                 </TableCell>
                 <TableCell>{record.employee.name}</TableCell>
                 <TableCell>{record.employee.department}</TableCell>
-                <TableCell>
-                  {record.dueDate.toISOString().slice(0, 10)}
-                </TableCell>
+                <TableCell>{formatDay(record.dueDate)}</TableCell>
                 <TableCell>
                   <Badge variant={badgeVariant[record.status]}>
                     {record.status}

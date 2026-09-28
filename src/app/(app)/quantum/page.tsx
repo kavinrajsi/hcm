@@ -32,6 +32,7 @@ import { deleteQuantumEntry, importQuantumEntries } from "./actions";
 import { BulkImportForm } from "@/components/bulk-import-form";
 import { QUANTUM_IMPORT_COLUMNS } from "@/lib/import-columns";
 import type { Prisma } from "@/generated/prisma/client";
+import { formatDay } from "@/lib/format-date";
 
 export const metadata = { title: "Quantum Sheet" };
 
@@ -165,7 +166,7 @@ export default async function QuantumPage({
                   {formatDuration(entry.durationMins)}
                 </span>
               }
-              meta={<span>{entry.date.toISOString().slice(0, 10)}</span>}
+              meta={<span>{formatDay(entry.date)}</span>}
               actions={
                 <>
                   {entry.link && (
@@ -234,7 +235,7 @@ export default async function QuantumPage({
                     {entry.employee.name}
                   </Link>
                 </TableCell>
-                <TableCell>{entry.date.toISOString().slice(0, 10)}</TableCell>
+                <TableCell>{formatDay(entry.date)}</TableCell>
                 <TableCell>{entry.brand}</TableCell>
                 <TableCell>
                   {entry.workName}

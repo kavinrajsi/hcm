@@ -25,6 +25,7 @@ import { ContactForm } from "./contact-form";
 import { QuantumEntryForm } from "../quantum/quantum-entry-form";
 import { LEAVE_TYPE_LABELS } from "@/lib/leave";
 import { NameForm, PasswordForm } from "./profile-forms";
+import { formatDateTime, formatDay, formatInstantDay } from "@/lib/format-date";
 
 export const metadata = { title: "My Profile" };
 
@@ -50,7 +51,7 @@ function AccountSection({ account }: { account: Account }) {
             <CardDescription>
               {account.email} ·{" "}
               <Badge variant="secondary">{account.role}</Badge> · member since{" "}
-              {account.createdAt.toISOString().slice(0, 10)}
+              {formatInstantDay(account.createdAt)}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -166,15 +167,14 @@ export default async function ProfilePage() {
         <div>
           <dt className="text-zinc-500">Joined</dt>
           <dd className="mt-0.5 font-medium">
-            {employee.dateOfJoining.toISOString().slice(0, 10)} ·{" "}
-            {employee.empType}
+            {formatDay(employee.dateOfJoining)} · {employee.empType}
           </dd>
         </div>
         <div>
           <dt className="text-zinc-500">Probation</dt>
           <dd className="mt-0.5 font-medium">
             {employee.probation
-              ? `${employee.probation.status} · due ${employee.probation.dueDate.toISOString().slice(0, 10)}`
+              ? `${employee.probation.status} · due ${formatDay(employee.probation.dueDate)}`
               : "—"}
           </dd>
         </div>
@@ -250,7 +250,7 @@ export default async function ProfilePage() {
             )}
             {employee.quantumEntries.map((entry) => (
               <TableRow key={entry.id}>
-                <TableCell>{entry.date.toISOString().slice(0, 10)}</TableCell>
+                <TableCell>{formatDay(entry.date)}</TableCell>
                 <TableCell>{entry.brand}</TableCell>
                 <TableCell>{entry.workName}</TableCell>
                 <TableCell>
@@ -285,9 +285,9 @@ export default async function ProfilePage() {
             <span className="font-medium">
               {leave.type ? LEAVE_TYPE_LABELS[leave.type] : "Pending"}
             </span>{" "}
-            · {(leave.startDate ?? leave.postedOn).toISOString().slice(0, 10)}
+            · {formatDay(leave.startDate ?? leave.postedOn)}
             {leave.endDate && leave.startDate && leave.endDate > leave.startDate
-              ? ` → ${leave.endDate.toISOString().slice(0, 10)}`
+              ? ` → ${formatDay(leave.endDate)}`
               : ""}
             {leave.reason ? ` · ${leave.reason}` : ""}
             <span
@@ -318,12 +318,7 @@ export default async function ProfilePage() {
                 className="rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800"
               >
                 <span className="font-medium">{session.name}</span> ·{" "}
-                {session.date.toLocaleString("en-IN", {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                  timeZone: "Asia/Kolkata",
-                })}{" "}
-                · {session.trainer}
+                {formatDateTime(session.date)} · {session.trainer}
               </li>
             ))}
           </ul>
@@ -340,7 +335,7 @@ export default async function ProfilePage() {
                 className="rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800"
               >
                 <span className="font-medium">{record.sessionName}</span> ·{" "}
-                {record.date.toISOString().slice(0, 10)} ·{" "}
+                {formatDay(record.date)} ·{" "}
                 {record.attended ? "attended" : "missed"}
               </li>
             ))}

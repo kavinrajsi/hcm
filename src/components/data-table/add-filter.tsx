@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDay } from "@/lib/format-date";
 import { DATE_PRESETS, type DatePreset } from "@/lib/date-filter";
 
 // Vercel-style "Add Filter" menu: pick a field (option lists plus one date
@@ -40,20 +41,6 @@ type Step = string;
 const DATE_STEP = "__date";
 const CUSTOM_STEP = "__custom";
 
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
 const IST_MS = 330 * 60_000;
 
 /** Today in IST, "YYYY-MM-DD". */
@@ -67,12 +54,10 @@ function shiftDay(day: string, by: number) {
     .slice(0, 10);
 }
 
-/** "Sep 28" (plus the year when it isn't this year), "Sep 28 09:30" if timed. */
+/** "28/09/2026", or "28/09/2026 09:30" when timed. */
 function formatPoint(value: string, withTime: boolean) {
   const [date, time] = value.split("T");
-  const [yearNum, monthNum, dayNum] = date.split("-").map(Number);
-  const year = String(yearNum) === istToday().slice(0, 4) ? "" : `, ${yearNum}`;
-  return `${MONTHS[monthNum - 1]} ${dayNum}${year}${withTime && time ? ` ${time}` : ""}`;
+  return `${formatDay(date)}${withTime && time ? ` ${time}` : ""}`;
 }
 
 function dateLabel(range: {
@@ -512,7 +497,7 @@ function CustomRange({
     >
       <div className="mb-2 flex items-center justify-between">
         <span className="font-medium">
-          {new Date(Date.UTC(year, monthNum - 1, 1)).toLocaleString("en-US", {
+          {new Date(Date.UTC(year, monthNum - 1, 1)).toLocaleString("en-IN", {
             month: "long",
             year: "numeric",
             timeZone: "UTC",

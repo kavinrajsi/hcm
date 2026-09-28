@@ -25,6 +25,7 @@ import { importAttendance } from "../actions";
 import { BulkImportForm } from "@/components/bulk-import-form";
 import { ATTENDANCE_IMPORT_COLUMNS } from "@/lib/import-columns";
 import type { Prisma } from "@/generated/prisma/client";
+import { formatDay } from "@/lib/format-date";
 
 export const metadata = { title: "Session Attended" };
 
@@ -140,7 +141,7 @@ export default async function SessionAttendedPage({
               }
               meta={
                 <>
-                  <span>{record.date.toISOString().slice(0, 10)}</span>
+                  <span>{formatDay(record.date)}</span>
                   {record.trainer && <span>{record.trainer}</span>}
                 </>
               }
@@ -180,7 +181,7 @@ export default async function SessionAttendedPage({
                   </Link>
                 </TableCell>
                 <TableCell>{record.sessionName}</TableCell>
-                <TableCell>{record.date.toISOString().slice(0, 10)}</TableCell>
+                <TableCell>{formatDay(record.date)}</TableCell>
                 <TableCell>{record.attended ? "Yes" : "No"}</TableCell>
                 <TableCell>{record.trainer ?? "—"}</TableCell>
                 <TableCell className="max-w-56 truncate">

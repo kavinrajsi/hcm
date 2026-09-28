@@ -52,6 +52,7 @@ import {
 import { LeaveDayStrip, type StripDay } from "./leave-day-strip";
 import { cn } from "@/lib/utils";
 import type { Prisma } from "@/generated/prisma/client";
+import { formatDay, formatInstantDay } from "@/lib/format-date";
 
 export const metadata = { title: "Leave" };
 
@@ -80,9 +81,9 @@ function day(date: Date | null): string {
 function formatDates(start: string, end: string, postedOn: Date): string {
   return start
     ? end && end !== start
-      ? `${start} → ${end}`
-      : start
-    : day(postedOn);
+      ? `${formatDay(start)} → ${formatDay(end)}`
+      : formatDay(start)
+    : formatDay(postedOn);
 }
 
 function editEntry(
@@ -725,7 +726,7 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
                               )}
                               title={
                                 leaveEntry.reviewedBy && leaveEntry.reviewedAt
-                                  ? `${STATUS_LABELS[leaveEntry.status]} by ${leaveEntry.reviewedBy.name ?? leaveEntry.reviewedBy.email} on ${day(leaveEntry.reviewedAt)}`
+                                  ? `${STATUS_LABELS[leaveEntry.status]} by ${leaveEntry.reviewedBy.name ?? leaveEntry.reviewedBy.email} on ${formatInstantDay(leaveEntry.reviewedAt)}`
                                   : undefined
                               }
                             >

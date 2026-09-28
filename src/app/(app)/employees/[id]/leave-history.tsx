@@ -23,6 +23,7 @@ import {
   type HistoryEntry,
 } from "@/lib/leave-history";
 import { cn } from "@/lib/utils";
+import { formatDay } from "@/lib/format-date";
 
 // Employee page: every Basecamp leave post for this employee, by year, with
 // the same "leave days" rule as the Leave page. Read-only — corrections are
@@ -35,7 +36,7 @@ export type LeaveHistoryRow = HistoryEntry & {
   reviewedBy: string | null;
 };
 
-const day = (date: Date) => date.toISOString().slice(0, 10);
+const day = (date: Date) => formatDay(date);
 
 function dates(entry: LeaveHistoryRow) {
   const start = entry.startDate ?? entry.postedOn;

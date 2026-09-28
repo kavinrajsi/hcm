@@ -21,6 +21,7 @@ import {
   PageShell,
 } from "@/components/page";
 import type { Prisma } from "@/generated/prisma/client";
+import { formatDay } from "@/lib/format-date";
 
 export const metadata = { title: "Onboarding" };
 
@@ -97,9 +98,7 @@ export default async function OnboardingPage({
               meta={
                 <>
                   <span>{record.employee.empId}</span>
-                  <span>
-                    Joined {record.joinDate.toISOString().slice(0, 10)}
-                  </span>
+                  <span>Joined {formatDay(record.joinDate)}</span>
                 </>
               }
             />
@@ -137,9 +136,7 @@ export default async function OnboardingPage({
                   </Link>
                 </TableCell>
                 <TableCell>{record.employee.name}</TableCell>
-                <TableCell>
-                  {record.joinDate.toISOString().slice(0, 10)}
-                </TableCell>
+                <TableCell>{formatDay(record.joinDate)}</TableCell>
                 <TableCell>{record.designation}</TableCell>
                 <TableCell>{record.empType}</TableCell>
               </TableRow>

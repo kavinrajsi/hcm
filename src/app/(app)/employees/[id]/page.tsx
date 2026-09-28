@@ -16,6 +16,7 @@ import {
   UserActions,
 } from "../../users/user-controls";
 import { idCardStatusLabel } from "@/lib/id-card-status";
+import { formatDay, formatInstantDay } from "@/lib/format-date";
 
 export const metadata = { title: "Employee" };
 
@@ -124,7 +125,7 @@ export default async function EmployeePage({
           <dt className="text-zinc-500">Probation</dt>
           <dd className="mt-0.5 font-medium">
             {employee.probation
-              ? `${employee.probation.status} · due ${employee.probation.dueDate.toISOString().slice(0, 10)}`
+              ? `${employee.probation.status} · due ${formatDay(employee.probation.dueDate)}`
               : "—"}
           </dd>
         </div>
@@ -136,7 +137,7 @@ export default async function EmployeePage({
                 : "Contract ends"}
             </dt>
             <dd className="mt-0.5 font-medium">
-              {employee.empTypeEndsOn?.toISOString().slice(0, 10) ?? "—"}
+              {formatDay(employee.empTypeEndsOn) || "—"}
             </dd>
           </div>
         )}
@@ -144,7 +145,7 @@ export default async function EmployeePage({
           <dt className="text-zinc-500">Onboarded</dt>
           <dd className="mt-0.5 font-medium">
             {employee.onboarding
-              ? employee.onboarding.completedAt.toISOString().slice(0, 10)
+              ? formatInstantDay(employee.onboarding.completedAt)
               : "—"}
           </dd>
         </div>

@@ -24,6 +24,7 @@ import {
   CANDIDATE_STATUS_CLASSES,
   type CandidateStatus,
 } from "./statuses";
+import { formatDay } from "@/lib/format-date";
 
 type Columns = Record<CandidateStatus, CandidateDetail[]>;
 type Counts = Record<CandidateStatus, number>;
@@ -55,7 +56,7 @@ function CardBody({ candidate }: { candidate: CandidateDetail }) {
       </div>
       <div className="mt-2 flex items-center justify-between text-xs text-zinc-400">
         <span>{candidate.position ?? "—"}</span>
-        <span className="tabular-nums">{candidate.appliedOn}</span>
+        <span className="tabular-nums">{formatDay(candidate.appliedOn)}</span>
       </div>
     </>
   );

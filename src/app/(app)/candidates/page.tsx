@@ -40,6 +40,7 @@ import {
   CANDIDATE_STATUS_CLASSES,
   type CandidateStatus,
 } from "./statuses";
+import { formatDay } from "@/lib/format-date";
 
 export const metadata = { title: "Candidates" };
 
@@ -360,7 +361,7 @@ async function ListView({
                   </TableCell>
                   <TableCell>{candidate.location ?? "—"}</TableCell>
                   <TableCell className="whitespace-nowrap tabular-nums">
-                    {candidate.appliedOn}
+                    {formatDay(candidate.appliedOn)}
                   </TableCell>
                   <TableCell>
                     <span

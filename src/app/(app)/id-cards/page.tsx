@@ -22,6 +22,7 @@ import {
 import { ID_CARD_STATUSES } from "@/lib/id-card-status";
 import { IdCardStatusSelect } from "./status-select";
 import type { Prisma } from "@/generated/prisma/client";
+import { formatInstantDay } from "@/lib/format-date";
 
 export const metadata = { title: "ID Cards" };
 
@@ -83,9 +84,7 @@ export default async function IdCardsPage({
                   <span>{card.employee.empId}</span>
                   <span>
                     Issued{" "}
-                    {card.issuedAt
-                      ? card.issuedAt.toISOString().slice(0, 10)
-                      : "—"}
+                    {card.issuedAt ? formatInstantDay(card.issuedAt) : "—"}
                   </span>
                 </>
               }
@@ -130,9 +129,7 @@ export default async function IdCardsPage({
                   <IdCardStatusSelect id={card.id} status={card.status} />
                 </TableCell>
                 <TableCell>
-                  {card.issuedAt
-                    ? card.issuedAt.toISOString().slice(0, 10)
-                    : "—"}
+                  {card.issuedAt ? formatInstantDay(card.issuedAt) : "—"}
                 </TableCell>
               </TableRow>
             ))}

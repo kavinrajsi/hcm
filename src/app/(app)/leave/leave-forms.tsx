@@ -34,6 +34,7 @@ import {
   type LeaveHistory,
   type LeaveSyncState,
 } from "./actions";
+import { formatDay } from "@/lib/format-date";
 
 const STATUS_TEXT: Record<LeaveHistory["entries"][number]["status"], string> = {
   PENDING: "text-amber-600 dark:text-amber-400",
@@ -107,7 +108,9 @@ export function LeaveHistoryDrawer({
                 }
               >
                 <div className="flex flex-wrap items-center gap-x-2 text-xs">
-                  <span className="font-medium tabular-nums">{post.date}</span>
+                  <span className="font-medium tabular-nums">
+                    {formatDay(post.date)}
+                  </span>
                   <span>
                     {post.type
                       ? LEAVE_TYPE_LABELS[post.type as LeaveTypeValue]
