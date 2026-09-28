@@ -322,3 +322,12 @@ export function UndoIcon({ className }: IconProps) {
     />
   );
 }
+
+export function AutoAwesomeIcon({ className }: IconProps) {
+  return (
+    <MaterialIcon
+      className={className}
+      d="m744-600-38-82-82-38 82-38 38-82 38 82 82 38-82 38-38 82Zm0 504-38-82-82-38 82-38 38-82 38 82 82 38-82 38-38 82ZM360-216l-72-160-160-72 160-72 72-160 72 160 160 72-160 72-72 160Zm0-194 40-78 78-40-78-40-40-78-40 78-78 40 78 40 40 78Zm0-118Z"
+    />
+  );
+}

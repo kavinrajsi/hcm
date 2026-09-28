@@ -5,19 +5,19 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import { uploadResume } from "@/lib/blob";
+import { addNoteToCandidate, moveCandidate } from "@/lib/hcm-ops";
 import { CANDIDATE_STATUSES, type CandidateStatus } from "./statuses";
 import {
   BOARD_PAGE_SIZE,
   MANUAL_SOURCE,
   POSITIONS,
   candidateWhere,
-  statusOf,
   statusWhere,
   toCandidateDetail,
   type CandidateFilters,
 } from "./query";
 import type { CandidateDetail } from "./candidate-dialog";
-import { appendNote, formatNoteTime, removeNote } from "./notes";
+import { formatNoteTime, removeNote } from "./notes";
 
 const updateSchema = z.object({
   id: z.string().regex(/^\d+$/),
@@ -29,33 +29,6 @@ export type CandidateFormState = {
   fieldErrors?: Record<string, string[]>;
   ok?: boolean;
 };
-
-/**
- * Sets a candidate's status and logs the move (skipped when unchanged).
- * Reads the old value inside the transaction so concurrent moves each log
- * the status they actually replaced.
- */
-async function moveCandidate(
-  id: bigint,
-  toStatus: CandidateStatus,
-  userId: string,
-): Promise<void> {
-  await db.$transaction(async (transaction) => {
-    const { status } = await transaction.candidate.findUniqueOrThrow({
-      where: { id },
-      select: { status: true },
-    });
-    const fromStatus = statusOf(status);
-    if (fromStatus === toStatus) return;
-    await transaction.candidate.update({
-      where: { id },
-      data: { status: toStatus },
-    });
-    await transaction.candidateStatusChange.create({
-      data: { candidateId: id, fromStatus, toStatus, changedById: userId },
-    });
-  });
-}
 
 export async function updateCandidate(
   _prev: CandidateFormState,
@@ -138,17 +111,7 @@ export async function addCandidateNote(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid note" };
   }
-  const id = BigInt(parsed.data.id);
-  await db.$transaction(async (transaction) => {
-    const row = await transaction.candidate.findUniqueOrThrow({
-      where: { id },
-      select: { notes: true },
-    });
-    await transaction.candidate.update({
-      where: { id },
-      data: { notes: appendNote(row.notes, parsed.data.text) },
-    });
-  });
+  await addNoteToCandidate(BigInt(parsed.data.id), parsed.data.text);
   revalidatePath("/candidates");
   return { ok: true };
 }

@@ -100,6 +100,7 @@ model User {
   leaveReviews           LeaveEntry[]            @relation("LeaveReviews")
   candidateStatusChanges CandidateStatusChange[]
   idCardStatusChanges    IdCardStatusChange[]
+  chatThreads            ChatThread[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 }
@@ -485,4 +486,30 @@ model AiUsage {
   createdAt    DateTime @default(now())
 
   @@index([createdAt])
+}
+
+// MadMax chats: one thread per conversation, messages stored as AI SDK
+// UIMessage parts so a thread reloads exactly as it streamed.
+model ChatThread {
+  id        String        @id @default(cuid())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  title     String
+  model     String
+  messages  ChatMessage[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([userId, updatedAt(sort: Desc)])
+}
+
+model ChatMessage {
+  id        String     @id // UIMessage id from the AI SDK
+  thread    ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  threadId  String
+  role      String // "user" | "assistant"
+  parts     Json
+  createdAt DateTime   @default(now())
+
+  @@index([threadId, createdAt])
 }

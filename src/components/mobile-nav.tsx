@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { findCurrent, NAV, TABS } from "@/lib/nav";
 import { useSidebar } from "@/components/ui/sidebar";
 import {
+  AutoAwesomeIcon,
   BadgeIcon,
   EventBusyIcon,
   EventIcon,
@@ -21,6 +22,7 @@ import {
 const ICONS: Record<string, React.ComponentType<IconProps>> = {
   "/": HomeIcon,
   "/profile": PersonIcon,
+  "/madmax": AutoAwesomeIcon,
   "/sessions": EventIcon,
   "/candidates": PersonSearchIcon,
   "/employees": BadgeIcon,

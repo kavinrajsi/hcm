@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { confirmProbationRecord, extendProbationRecord } from "@/lib/hcm-ops";
 import { requireRole } from "@/lib/rbac";
 
 export async function confirmProbation(formData: FormData) {
@@ -10,17 +10,7 @@ export async function confirmProbation(formData: FormData) {
   const id = formData.get("id");
   if (typeof id !== "string") throw new Error("Missing id");
 
-  await db.$transaction(async (transaction) => {
-    const record = await transaction.probationRecord.update({
-      where: { id },
-      data: { status: "CONFIRMED", confirmedAt: new Date() },
-    });
-    // Confirmation promotes the employee to permanent.
-    await transaction.employee.update({
-      where: { id: record.employeeId },
-      data: { empType: "PERMANENT" },
-    });
-  });
+  await confirmProbationRecord(id);
 
   revalidatePath("/probation");
   revalidatePath("/employees");
@@ -40,17 +30,11 @@ export async function extendProbation(formData: FormData) {
     notes: formData.get("notes") ?? undefined,
   });
 
-  const extendedTo = new Date(parsed.extendedTo);
-  await db.probationRecord.update({
-    where: { id: parsed.id },
-    data: {
-      status: "EXTENDED",
-      extendedTo,
-      // The new due date is the extension date — it re-enters the due list.
-      dueDate: extendedTo,
-      notes: parsed.notes || undefined,
-    },
-  });
+  await extendProbationRecord(
+    parsed.id,
+    new Date(parsed.extendedTo),
+    parsed.notes,
+  );
 
   revalidatePath("/probation");
 }

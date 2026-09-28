@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { AuthorizationError, requireRole } from "@/lib/rbac";
 import { LEAVE_TYPES } from "@/lib/leave";
 import { syncLeaveFromBasecamp } from "@/lib/leave-sync";
+import { setLeaveDecision } from "@/lib/hcm-ops";
 
 /**
  * HR may act on any entry; a manager only on their direct reports'.
@@ -113,15 +114,7 @@ export async function reviewLeave(formData: FormData) {
   const user = await requireLeaveReviewer(parsed.data.id);
   if (!user) return;
 
-  const undo = parsed.data.decision === "PENDING";
-  await db.leaveEntry.update({
-    where: { id: parsed.data.id },
-    data: {
-      status: parsed.data.decision,
-      reviewedById: undo ? null : user.id,
-      reviewedAt: undo ? null : new Date(),
-    },
-  });
+  await setLeaveDecision(parsed.data.id, parsed.data.decision, user.id);
   revalidatePath("/leave");
   revalidatePath("/profile");
 }

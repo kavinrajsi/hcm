@@ -5,7 +5,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { requireSelfOrRole, requireUser } from "@/lib/rbac";
-import { encryptPii } from "@/lib/employee-pii";
+import { contactSchema, saveContact } from "@/lib/hcm-ops";
 
 export type ProfileFormState = { error?: string; ok?: boolean };
 
@@ -90,23 +90,6 @@ export async function changePassword(
 
 export type SelfUpdateState = { error?: string; ok?: boolean };
 
-const optional = z
-  .string()
-  .trim()
-  .transform((value) => (value === "" ? undefined : value))
-  .optional();
-
-// Self-service scope: contact + address only. Everything else stays HR-only.
-const selfSchema = z.object({
-  phone: z.string().trim().min(7, "Phone is required"),
-  personalEmail: z.string().trim().pipe(z.email("Invalid personal email")),
-  emergencyContact: optional,
-  address: optional,
-  city: optional,
-  state: optional,
-  pincode: optional,
-});
-
 export async function updateOwnContact(
   employeeId: string,
   _prev: SelfUpdateState,
@@ -114,7 +97,7 @@ export async function updateOwnContact(
 ): Promise<SelfUpdateState> {
   await requireSelfOrRole(employeeId, "HR_ADMIN");
 
-  const parsed = selfSchema.safeParse({
+  const parsed = contactSchema.safeParse({
     phone: formData.get("phone"),
     personalEmail: formData.get("personalEmail"),
     emergencyContact: formData.get("emergencyContact") ?? undefined,
@@ -127,11 +110,7 @@ export async function updateOwnContact(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const { city, state, pincode, ...pii } = parsed.data;
-  await db.employee.update({
-    where: { id: employeeId },
-    data: { city, state, pincode, ...encryptPii(pii) },
-  });
+  await saveContact(employeeId, parsed.data);
   revalidatePath("/profile");
   return { ok: true };
 }
