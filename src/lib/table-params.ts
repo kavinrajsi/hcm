@@ -75,3 +75,24 @@ export function datePartsToRange(
     lt: new Date(Date.UTC(resolvedYear + 1, 0, 1)),
   };
 }
+
+/** Add Filter options from groupBy rows: most common first, blanks dropped. */
+export function optionsByCount<T extends { _count: number }>(
+  rows: T[],
+  key: (row: T) => string | null,
+): { value: string; count: number }[] {
+  return rows
+    .map((row) => ({ value: key(row) ?? "", count: row._count }))
+    .filter((option) => option.value.trim())
+    .sort(
+      (left, right) =>
+        right.count - left.count || left.value.localeCompare(right.value),
+    );
+}
+
+/** A trimmed single search-param value (capped), or undefined. */
+export function stringParam(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim()
+    ? value.trim().slice(0, 200)
+    : undefined;
+}

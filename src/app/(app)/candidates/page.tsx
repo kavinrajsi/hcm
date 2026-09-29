@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import { parseTableParams } from "@/lib/table-params";
 import { AddFilter } from "@/components/data-table/add-filter";
+import { CountChips } from "@/components/data-table/count-chips";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
   Table,
@@ -151,23 +152,14 @@ export default async function CandidatesPage({
         actions={<AddCandidate />}
       />
 
-      {/* One swipeable row on phones, wrapping chips on desktop. */}
-      <div className="-mx-4 mt-5 flex gap-2 overflow-x-auto px-4 md:mx-0 md:mt-6 md:flex-wrap md:px-0">
-        {CANDIDATE_STATUSES.map((candidateStatus) => (
-          <span
-            key={candidateStatus}
-            className={cn(
-              "shrink-0 rounded-md px-2.5 py-1 text-sm",
-              CANDIDATE_STATUS_CLASSES[candidateStatus],
-            )}
-          >
-            {candidateStatus}{" "}
-            <span className="font-medium tabular-nums">
-              {countByStatus.get(candidateStatus) ?? 0}
-            </span>
-          </span>
-        ))}
-      </div>
+      <CountChips
+        items={CANDIDATE_STATUSES.map((candidateStatus) => ({
+          key: candidateStatus,
+          label: candidateStatus,
+          count: countByStatus.get(candidateStatus) ?? 0,
+          className: CANDIDATE_STATUS_CLASSES[candidateStatus],
+        }))}
+      />
 
       {/* Phones: stacked. Desktop: filters (incl. search) and view in one row. */}
       <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:items-center">

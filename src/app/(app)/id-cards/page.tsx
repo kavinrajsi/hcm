@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
-import { parseTableParams } from "@/lib/table-params";
-import { TableFilters } from "@/components/data-table/filters";
+import {
+  optionsByCount,
+  parseTableParams,
+  stringParam,
+} from "@/lib/table-params";
+import { instantRange } from "@/lib/date-filter";
+import { AddFilter } from "@/components/data-table/add-filter";
+import { CountChips } from "@/components/data-table/count-chips";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
   Table,
@@ -39,14 +45,36 @@ export default async function IdCardsPage({
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
+  const status = STATUS_OPTIONS.find(
+    (option) => option.value === params.type,
+  )?.value;
+  const department = stringParam(raw.department);
+  const updated = instantRange({
+    preset: stringParam(raw.updated),
+    from: stringParam(raw.from),
+    to: stringParam(raw.to),
+  });
   const where: Prisma.IdCardWhereInput = {
-    ...(params.q
-      ? { employee: { name: { contains: params.q, mode: "insensitive" } } }
+    ...(params.q || department
+      ? {
+          employee: {
+            ...(params.q
+              ? {
+                  OR: [
+                    { name: { contains: params.q, mode: "insensitive" } },
+                    { empId: { contains: params.q, mode: "insensitive" } },
+                  ],
+                }
+              : {}),
+            ...(department ? { department } : {}),
+          },
+        }
       : {}),
-    ...(params.type ? { status: params.type as never } : {}),
+    ...(status ? { status } : {}),
+    ...(updated ? { updatedAt: updated } : {}),
   };
 
-  const [cards, total] = await Promise.all([
+  const [cards, total, statuses, departments] = await Promise.all([
     db.idCard.findMany({
       where,
       orderBy: { updatedAt: "desc" },
@@ -65,14 +93,59 @@ export default async function IdCardsPage({
       },
     }),
     db.idCard.count({ where }),
+    db.idCard.groupBy({ by: ["status"], _count: true }),
+    db.employee.groupBy({
+      by: ["department"],
+      where: { idCard: { isNot: null } },
+      _count: true,
+    }),
   ]);
+  const statusCounts = new Map(
+    statuses.map((group) => [group.status as string, group._count]),
+  );
 
   return (
     <PageShell>
       <PageHeader title="ID Card Issued List" />
 
-      <div className="mt-5 md:mt-6">
-        <TableFilters typeOptions={STATUS_OPTIONS} typeLabel="Status" />
+      <CountChips
+        items={STATUS_OPTIONS.map((option) => ({
+          key: option.value,
+          label: option.label,
+          count: statusCounts.get(option.value) ?? 0,
+        }))}
+      />
+
+      <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:items-center">
+        <div className="min-w-0 md:flex-1">
+          <AddFilter
+            search={{ param: "q", hint: "Name or employee ID" }}
+            fields={[
+              {
+                param: "type",
+                label: "Status",
+                options: STATUS_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                  count: statusCounts.get(option.value) ?? 0,
+                })),
+              },
+              {
+                param: "department",
+                label: "Department",
+                options: optionsByCount(
+                  departments,
+                  (group) => group.department,
+                ),
+              },
+            ]}
+            date={{
+              param: "updated",
+              label: "Updated",
+              presets: ["7d", "30d", "month"],
+            }}
+          />
+        </div>
       </div>
 
       <div className="mt-4">

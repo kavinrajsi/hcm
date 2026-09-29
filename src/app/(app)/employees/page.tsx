@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
-import { parseTableParams } from "@/lib/table-params";
+import {
+  optionsByCount,
+  parseTableParams,
+  stringParam,
+} from "@/lib/table-params";
 import { dayRange } from "@/lib/date-filter";
-import { TableFilters } from "@/components/data-table/filters";
 import { AddFilter } from "@/components/data-table/add-filter";
+import { CountChips } from "@/components/data-table/count-chips";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
   Table,
@@ -29,19 +33,9 @@ import type { Prisma } from "@/generated/prisma/client";
 import { formatDay } from "@/lib/format-date";
 import { EmployeeAvatar } from "@/components/employee-avatar";
 import { BasecampSyncButton } from "./basecamp-sync";
+import { EMP_TYPE_LABELS, EMP_TYPE_OPTIONS } from "@/lib/emp-type";
 
 export const metadata = { title: "Employees" };
-
-// Also the list order: rows are grouped by type in this order.
-const EMP_TYPE_OPTIONS = [
-  { value: "INTERN", label: "Intern" },
-  { value: "PROBATION", label: "Probation" },
-  { value: "CONTRACT", label: "Contract" },
-  { value: "PERMANENT", label: "Permanent" },
-] as const;
-const EMP_TYPE_LABELS: Record<string, string> = Object.fromEntries(
-  EMP_TYPE_OPTIONS.map((option) => [option.value, option.label]),
-);
 
 /** Internship / contract end, or probation confirmation due. */
 function typeEnds(employee: {
@@ -64,19 +58,15 @@ export default async function EmployeesPage({
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
-  const trimmedParam = (value: unknown) =>
-    typeof value === "string" && value.trim()
-      ? value.trim().slice(0, 200)
-      : undefined;
   const empType = EMP_TYPE_OPTIONS.find(
     (option) => option.value === params.type,
   )?.value;
-  const department = trimmedParam(raw.department);
-  const designation = trimmedParam(raw.designation);
+  const department = stringParam(raw.department);
+  const designation = stringParam(raw.designation);
   const joined = dayRange({
-    preset: trimmedParam(raw.joined),
-    from: trimmedParam(raw.from),
-    to: trimmedParam(raw.to),
+    preset: stringParam(raw.joined),
+    from: stringParam(raw.from),
+    to: stringParam(raw.to),
   });
 
   // Managers see only their direct reports (filter options included).
@@ -84,7 +74,14 @@ export default async function EmployeesPage({
     user.role === "MANAGER" ? { manager: { userId: user.id } } : {};
   const where: Prisma.EmployeeWhereInput = {
     ...scope,
-    ...(params.q ? { name: { contains: params.q, mode: "insensitive" } } : {}),
+    ...(params.q
+      ? {
+          OR: [
+            { name: { contains: params.q, mode: "insensitive" } },
+            { empId: { contains: params.q, mode: "insensitive" } },
+          ],
+        }
+      : {}),
     ...(empType ? { empType: empType as never } : {}),
     ...(department ? { department } : {}),
     ...(designation ? { designation } : {}),
@@ -141,18 +138,6 @@ export default async function EmployeesPage({
       ),
     )
   ).flat();
-  // Most common first.
-  const byCount = <T extends { _count: number }>(
-    rows: T[],
-    key: (row: T) => string,
-  ) =>
-    rows
-      .filter((row) => key(row).trim())
-      .sort(
-        (left, right) =>
-          right._count - left._count || key(left).localeCompare(key(right)),
-      )
-      .map((row) => ({ value: key(row), count: row._count }));
   const typeCounts = new Map(
     types.map((typeGroup) => [typeGroup.empType as string, typeGroup._count]),
   );
@@ -179,11 +164,18 @@ export default async function EmployeesPage({
         }
       />
 
-      {/* Phones: stacked. Desktop: search and filters in one row. */}
+      <CountChips
+        items={EMP_TYPE_OPTIONS.map((option) => ({
+          key: option.value,
+          label: option.label,
+          count: typeCounts.get(option.value) ?? 0,
+        }))}
+      />
+
       <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:items-center">
-        <TableFilters dateFilters={false} />
         <div className="min-w-0 md:flex-1">
           <AddFilter
+            search={{ param: "q", hint: "Name or employee ID" }}
             fields={[
               {
                 param: "type",
@@ -197,12 +189,18 @@ export default async function EmployeesPage({
               {
                 param: "department",
                 label: "Department",
-                options: byCount(departments, (group) => group.department),
+                options: optionsByCount(
+                  departments,
+                  (group) => group.department,
+                ),
               },
               {
                 param: "designation",
                 label: "Designation",
-                options: byCount(designations, (group) => group.designation),
+                options: optionsByCount(
+                  designations,
+                  (group) => group.designation,
+                ),
               },
             ]}
             date={{

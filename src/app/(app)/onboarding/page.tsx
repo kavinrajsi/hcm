@@ -1,8 +1,15 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
-import { datePartsToRange, parseTableParams } from "@/lib/table-params";
-import { TableFilters } from "@/components/data-table/filters";
+import {
+  optionsByCount,
+  parseTableParams,
+  stringParam,
+} from "@/lib/table-params";
+import { dayRange } from "@/lib/date-filter";
+import { AddFilter } from "@/components/data-table/add-filter";
+import { CountChips } from "@/components/data-table/count-chips";
+import { EMP_TYPE_LABELS, EMP_TYPE_OPTIONS } from "@/lib/emp-type";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
   Table,
@@ -26,16 +33,6 @@ import { EmployeeAvatar } from "@/components/employee-avatar";
 
 export const metadata = { title: "Onboarding" };
 
-const EMP_TYPE_OPTIONS = [
-  { value: "INTERN", label: "Intern" },
-  { value: "PROBATION", label: "Probation" },
-  { value: "PERMANENT", label: "Permanent" },
-  { value: "CONTRACT", label: "Contract" },
-];
-const EMP_TYPE_LABELS: Record<string, string> = Object.fromEntries(
-  EMP_TYPE_OPTIONS.map((option) => [option.value, option.label]),
-);
-
 export default async function OnboardingPage({
   searchParams,
 }: PageProps<"/onboarding">) {
@@ -43,16 +40,32 @@ export default async function OnboardingPage({
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
+  const empType = EMP_TYPE_OPTIONS.find(
+    (option) => option.value === params.type,
+  )?.value;
+  const designation = stringParam(raw.designation);
+  const joined = dayRange({
+    preset: stringParam(raw.joined),
+    from: stringParam(raw.from),
+    to: stringParam(raw.to),
+  });
   const where: Prisma.OnboardingRecordWhereInput = {
     ...(params.q
-      ? { employee: { name: { contains: params.q, mode: "insensitive" } } }
+      ? {
+          employee: {
+            OR: [
+              { name: { contains: params.q, mode: "insensitive" } },
+              { empId: { contains: params.q, mode: "insensitive" } },
+            ],
+          },
+        }
       : {}),
-    ...(params.type ? { empType: params.type as never } : {}),
+    ...(empType ? { empType } : {}),
+    ...(designation ? { designation } : {}),
+    ...(joined ? { joinDate: joined } : {}),
   };
-  const dateRange = datePartsToRange(params);
-  if (dateRange) where.joinDate = dateRange;
 
-  const [records, total] = await Promise.all([
+  const [records, total, types, designations] = await Promise.all([
     db.onboardingRecord.findMany({
       where,
       orderBy: { joinDate: "desc" },
@@ -65,7 +78,12 @@ export default async function OnboardingPage({
       },
     }),
     db.onboardingRecord.count({ where }),
+    db.onboardingRecord.groupBy({ by: ["empType"], _count: true }),
+    db.onboardingRecord.groupBy({ by: ["designation"], _count: true }),
   ]);
+  const typeCounts = new Map(
+    types.map((group) => [group.empType as string, group._count]),
+  );
 
   return (
     <PageShell>
@@ -78,8 +96,44 @@ export default async function OnboardingPage({
         }
       />
 
-      <div className="mt-5 md:mt-6">
-        <TableFilters typeOptions={EMP_TYPE_OPTIONS} typeLabel="Emp type" />
+      <CountChips
+        items={EMP_TYPE_OPTIONS.map((option) => ({
+          key: option.value,
+          label: option.label,
+          count: typeCounts.get(option.value) ?? 0,
+        }))}
+      />
+
+      <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:items-center">
+        <div className="min-w-0 md:flex-1">
+          <AddFilter
+            search={{ param: "q", hint: "Name or employee ID" }}
+            fields={[
+              {
+                param: "type",
+                label: "Emp type",
+                options: EMP_TYPE_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                  count: typeCounts.get(option.value) ?? 0,
+                })),
+              },
+              {
+                param: "designation",
+                label: "Designation",
+                options: optionsByCount(
+                  designations,
+                  (group) => group.designation,
+                ),
+              },
+            ]}
+            date={{
+              param: "joined",
+              label: "Joined",
+              presets: ["7d", "30d", "month", "year"],
+            }}
+          />
+        </div>
       </div>
 
       <div className="mt-4">

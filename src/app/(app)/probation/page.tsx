@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
-import { parseTableParams } from "@/lib/table-params";
-import { TableFilters } from "@/components/data-table/filters";
+import {
+  optionsByCount,
+  parseTableParams,
+  stringParam,
+} from "@/lib/table-params";
+import { dayRange } from "@/lib/date-filter";
+import { AddFilter } from "@/components/data-table/add-filter";
+import { CountChips } from "@/components/data-table/count-chips";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
   Table,
@@ -32,7 +38,7 @@ const STATUS_OPTIONS = [
   { value: "CONFIRMED", label: "Confirmed" },
   { value: "EXTENDED", label: "Extended" },
   { value: "EXITED", label: "Exited" },
-];
+] as const;
 
 const badgeVariant = {
   PENDING: "secondary",
@@ -48,14 +54,15 @@ export default async function ProbationPage({
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
-  // Default view: due this month (or the month/year picked in filters).
-  const now = new Date();
-  const year = params.year ?? now.getUTCFullYear();
-  const month = params.month ?? now.getUTCMonth() + 1;
-  const monthRange = {
-    gte: new Date(Date.UTC(year, month - 1, 1)),
-    lt: new Date(Date.UTC(year, month, 1)),
-  };
+  const status = STATUS_OPTIONS.find(
+    (option) => option.value === params.type,
+  )?.value;
+  const department = stringParam(raw.department);
+  const due = dayRange({
+    preset: stringParam(raw.due),
+    from: stringParam(raw.from),
+    to: stringParam(raw.to),
+  });
 
   // Open probations only count while the employee is still on Probation;
   // confirmed / exited records stay as history.
@@ -67,14 +74,26 @@ export default async function ProbationPage({
   };
   const where: Prisma.ProbationRecordWhereInput = {
     ...current,
-    dueDate: monthRange,
-    ...(params.q
-      ? { employee: { name: { contains: params.q, mode: "insensitive" } } }
+    ...(params.q || department
+      ? {
+          employee: {
+            ...(params.q
+              ? {
+                  OR: [
+                    { name: { contains: params.q, mode: "insensitive" } },
+                    { empId: { contains: params.q, mode: "insensitive" } },
+                  ],
+                }
+              : {}),
+            ...(department ? { department } : {}),
+          },
+        }
       : {}),
-    ...(params.type ? { status: params.type as never } : {}),
+    ...(status ? { status } : {}),
+    ...(due ? { dueDate: due } : {}),
   };
 
-  const [records, total, pendingCount] = await Promise.all([
+  const [records, total, statuses, departments] = await Promise.all([
     db.probationRecord.findMany({
       where,
       orderBy: { dueDate: "asc" },
@@ -93,50 +112,69 @@ export default async function ProbationPage({
       },
     }),
     db.probationRecord.count({ where }),
-    db.probationRecord.count({
-      where: {
-        dueDate: monthRange,
-        status: { notIn: ["CONFIRMED", "EXITED"] },
-        employee: { empType: "PROBATION" },
-      },
+    db.probationRecord.groupBy({
+      by: ["status"],
+      where: current,
+      _count: true,
+    }),
+    db.employee.groupBy({
+      by: ["department"],
+      where: { probation: { is: current } },
+      _count: true,
     }),
   ]);
-
-  const monthLabel = new Date(Date.UTC(year, month - 1)).toLocaleString(
-    "en-IN",
-    {
-      month: "long",
-      year: "numeric",
-      timeZone: "UTC",
-    },
+  const statusCounts = new Map(
+    statuses.map((group) => [group.status as string, group._count]),
   );
 
   return (
     <PageShell>
-      <PageHeader
-        title="Probation & Confirmation"
-        actions={
-          <p className="text-sm text-zinc-500">
-            {monthLabel}:{" "}
-            <span
-              className={
-                pendingCount > 0 ? "font-medium text-amber-600" : "font-medium"
-              }
-            >
-              {pendingCount} awaiting confirmation
-            </span>
-          </p>
-        }
+      <PageHeader title="Probation & Confirmation" />
+
+      <CountChips
+        items={STATUS_OPTIONS.map((option) => ({
+          key: option.value,
+          label: option.label,
+          count: statusCounts.get(option.value) ?? 0,
+        }))}
       />
 
-      <div className="mt-5 md:mt-6">
-        <TableFilters typeOptions={STATUS_OPTIONS} typeLabel="Status" />
+      <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:items-center">
+        <div className="min-w-0 md:flex-1">
+          <AddFilter
+            search={{ param: "q", hint: "Name or employee ID" }}
+            fields={[
+              {
+                param: "type",
+                label: "Status",
+                options: STATUS_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                  count: statusCounts.get(option.value) ?? 0,
+                })),
+              },
+              {
+                param: "department",
+                label: "Department",
+                options: optionsByCount(
+                  departments,
+                  (group) => group.department,
+                ),
+              },
+            ]}
+            date={{
+              param: "due",
+              label: "Due",
+              presets: ["month", "year"],
+            }}
+          />
+        </div>
       </div>
 
       <div className="mt-4">
         <MobileList
           isEmpty={records.length === 0}
-          empty={`No probation confirmations due in ${monthLabel}.`}
+          empty="No probation records match these filters."
         >
           {records.map((record) => (
             <ListCard
@@ -189,7 +227,7 @@ export default async function ProbationPage({
             {records.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-zinc-500">
-                  No probation confirmations due in {monthLabel}.
+                  No probation records match these filters.
                 </TableCell>
               </TableRow>
             )}
