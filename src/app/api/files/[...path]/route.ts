@@ -1,7 +1,10 @@
 import type { NextRequest } from "next/server";
 import { readDocument } from "@/lib/blob";
 import { db } from "@/lib/db";
-import { EMPLOYEE_DOCUMENTS } from "@/lib/employee-documents";
+import {
+  EMPLOYEE_DOCUMENTS,
+  PREVIOUS_EMPLOYMENT_DOCUMENTS,
+} from "@/lib/employee-documents";
 import { requireUser } from "@/lib/rbac";
 
 // Streams private employee documents after an access check: HR admins read
@@ -13,7 +16,18 @@ async function ownsDocument(userId: string, key: string): Promise<boolean> {
   const own = await db.employee.findFirst({
     where: {
       userId,
-      OR: EMPLOYEE_DOCUMENTS.map(([column]) => ({ [column]: key })),
+      OR: [
+        ...EMPLOYEE_DOCUMENTS.map(([column]) => ({ [column]: key })),
+        {
+          previousEmployments: {
+            some: {
+              OR: PREVIOUS_EMPLOYMENT_DOCUMENTS.map(([column]) => ({
+                [column]: key,
+              })),
+            },
+          },
+        },
+      ],
     },
     select: { id: true },
   });

@@ -32,12 +32,13 @@ import { BasecampSyncButton } from "./basecamp-sync";
 
 export const metadata = { title: "Employees" };
 
+// Also the list order: rows are grouped by type in this order.
 const EMP_TYPE_OPTIONS = [
   { value: "INTERN", label: "Intern" },
   { value: "PROBATION", label: "Probation" },
-  { value: "PERMANENT", label: "Permanent" },
   { value: "CONTRACT", label: "Contract" },
-];
+  { value: "PERMANENT", label: "Permanent" },
+] as const;
 const EMP_TYPE_LABELS: Record<string, string> = Object.fromEntries(
   EMP_TYPE_OPTIONS.map((option) => [option.value, option.label]),
 );
@@ -90,32 +91,56 @@ export default async function EmployeesPage({
     ...(joined ? { dateOfJoining: joined } : {}),
   };
 
-  const [employees, total, types, departments, designations] =
-    await Promise.all([
-      db.employee.findMany({
-        where,
-        // IDs are prefix + zero-padded number, so text order is ID order.
-        orderBy: { empId: "desc" },
-        skip: params.skip,
-        take: params.take,
-        select: {
-          id: true,
-          empId: true,
-          name: true,
-          dateOfJoining: true,
-          department: true,
-          designation: true,
-          empType: true,
-          empTypeEndsOn: true,
-          avatarBlobKey: true,
-          probation: { select: { dueDate: true } },
-        },
-      }),
-      db.employee.count({ where }),
-      db.employee.groupBy({ by: ["empType"], where: scope, _count: true }),
-      db.employee.groupBy({ by: ["department"], where: scope, _count: true }),
-      db.employee.groupBy({ by: ["designation"], where: scope, _count: true }),
-    ]);
+  const [matchedTypes, types, departments, designations] = await Promise.all([
+    db.employee.groupBy({ by: ["empType"], where, _count: true }),
+    db.employee.groupBy({ by: ["empType"], where: scope, _count: true }),
+    db.employee.groupBy({ by: ["department"], where: scope, _count: true }),
+    db.employee.groupBy({ by: ["designation"], where: scope, _count: true }),
+  ]);
+  const matchedCounts = new Map(
+    matchedTypes.map((group) => [group.empType as string, group._count]),
+  );
+  const total = matchedTypes.reduce((sum, group) => sum + group._count, 0);
+
+  // The enum's database order isn't the display order, so page through
+  // the types one by one: each type's slice of [skip, skip + take).
+  const pageEnd = params.skip + params.take;
+  const slices: { empType: string; skip: number; take: number }[] = [];
+  let typeStart = 0;
+  for (const { value } of EMP_TYPE_OPTIONS) {
+    const count = matchedCounts.get(value) ?? 0;
+    const from = Math.max(params.skip, typeStart);
+    const to = Math.min(pageEnd, typeStart + count);
+    if (to > from) {
+      slices.push({ empType: value, skip: from - typeStart, take: to - from });
+    }
+    typeStart += count;
+  }
+  const employees = (
+    await Promise.all(
+      slices.map((slice) =>
+        db.employee.findMany({
+          where: { ...where, empType: slice.empType as never },
+          // Newest joiners first; IDs are prefix + zero-padded number.
+          orderBy: [{ dateOfJoining: "desc" }, { empId: "desc" }],
+          skip: slice.skip,
+          take: slice.take,
+          select: {
+            id: true,
+            empId: true,
+            name: true,
+            dateOfJoining: true,
+            department: true,
+            designation: true,
+            empType: true,
+            empTypeEndsOn: true,
+            avatarBlobKey: true,
+            probation: { select: { dueDate: true } },
+          },
+        }),
+      ),
+    )
+  ).flat();
   // Most common first.
   const byCount = <T extends { _count: number }>(
     rows: T[],

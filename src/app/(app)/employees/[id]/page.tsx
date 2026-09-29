@@ -5,7 +5,10 @@ import { PageShell } from "@/components/page";
 import { requireRole } from "@/lib/rbac";
 import { decryptField, maskValue } from "@/lib/crypto";
 import { readPii } from "@/lib/employee-pii";
-import { EMPLOYEE_DOCUMENTS } from "@/lib/employee-documents";
+import {
+  EMPLOYEE_DOCUMENTS,
+  previousEmploymentLinks,
+} from "@/lib/employee-documents";
 import { updateEmployee } from "../actions";
 import { EmployeeForm, type SensitiveMasks } from "../employee-form";
 import { IdCardHistory } from "./id-card-history";
@@ -51,6 +54,7 @@ export default async function EmployeePage({
         },
         probation: true,
         onboarding: true,
+        previousEmployments: { orderBy: { position: "asc" } },
         user: {
           select: {
             id: true,
@@ -97,6 +101,7 @@ export default async function EmployeePage({
 
   const update = updateEmployee.bind(null, employee.id);
   const pii = readPii(employee);
+  const letters = previousEmploymentLinks(employee.previousEmployments);
 
   return (
     <PageShell>
@@ -169,7 +174,18 @@ export default async function EmployeePage({
                 {label}
               </a>
             ))}
-            {DOCUMENTS.every(([key]) => !employee[key]) && "—"}
+            {letters.map((link) => (
+              <a
+                key={link.key}
+                href={`/api/files/${link.key}`}
+                className="underline underline-offset-4"
+              >
+                {link.label}
+              </a>
+            ))}
+            {DOCUMENTS.every(([key]) => !employee[key]) &&
+              letters.length === 0 &&
+              "—"}
           </dd>
         </div>
       </dl>
@@ -266,6 +282,13 @@ export default async function EmployeePage({
             pfNumber: pii.pfNumber ?? undefined,
             uanNumber: pii.uanNumber ?? undefined,
             linkedinId: employee.linkedinId ?? undefined,
+            previousEmployments: employee.previousEmployments.map((row) => ({
+              id: row.id,
+              companyName: row.companyName,
+              offerLetterBlobKey: row.offerLetterBlobKey,
+              experienceLetterBlobKey: row.experienceLetterBlobKey,
+              relievingLetterBlobKey: row.relievingLetterBlobKey,
+            })),
             managerId: employee.managerId ?? undefined,
           }}
         />

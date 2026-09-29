@@ -11,7 +11,10 @@ import {
 } from "@/components/ui/card";
 import { decryptField, maskValue } from "@/lib/crypto";
 import { readPii } from "@/lib/employee-pii";
-import { EMPLOYEE_DOCUMENTS } from "@/lib/employee-documents";
+import {
+  EMPLOYEE_DOCUMENTS,
+  previousEmploymentLinks,
+} from "@/lib/employee-documents";
 import {
   Table,
   TableBody,
@@ -103,6 +106,7 @@ export default async function ProfilePage() {
       attendance: { orderBy: { date: "desc" }, take: 10 },
       leaveEntries: { orderBy: { postedOn: "desc" }, take: 20 },
       registrations: { include: { session: true } },
+      previousEmployments: { orderBy: { position: "asc" } },
     },
   });
   if (employee && !employee.userId) {
@@ -154,6 +158,7 @@ export default async function ProfilePage() {
   };
 
   const updateAction = updateOwnContact.bind(null, employee.id);
+  const letters = previousEmploymentLinks(employee.previousEmployments);
 
   return (
     <PageShell>
@@ -171,69 +176,7 @@ export default async function ProfilePage() {
         </h1>
       </div>
 
-      <dl className="mt-6 grid grid-cols-2 gap-4 rounded-lg border border-zinc-200 p-5 text-sm sm:grid-cols-4 dark:border-zinc-800">
-        <div>
-          <dt className="text-zinc-500">Joined</dt>
-          <dd className="mt-0.5 font-medium">
-            {formatDay(employee.dateOfJoining)} · {employee.empType}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-zinc-500">Probation</dt>
-          <dd className="mt-0.5 font-medium">
-            {employee.probation
-              ? `${employee.probation.status} · due ${formatDay(employee.probation.dueDate)}`
-              : "—"}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-zinc-500">ID card</dt>
-          <dd className="mt-0.5 font-medium">
-            {employee.idCard?.status ?? "—"}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-zinc-500">PAN / Aadhaar / Bank</dt>
-          <dd className="mt-0.5 font-medium">
-            {masked.pan} · {masked.aadhaar} · {masked.bank}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-zinc-500">Documents</dt>
-          <dd className="mt-0.5 flex flex-wrap gap-x-2 font-medium">
-            {EMPLOYEE_DOCUMENTS.filter(([key]) => employee[key]).map(
-              ([key, label]) => (
-                <a
-                  key={key}
-                  href={`/api/files/${employee[key]}`}
-                  className="underline underline-offset-4"
-                >
-                  {label}
-                </a>
-              ),
-            )}
-            {EMPLOYEE_DOCUMENTS.every(([key]) => !employee[key]) && "—"}
-          </dd>
-        </div>
-      </dl>
-
-      <h2 className="mt-10 text-lg font-medium">Contact info</h2>
-      <div className="mt-3">
-        <ContactForm
-          action={updateAction}
-          defaults={{
-            phone: pii.phone ?? "",
-            personalEmail: pii.personalEmail ?? "",
-            emergencyContact: pii.emergencyContact ?? undefined,
-            address: pii.address ?? undefined,
-            city: employee.city ?? undefined,
-            state: employee.state ?? undefined,
-            pincode: employee.pincode ?? undefined,
-          }}
-        />
-      </div>
-
-      <h2 className="mt-10 text-lg font-medium">Log work (Quantum Sheet)</h2>
+      <h2 className="mt-6 text-lg font-medium">Log work (Quantum Sheet)</h2>
       <div className="mt-3">
         <QuantumEntryForm employeeId={employee.id} />
       </div>
@@ -270,6 +213,44 @@ export default async function ProfilePage() {
             ))}
           </TableBody>
         </Table>
+      </div>
+
+      <div className="mt-10 grid gap-8 lg:grid-cols-2">
+        <section>
+          <h2 className="text-lg font-medium">Upcoming sessions</h2>
+          <ul className="mt-3 flex flex-col gap-2 text-sm">
+            {upcoming.length === 0 && (
+              <li className="text-zinc-500">No registrations.</li>
+            )}
+            {upcoming.map((session) => (
+              <li
+                key={session.id}
+                className="rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800"
+              >
+                <span className="font-medium">{session.name}</span> ·{" "}
+                {formatDateTime(session.date)} · {session.trainer}
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section>
+          <h2 className="text-lg font-medium">Sessions attended</h2>
+          <ul className="mt-3 flex flex-col gap-2 text-sm">
+            {employee.attendance.length === 0 && (
+              <li className="text-zinc-500">Nothing logged yet.</li>
+            )}
+            {employee.attendance.map((record) => (
+              <li
+                key={record.id}
+                className="rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800"
+              >
+                <span className="font-medium">{record.sessionName}</span> ·{" "}
+                {formatDay(record.date)} ·{" "}
+                {record.attended ? "attended" : "missed"}
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
 
       <h2 className="mt-10 text-lg font-medium">
@@ -313,43 +294,78 @@ export default async function ProfilePage() {
         ))}
       </ul>
 
-      <div className="mt-10 grid gap-8 lg:grid-cols-2">
-        <section>
-          <h2 className="text-lg font-medium">Upcoming sessions</h2>
-          <ul className="mt-3 flex flex-col gap-2 text-sm">
-            {upcoming.length === 0 && (
-              <li className="text-zinc-500">No registrations.</li>
-            )}
-            {upcoming.map((session) => (
-              <li
-                key={session.id}
-                className="rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800"
-              >
-                <span className="font-medium">{session.name}</span> ·{" "}
-                {formatDateTime(session.date)} · {session.trainer}
-              </li>
-            ))}
-          </ul>
-        </section>
-        <section>
-          <h2 className="text-lg font-medium">Sessions attended</h2>
-          <ul className="mt-3 flex flex-col gap-2 text-sm">
-            {employee.attendance.length === 0 && (
-              <li className="text-zinc-500">Nothing logged yet.</li>
-            )}
-            {employee.attendance.map((record) => (
-              <li
-                key={record.id}
-                className="rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800"
-              >
-                <span className="font-medium">{record.sessionName}</span> ·{" "}
-                {formatDay(record.date)} ·{" "}
-                {record.attended ? "attended" : "missed"}
-              </li>
-            ))}
-          </ul>
-        </section>
+      <h2 className="mt-10 text-lg font-medium">Contact info</h2>
+      <div className="mt-3">
+        <ContactForm
+          action={updateAction}
+          defaults={{
+            phone: pii.phone ?? "",
+            personalEmail: pii.personalEmail ?? "",
+            emergencyContact: pii.emergencyContact ?? undefined,
+            address: pii.address ?? undefined,
+            city: employee.city ?? undefined,
+            state: employee.state ?? undefined,
+            pincode: employee.pincode ?? undefined,
+          }}
+        />
       </div>
+
+      <dl className="mt-10 grid grid-cols-2 gap-4 rounded-lg border border-zinc-200 p-5 text-sm sm:grid-cols-4 dark:border-zinc-800">
+        <div>
+          <dt className="text-zinc-500">Joined</dt>
+          <dd className="mt-0.5 font-medium">
+            {formatDay(employee.dateOfJoining)} · {employee.empType}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-zinc-500">Probation</dt>
+          <dd className="mt-0.5 font-medium">
+            {employee.probation
+              ? `${employee.probation.status} · due ${formatDay(employee.probation.dueDate)}`
+              : "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-zinc-500">ID card</dt>
+          <dd className="mt-0.5 font-medium">
+            {employee.idCard?.status ?? "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-zinc-500">PAN / Aadhaar / Bank</dt>
+          <dd className="mt-0.5 font-medium">
+            {masked.pan} · {masked.aadhaar} · {masked.bank}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-zinc-500">Documents</dt>
+          <dd className="mt-0.5 flex flex-wrap gap-x-2 font-medium">
+            {EMPLOYEE_DOCUMENTS.filter(([key]) => employee[key]).map(
+              ([key, label]) => (
+                <a
+                  key={key}
+                  href={`/api/files/${employee[key]}`}
+                  className="underline underline-offset-4"
+                >
+                  {label}
+                </a>
+              ),
+            )}
+            {letters.map((link) => (
+              <a
+                key={link.key}
+                href={`/api/files/${link.key}`}
+                className="underline underline-offset-4"
+              >
+                {link.label}
+              </a>
+            ))}
+            {EMPLOYEE_DOCUMENTS.every(([key]) => !employee[key]) &&
+              letters.length === 0 &&
+              "—"}
+          </dd>
+        </div>
+      </dl>
       <AccountSection account={account} />
     </PageShell>
   );

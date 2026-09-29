@@ -1,11 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import type { EmployeeFormState } from "./actions";
 import { istDay } from "@/lib/date-filter";
+import { PREVIOUS_EMPLOYMENT_DOCUMENTS } from "@/lib/employee-documents";
 import {
   TYPE_END_DEFAULT_DAYS,
   TYPE_END_LABELS,
@@ -39,7 +41,21 @@ export type EmployeeDefaults = Partial<{
   uanNumber: string;
   linkedinId: string;
   managerId: string;
+  /** Saved previous companies with their letter blob keys (edit mode). */
+  previousEmployments: PreviousEmploymentDefault[];
 }>;
+
+type LetterColumn = (typeof PREVIOUS_EMPLOYMENT_DOCUMENTS)[number][0];
+
+export type PreviousEmploymentDefault = {
+  id: string;
+  companyName: string;
+} & Partial<Record<LetterColumn, string | null>>;
+
+/** A company row in the form; `key` is stable across add / remove. */
+type PreviousEmploymentRow = Partial<PreviousEmploymentDefault> & {
+  key: string;
+};
 
 /** Masked display values for already-stored sensitive fields (edit mode). */
 export type SensitiveMasks = Partial<{
@@ -53,15 +69,17 @@ function Field({
   label,
   name,
   error,
+  className,
   children,
 }: {
   label: string;
   name: string;
   error?: string[];
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={cn("flex flex-col gap-1.5", className)}>
       <Label htmlFor={name}>{label}</Label>
       {children}
       {error && <p className="text-xs text-red-600">{error[0]}</p>}
@@ -81,6 +99,100 @@ function Section({
       <legend className="px-1 text-sm font-medium">{title}</legend>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
     </fieldset>
+  );
+}
+
+/**
+ * Experienced hire's previous companies: a name and the three letters per
+ * company. Posted as prevCount + prev.{i}.* (see previous-employments.ts).
+ */
+function PreviousCompanies({
+  rows,
+  errors,
+  onAdd,
+  onRemove,
+}: {
+  rows: PreviousEmploymentRow[];
+  errors: Record<string, string[]>;
+  onAdd: () => void;
+  onRemove: (key: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3 sm:col-span-2 lg:col-span-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium">Previous companies</p>
+        <Button type="button" variant="outline" size="sm" onClick={onAdd}>
+          + Add company
+        </Button>
+      </div>
+      <input type="hidden" name="prevCount" value={rows.length} />
+      {errors.previousEmployments && (
+        <p className="text-xs text-red-600">{errors.previousEmployments[0]}</p>
+      )}
+      {rows.length === 0 && (
+        <p className="text-sm text-zinc-500">No previous companies added.</p>
+      )}
+      {rows.map((row, index) => {
+        const prefix = `prev.${index}`;
+        return (
+          <div
+            key={row.key}
+            className="grid gap-4 rounded-md border border-zinc-200 p-4 sm:grid-cols-2 lg:grid-cols-4 dark:border-zinc-800"
+          >
+            <input type="hidden" name={`${prefix}.id`} value={row.id ?? ""} />
+            <Field
+              label="Company name"
+              name={`${prefix}.companyName`}
+              error={errors[`${prefix}.companyName`]}
+            >
+              <Input
+                id={`${prefix}.companyName`}
+                name={`${prefix}.companyName`}
+                defaultValue={row.companyName}
+              />
+            </Field>
+            {PREVIOUS_EMPLOYMENT_DOCUMENTS.map(([column, field, label]) => {
+              const current = row[column];
+              return (
+                <Field
+                  key={field}
+                  label={label}
+                  name={`${prefix}.${field}`}
+                  error={errors[`${prefix}.${field}`]}
+                >
+                  <Input
+                    id={`${prefix}.${field}`}
+                    name={`${prefix}.${field}`}
+                    type="file"
+                    accept=".pdf,image/*"
+                  />
+                  {current && (
+                    <a
+                      href={`/api/files/${current}?inline=1`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-zinc-500 underline underline-offset-4"
+                    >
+                      View current — upload to replace
+                    </a>
+                  )}
+                </Field>
+              );
+            })}
+            <div className="sm:col-span-2 lg:col-span-4">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onRemove(row.key)}
+              >
+                Remove company
+              </Button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -111,6 +223,17 @@ export function EmployeeForm({
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [isFresher, setIsFresher] = useState(defaults.isFresher ?? true);
+  const [previousRows, setPreviousRows] = useState<PreviousEmploymentRow[]>(
+    () =>
+      (defaults.previousEmployments ?? []).map((row) => ({
+        ...row,
+        key: row.id,
+      })),
+  );
+  const nextRowKey = useRef(0);
+  const newRow = (): PreviousEmploymentRow => ({
+    key: `new-${nextRowKey.current++}`,
+  });
   const [empType, setEmpType] = useState(defaults.empType ?? "PROBATION");
   const [joiningDate, setJoiningDate] = useState(defaults.dateOfJoining ?? "");
   const defaultTypeEnd = (joining: string) =>
@@ -277,10 +400,49 @@ export function EmployeeForm({
             required
           />
         </Field>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="managerId">Manager</Label>
+            <div className="flex items-center gap-2">
+              <input
+                id="isFresher"
+                name="isFresher"
+                type="checkbox"
+                checked={isFresher}
+                onChange={(event) => {
+                  setIsFresher(event.target.checked);
+                  // An experienced hire starts with one company to fill in.
+                  if (!event.target.checked && previousRows.length === 0) {
+                    setPreviousRows([newRow()]);
+                  }
+                }}
+                className="size-4"
+              />
+              <Label htmlFor="isFresher">Fresher</Label>
+            </div>
+          </div>
+          <select
+            id="managerId"
+            name="managerId"
+            className={selectClass}
+            defaultValue={defaults.managerId ?? ""}
+          >
+            <option value="">—</option>
+            {managers.map((manager) => (
+              <option key={manager.id} value={manager.id}>
+                {manager.empId} — {manager.name}
+              </option>
+            ))}
+          </select>
+          {errors.managerId && (
+            <p className="text-xs text-red-600">{errors.managerId[0]}</p>
+          )}
+        </div>
         <Field
           label="Date of joining"
           name="dateOfJoining"
           error={errors.dateOfJoining}
+          className="sm:col-start-1"
         >
           <Input
             id="dateOfJoining"
@@ -335,46 +497,30 @@ export function EmployeeForm({
             />
           </Field>
         )}
-        <Field label="PF number" name="pfNumber" error={errors.pfNumber}>
-          <Input
-            id="pfNumber"
-            name="pfNumber"
-            defaultValue={defaults.pfNumber}
-          />
-        </Field>
-        <Field label="UAN number" name="uanNumber" error={errors.uanNumber}>
-          <Input
-            id="uanNumber"
-            name="uanNumber"
-            defaultValue={defaults.uanNumber}
-          />
-        </Field>
-        <Field label="Manager" name="managerId" error={errors.managerId}>
-          <select
-            id="managerId"
-            name="managerId"
-            className={selectClass}
-            defaultValue={defaults.managerId ?? ""}
-          >
-            <option value="">—</option>
-            {managers.map((manager) => (
-              <option key={manager.id} value={manager.id}>
-                {manager.empId} — {manager.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <div className="flex items-center gap-2 pt-6">
-          <input
-            id="isFresher"
-            name="isFresher"
-            type="checkbox"
-            checked={isFresher}
-            onChange={(event) => setIsFresher(event.target.checked)}
-            className="size-4"
-          />
-          <Label htmlFor="isFresher">Fresher</Label>
-        </div>
+        {!isFresher && (
+          <>
+            <Field
+              label="LinkedIn ID"
+              name="linkedinId"
+              error={errors.linkedinId}
+              className="sm:col-start-1"
+            >
+              <Input
+                id="linkedinId"
+                name="linkedinId"
+                defaultValue={defaults.linkedinId}
+              />
+            </Field>
+            <PreviousCompanies
+              rows={previousRows}
+              errors={errors}
+              onAdd={() => setPreviousRows((rows) => [...rows, newRow()])}
+              onRemove={(key) =>
+                setPreviousRows((rows) => rows.filter((row) => row.key !== key))
+              }
+            />
+          </>
+        )}
       </Section>
 
       <Section title="Statutory & bank (stored encrypted)">
@@ -392,6 +538,20 @@ export function EmployeeForm({
             name="aadhaar"
             placeholder={sensitivePlaceholder(masks.aadhaar)}
             autoComplete="off"
+          />
+        </Field>
+        <Field label="PF number" name="pfNumber" error={errors.pfNumber}>
+          <Input
+            id="pfNumber"
+            name="pfNumber"
+            defaultValue={defaults.pfNumber}
+          />
+        </Field>
+        <Field label="UAN number" name="uanNumber" error={errors.uanNumber}>
+          <Input
+            id="uanNumber"
+            name="uanNumber"
+            defaultValue={defaults.uanNumber}
           />
         </Field>
         <Field
@@ -436,58 +596,6 @@ export function EmployeeForm({
           />
         </Field>
       </Section>
-
-      {!isFresher && (
-        <Section title="Experience (non-fresher)">
-          <Field
-            label="LinkedIn ID"
-            name="linkedinId"
-            error={errors.linkedinId}
-          >
-            <Input
-              id="linkedinId"
-              name="linkedinId"
-              defaultValue={defaults.linkedinId}
-            />
-          </Field>
-          <Field
-            label="Offer letter"
-            name="offerLetter"
-            error={errors.offerLetter}
-          >
-            <Input
-              id="offerLetter"
-              name="offerLetter"
-              type="file"
-              accept=".pdf,image/*"
-            />
-          </Field>
-          <Field
-            label="Experience letter"
-            name="experienceLetter"
-            error={errors.experienceLetter}
-          >
-            <Input
-              id="experienceLetter"
-              name="experienceLetter"
-              type="file"
-              accept=".pdf,image/*"
-            />
-          </Field>
-          <Field
-            label="Relieving letter"
-            name="relievingLetter"
-            error={errors.relievingLetter}
-          >
-            <Input
-              id="relievingLetter"
-              name="relievingLetter"
-              type="file"
-              accept=".pdf,image/*"
-            />
-          </Field>
-        </Section>
-      )}
 
       {state.error && (
         <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">

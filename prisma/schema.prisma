@@ -182,14 +182,11 @@ model Employee {
   bankAccountHash String? @unique
 
   // Document uploads — Vercel Blob keys, not bytes
-  photoBlobKey            String?
-  panBlobKey              String?
-  aadhaarBlobKey          String?
-  // Experienced-hire documents (isFresher = false)
-  offerLetterBlobKey      String?
-  experienceLetterBlobKey String?
-  relievingLetterBlobKey  String?
-  linkedinId              String?
+  photoBlobKey   String?
+  panBlobKey     String?
+  aadhaarBlobKey String?
+  // Experienced hires (isFresher = false); letters per PreviousEmployment
+  linkedinId     String?
 
   // Candidate this employee was converted from (candidates.id). No foreign
   // key: the candidates table belongs to the website.
@@ -200,16 +197,17 @@ model Employee {
   managerId String?
   reports   Employee[] @relation("Reports")
 
-  onboarding     OnboardingRecord?
-  idCard         IdCard?
-  probation      ProbationRecord?
-  quantumEntries QuantumEntry[]
-  registrations  SessionRegistration[]
-  attendance     SessionAttendance[]
-  letters        Letter[]
-  reviewMeetings ReviewMeeting[]
-  freelancer     Freelancer?
-  leaveEntries   LeaveEntry[]
+  onboarding          OnboardingRecord?
+  idCard              IdCard?
+  probation           ProbationRecord?
+  quantumEntries      QuantumEntry[]
+  registrations       SessionRegistration[]
+  attendance          SessionAttendance[]
+  letters             Letter[]
+  reviewMeetings      ReviewMeeting[]
+  freelancer          Freelancer?
+  leaveEntries        LeaveEntry[]
+  previousEmployments PreviousEmployment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -531,3 +529,19 @@ model LetterTemplate {
   updatedById String?
 }
 
+// An experienced hire's earlier employer, with that company's letters
+// (private Vercel Blob keys).
+model PreviousEmployment {
+  id                      String   @id @default(cuid())
+  employee                Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId              String
+  companyName             String
+  position                Int      @default(0) // display order in the form
+  offerLetterBlobKey      String?
+  experienceLetterBlobKey String?
+  relievingLetterBlobKey  String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([employeeId, position])
+}

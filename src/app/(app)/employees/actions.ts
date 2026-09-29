@@ -6,7 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import { blindIndex, encryptField, normalizeIdentifier } from "@/lib/crypto";
-import { uploadDocument } from "@/lib/blob";
+import { deleteDocument, uploadDocument } from "@/lib/blob";
 import { encryptPii } from "@/lib/employee-pii";
 import { provisionLogin } from "@/lib/logins";
 import { appendNote } from "../candidates/notes";
@@ -18,6 +18,11 @@ import {
   typeEndUpdateData,
   type EmpTypeValue,
 } from "./type-end";
+import {
+  parsePreviousEmployments,
+  previousEmploymentsCreate,
+  previousEmploymentsSync,
+} from "./previous-employments";
 import {
   cell,
   collectRows,
@@ -97,9 +102,6 @@ const FILE_FIELDS = [
   ["photo", "photoBlobKey"],
   ["panDoc", "panBlobKey"],
   ["aadhaarDoc", "aadhaarBlobKey"],
-  ["offerLetter", "offerLetterBlobKey"],
-  ["experienceLetter", "experienceLetterBlobKey"],
-  ["relievingLetter", "relievingLetterBlobKey"],
 ] as const;
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -116,6 +118,24 @@ function parseForm(formData: FormData) {
   }
   raw.isFresher = formData.get("isFresher") === "on" ? "true" : "";
   return employeeSchema.safeParse(raw);
+}
+
+/** Main fields plus previous companies (none for a fresher), errors merged. */
+function parseEmployeeForm(formData: FormData) {
+  const parsed = parseForm(formData);
+  const previous =
+    formData.get("isFresher") === "on"
+      ? { rows: [] }
+      : parsePreviousEmployments(formData);
+  if (!parsed.success || previous.fieldErrors) {
+    return {
+      fieldErrors: {
+        ...(parsed.success ? {} : z.flattenError(parsed.error).fieldErrors),
+        ...previous.fieldErrors,
+      } as Record<string, string[]>,
+    };
+  }
+  return { data: parsed.data, previousRows: previous.rows };
 }
 
 async function uploadFiles(
@@ -237,11 +257,9 @@ export async function createEmployee(
 ): Promise<EmployeeFormState> {
   const user = await requireRole("HR_ADMIN");
 
-  const parsed = parseForm(formData);
-  if (!parsed.success) {
-    return { fieldErrors: z.flattenError(parsed.error).fieldErrors };
-  }
-  const data = parsed.data;
+  const parsed = parseEmployeeForm(formData);
+  if (parsed.fieldErrors) return { fieldErrors: parsed.fieldErrors };
+  const { data, previousRows } = parsed;
 
   const duplicate = await findDuplicate(data);
   if (duplicate) return { error: duplicate };
@@ -264,19 +282,24 @@ export async function createEmployee(
     };
   }
 
+  const joinDate = new Date(data.dateOfJoining);
+  const typeEnd = resolveTypeEnd(data.typeEndDate, joinDate);
+  const typeEndInvalid = typeEndError(data.empType, typeEnd, joinDate);
+  if (typeEndInvalid) return typeEndInvalid;
+
   let blobKeys;
+  let previousEmployments;
   try {
     blobKeys = await uploadFiles(data.empId, formData);
+    previousEmployments = await previousEmploymentsCreate(
+      data.empId,
+      previousRows ?? [],
+    );
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "File upload failed",
     };
   }
-
-  const joinDate = new Date(data.dateOfJoining);
-  const typeEnd = resolveTypeEnd(data.typeEndDate, joinDate);
-  const typeEndInvalid = typeEndError(data.empType, typeEnd, joinDate);
-  if (typeEndInvalid) return typeEndInvalid;
 
   const employee = await db.employee.create({
     data: {
@@ -300,6 +323,9 @@ export async function createEmployee(
       ...sensitiveColumns(data),
       ...encryptPii(piiInput(data)),
       ...blobKeys,
+      ...(previousEmployments.length > 0
+        ? { previousEmployments: { create: previousEmployments } }
+        : {}),
       // Onboarding completion auto-creates the linked lifecycle records.
       onboarding: {
         create: {
@@ -558,23 +584,12 @@ export async function updateEmployee(
 ): Promise<EmployeeFormState> {
   await requireRole("HR_ADMIN");
 
-  const parsed = parseForm(formData);
-  if (!parsed.success) {
-    return { fieldErrors: z.flattenError(parsed.error).fieldErrors };
-  }
-  const data = parsed.data;
+  const parsed = parseEmployeeForm(formData);
+  if (parsed.fieldErrors) return { fieldErrors: parsed.fieldErrors };
+  const { data, previousRows } = parsed;
 
   const duplicate = await findDuplicate(data, employeeId);
   if (duplicate) return { error: duplicate };
-
-  let blobKeys;
-  try {
-    blobKeys = await uploadFiles(data.empId, formData);
-  } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "File upload failed",
-    };
-  }
 
   // Sensitive fields: only overwrite when a new value was entered —
   // the form never round-trips decrypted values.
@@ -597,7 +612,20 @@ export async function updateEmployee(
   });
   if (!current) return { error: "Employee not found" };
 
-  await db.employee.update({
+  let blobKeys;
+  let previous;
+  try {
+    blobKeys = await uploadFiles(data.empId, formData);
+    previous = previousRows
+      ? await previousEmploymentsSync(employeeId, data.empId, previousRows)
+      : { writes: [], orphaned: [] };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "File upload failed",
+    };
+  }
+
+  const employeeUpdate = db.employee.update({
     where: { id: employeeId },
     data: {
       empId: data.empId,
@@ -629,6 +657,15 @@ export async function updateEmployee(
       }),
     },
   });
+  if (previous.writes.length > 0) {
+    await db.$transaction([employeeUpdate, ...previous.writes]);
+    // Replaced or removed letters: unreferenced once the rows are saved.
+    await Promise.all(
+      previous.orphaned.map((key) => deleteDocument(key).catch(() => {})),
+    );
+  } else {
+    await employeeUpdate;
+  }
 
   // The onboarding log shows joining date, designation and type; keep it
   // in step with the employee record.
