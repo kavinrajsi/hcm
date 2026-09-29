@@ -84,7 +84,7 @@ export async function syncBasecampPeople(): Promise<PeopleSyncResult> {
   const [people, employees] = await Promise.all([
     listPeople(token.accessToken, token.accountId),
     db.employee.findMany({
-      where: { dateOfExit: null },
+      // Everyone, exited included: past employees keep their picture too.
       select: {
         id: true,
         empId: true,
