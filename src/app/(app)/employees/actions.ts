@@ -11,7 +11,6 @@ import { encryptPii } from "@/lib/employee-pii";
 import { provisionLogin } from "@/lib/logins";
 import { appendNote } from "../candidates/notes";
 import { istDay } from "@/lib/date-filter";
-import { summarize, syncBasecampPeople } from "@/lib/basecamp-people";
 import {
   hasTypeEnd,
   resolveTypeEnd,
@@ -683,25 +682,4 @@ export async function updateEmployee(
   revalidatePath("/probation");
   revalidatePath("/onboarding");
   redirect(`/employees/${employeeId}`);
-}
-
-export type PeopleSyncState = {
-  error?: string;
-  summary?: string;
-  unmatched?: { name: string; email: string }[];
-};
-
-/** Employees → "Sync from Basecamp": link people and refresh pictures. */
-export async function syncBasecampPeopleAction(): Promise<PeopleSyncState> {
-  await requireRole("HR_ADMIN");
-  try {
-    const result = await syncBasecampPeople();
-    revalidatePath("/employees");
-    revalidatePath("/profile");
-    return { summary: summarize(result), unmatched: result.unmatched };
-  } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Basecamp sync failed",
-    };
-  }
 }

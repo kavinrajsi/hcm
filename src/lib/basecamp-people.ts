@@ -23,6 +23,24 @@ export type PeopleSyncResult = {
   failed: number;
 };
 
+/** Live progress for the Employees "Sync from Basecamp" sheet. */
+export type PeopleSyncEvent =
+  | { type: "step"; message: string }
+  | { type: "total"; total: number }
+  | {
+      type: "person";
+      empId: string;
+      name: string;
+      status: "updated" | "unchanged" | "failed";
+      error?: string;
+    };
+
+/** A progress event, or the final line of the streamed sync. */
+export type PeopleSyncStreamEvent =
+  | PeopleSyncEvent
+  | { type: "done"; summary: string; result: PeopleSyncResult }
+  | { type: "error"; message: string };
+
 type EmployeeForIndex = {
   id: string;
   workEmail: string;
@@ -76,10 +94,17 @@ async function eachLimited<T>(
   );
 }
 
-export async function syncBasecampPeople(): Promise<PeopleSyncResult> {
+export async function syncBasecampPeople(
+  onProgress: (event: PeopleSyncEvent) => void = () => {},
+): Promise<PeopleSyncResult> {
+  onProgress({ type: "step", message: "Connecting to Basecamp…" });
   const userId = await leaveSyncUserId();
   const token = userId ? await getAccessToken(userId) : null;
   if (!token) throw new Error("Basecamp isn't connected by an HR admin.");
+  onProgress({
+    type: "step",
+    message: "Loading Basecamp people and employees…",
+  });
 
   const [people, employees] = await Promise.all([
     listPeople(token.accessToken, token.accountId),
@@ -88,6 +113,7 @@ export async function syncBasecampPeople(): Promise<PeopleSyncResult> {
       select: {
         id: true,
         empId: true,
+        name: true,
         workEmail: true,
         personalEmail: true,
         personalEmailEnc: true,
@@ -131,6 +157,11 @@ export async function syncBasecampPeople(): Promise<PeopleSyncResult> {
     matches.push({ person, employeeId });
   }
   result.matched = matches.length;
+  onProgress({
+    type: "step",
+    message: `${result.people} Basecamp people, ${employees.length} employees: ${result.matched} matched, ${result.unmatched.length} unmatched`,
+  });
+  onProgress({ type: "total", total: matches.length });
 
   await eachLimited(matches, 3, async ({ person, employeeId }) => {
     const employee = byId.get(employeeId)!;
@@ -146,6 +177,12 @@ export async function syncBasecampPeople(): Promise<PeopleSyncResult> {
           });
         }
         result.unchanged++;
+        onProgress({
+          type: "person",
+          empId: employee.empId,
+          name: employee.name,
+          status: "unchanged",
+        });
         return;
       }
       const { bytes, contentType } = await downloadAvatar(
@@ -168,13 +205,23 @@ export async function syncBasecampPeople(): Promise<PeopleSyncResult> {
         await deleteDocument(employee.avatarBlobKey).catch(() => {});
       }
       result.updated++;
+      onProgress({
+        type: "person",
+        empId: employee.empId,
+        name: employee.name,
+        status: "updated",
+      });
     } catch (error) {
       result.failed++;
-      console.error(
-        "[basecamp-people]",
-        employee.empId,
-        error instanceof Error ? error.message : error,
-      );
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("[basecamp-people]", employee.empId, message);
+      onProgress({
+        type: "person",
+        empId: employee.empId,
+        name: employee.name,
+        status: "failed",
+        error: message,
+      });
     }
   });
 
