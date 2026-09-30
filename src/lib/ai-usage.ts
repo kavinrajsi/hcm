@@ -10,6 +10,8 @@ export const AI_FEATURE_LABELS: Record<string, string> = {
   madmax: "MadMax chat",
   "leave-classify": "Leave & WFH classification",
   "leave-type-jev": "Leave type (Jev)",
+  "assign-kind": "Assign: job kind",
+  "assign-comments": "Assign: comment reading",
 };
 
 export const AI_TRIGGER_LABELS: Record<string, string> = {

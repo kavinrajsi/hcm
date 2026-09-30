@@ -37,6 +37,8 @@ export const NAV: NavGroup[] = [
     items: [
       { title: "Leave", url: "/leave", roles: HR_OR_MANAGER },
       { title: "Quantum", url: "/quantum", roles: HR_OR_MANAGER },
+      // Assignment Intelligence: who should take a design job.
+      { title: "Assign", url: "/assign", roles: HR_OR_MANAGER },
       { title: "Freelancers", url: "/freelancers", roles: HR_OR_MANAGER },
     ],
   },

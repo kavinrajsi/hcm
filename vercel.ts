@@ -9,5 +9,8 @@ export const config: VercelConfig = {
     { path: "/api/cron/leave-sync", schedule: "30 4 * * *" },
     // Daily 05:00 UTC (10:30 IST) — Basecamp people and profile pictures.
     { path: "/api/cron/basecamp-people", schedule: "0 5 * * *" },
+    // Daily 05:30 UTC (11:00 IST) — completed Basecamp to-dos and comments
+    // for Assignment Intelligence, then AI classification of what's new.
+    { path: "/api/cron/basecamp-jobs", schedule: "30 5 * * *" },
   ],
 };

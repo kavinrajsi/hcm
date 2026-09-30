@@ -413,3 +413,97 @@ export async function downloadAvatar(
   }
   return { bytes: Buffer.from(await response.arrayBuffer()), contentType };
 }
+
+// --- To-dos and comments (Assignment Intelligence) ---
+
+export type BasecampTodoFull = {
+  id: number;
+  title: string;
+  description: string; // HTML
+  app_url: string;
+  created_at: string;
+  updated_at: string;
+  completed: boolean;
+  completion: {
+    created_at: string;
+    creator: { id: number; name: string } | null;
+  } | null;
+  comments_count: number;
+  parent: { id: number; title: string; type: string };
+  bucket: { id: number; name: string };
+  creator: { id: number; name: string; email_address?: string | null };
+  assignees: {
+    id: number;
+    name: string;
+    email_address?: string | null;
+    title?: string | null;
+  }[];
+};
+
+export type BasecampComment = {
+  id: number;
+  content: string; // HTML
+  created_at: string;
+  app_url: string;
+  creator: { id: number; name: string; email_address?: string | null };
+};
+
+const JOBS_AGENT = "HCM Assignment Intelligence (internal)";
+
+/** Every to-do list (and group inside a list) of a project, active or archived. */
+export async function listAllTodolists(
+  accessToken: string,
+  accountId: string,
+  project: BasecampProject,
+): Promise<{ id: number; title: string }[]> {
+  const base = `https://3.basecampapi.com/${accountId}/buckets/${project.id}`;
+  const lists: { id: number; title: string }[] = [];
+  for (const todoset of project.dock.filter((item) => item.name === "todoset")) {
+    for (const status of ["", "?status=archived"]) {
+      const page = await fetchAllPages<{ id: number; title: string }>(
+        accessToken,
+        `${base}/todosets/${todoset.id}/todolists.json${status}`,
+        JOBS_AGENT,
+      );
+      lists.push(...page);
+    }
+  }
+  // To-dos inside a group are only listed under the group itself.
+  const groups: { id: number; title: string }[] = [];
+  for (const list of lists) {
+    const page = await fetchAllPages<{ id: number; title: string }>(
+      accessToken,
+      `${base}/todolists/${list.id}/groups.json`,
+      JOBS_AGENT,
+    );
+    groups.push(...page.map((group) => ({ ...group, title: list.title })));
+  }
+  return [...lists, ...groups];
+}
+
+/** Completed to-dos of one list or group, newest completion first. */
+export async function listCompletedTodos(
+  accessToken: string,
+  accountId: string,
+  bucketId: number,
+  todolistId: number,
+): Promise<BasecampTodoFull[]> {
+  return fetchAllPages<BasecampTodoFull>(
+    accessToken,
+    `https://3.basecampapi.com/${accountId}/buckets/${bucketId}/todolists/${todolistId}/todos.json?completed=true`,
+    JOBS_AGENT,
+  );
+}
+
+export async function listComments(
+  accessToken: string,
+  accountId: string,
+  bucketId: string | number,
+  recordingId: string | number,
+): Promise<BasecampComment[]> {
+  return fetchAllPages<BasecampComment>(
+    accessToken,
+    `https://3.basecampapi.com/${accountId}/buckets/${bucketId}/recordings/${recordingId}/comments.json`,
+    JOBS_AGENT,
+  );
+}
