@@ -366,13 +366,16 @@ export async function classifyPending(
         trigger,
       );
       const now = new Date();
+      let count = 0;
       for (const item of results) {
-        await db.jobComment.update({
-          where: { id: item.id },
+        // `aiLabelledAt: null` skips comments another run read meanwhile.
+        const updated = await db.jobComment.updateMany({
+          where: { id: item.id, aiLabelledAt: null },
           data: { aiLabels: item.labels, aiLabelledAt: now },
         });
+        count += updated.count;
       }
-      return results.length;
+      return count;
     },
     "comments",
   );
