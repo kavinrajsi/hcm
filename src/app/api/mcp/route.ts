@@ -30,7 +30,13 @@ const authed = withMcpAuth(
       extra: grant,
     };
   },
-  { required: true, resourceMetadataPath: "/.well-known/oauth-protected-resource/api/mcp" },
+  {
+    required: true,
+    resourceMetadataPath: "/.well-known/oauth-protected-resource/api/mcp",
+    // Same source as the metadata endpoints (see issuer()), so the address
+    // clients are told to use always matches the one in the metadata.
+    resourceUrl: process.env.AUTH_URL?.replace(/\/$/, "") || undefined,
+  },
 );
 
 async function handle(request: Request) {

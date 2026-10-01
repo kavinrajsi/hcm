@@ -1,9 +1,7 @@
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/rbac";
 import { db } from "@/lib/db";
-import { redirectUriMatches, resolveClient } from "@/lib/oauth/clients";
-import { issuer } from "@/lib/oauth/http";
+import { isKnownReturnAddress, redirectUriMatches, resolveClient } from "@/lib/oauth/clients";
 import { decide } from "./actions";
 
 export const metadata = { title: "Allow access", robots: { index: false } };
@@ -48,9 +46,8 @@ export default async function AuthorizePage({
     redirect(`/login?callbackUrl=${encodeURIComponent(here)}`);
   }
   const profile = await db.user.findUnique({ where: { id: user.id }, select: { name: true, email: true } });
-  const requestHeaders = await headers();
-  const base = issuer(new Request(`https://${requestHeaders.get("host") ?? "localhost"}/`, { headers: requestHeaders }));
   const returnHost = new URL(redirectUri).host || new URL(redirectUri).protocol;
+  const verified = isKnownReturnAddress(redirectUri);
 
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-10">
@@ -64,13 +61,22 @@ export default async function AuthorizePage({
         </p>
         <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-zinc-600 dark:text-zinc-400">
           <li>It can read what you can see in HCM, and make changes you could make, such as approving leave.</li>
-          <li>Your AI app asks you before it changes anything, and every change is logged.</li>
+          <li>Most AI apps ask you before running anything that changes data. Every change is logged in HCM.</li>
           <li>PAN, Aadhaar and bank details are never shared.</li>
           <li>Disconnect any time from My Profile → Connected AI apps.</li>
         </ul>
-        <p className="mt-4 text-xs text-zinc-500">
-          After you allow, you&rsquo;ll be sent back to <span className="font-mono">{returnHost}</span>.
-        </p>
+        <div
+          className={
+            verified
+              ? "mt-4 rounded-md bg-muted px-3 py-2 text-sm"
+              : "mt-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"
+          }
+        >
+          {!verified && <p className="font-semibold">Unverified app — make sure you started this connection yourself.</p>}
+          <p>
+            After you allow, HCM sends you back to <span className="font-mono font-semibold">{returnHost}</span>.
+          </p>
+        </div>
         <form action={decide} className="mt-6 flex gap-3">
           {[
             ["client_id", client.id],
@@ -78,7 +84,6 @@ export default async function AuthorizePage({
             ["state", param("state")],
             ["code_challenge", param("code_challenge")],
             ["resource", param("resource")],
-            ["issuer", base],
           ].map(([name, value]) => (
             <input key={name} type="hidden" name={name} value={value} />
           ))}

@@ -29,6 +29,29 @@ export function isAllowedRedirectUri(value: string): boolean {
   return /^[a-z][a-z0-9+.-]*:$/.test(url.protocol);
 }
 
+const KNOWN_HOSTS = ["claude.ai", "claude.com", "chatgpt.com", "chat.openai.com", "platform.openai.com"];
+
+/**
+ * Return addresses we can vouch for: the big AI apps' own domains, the
+ * user's own machine (desktop apps, Claude Code), or a desktop app's own
+ * link scheme. Anything else is flagged on the consent page.
+ */
+export function isKnownReturnAddress(value: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  if (url.protocol === "http:") return ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  if (url.protocol === "https:")
+    return KNOWN_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`));
+  return true; // private-use scheme (cursor://…): only the installed app can receive it
+}
+
+/** New registrations allowed per hour, across everyone. */
+const REGISTRATIONS_PER_HOUR = 50;
+
 const registrationSchema = z.object({
   client_name: z.string().trim().min(1).max(100).optional(),
   redirect_uris: z.array(z.string()).min(1).max(10),
@@ -54,6 +77,12 @@ export async function registerClient(input: unknown): Promise<RegistrationResult
   const data = parsed.data;
   const bad = data.redirect_uris.find((uri) => !isAllowedRedirectUri(uri));
   if (bad) return { ok: false, error: "invalid_redirect_uri", description: `Redirect URI not allowed: ${bad}` };
+
+  const recent = await db.oAuthClient.count({
+    where: { kind: "dcr", createdAt: { gt: new Date(Date.now() - 60 * 60 * 1000) } },
+  });
+  if (recent >= REGISTRATIONS_PER_HOUR)
+    return { ok: false, error: "temporarily_unavailable", description: "Too many new apps registered; try again later" };
 
   const method = data.token_endpoint_auth_method ?? "none";
   const clientId = `hcm_${randomToken(16)}`;
@@ -106,6 +135,7 @@ async function fetchClientMetadata(clientId: string) {
     signal: AbortSignal.timeout(5000),
   });
   if (!response.ok) return null;
+  if (Number(response.headers.get("content-length") ?? 0) > 20_000) return null;
   const text = await response.text();
   if (text.length > 20_000) return null;
   const parsed = cimdSchema.safeParse(JSON.parse(text));

@@ -1,9 +1,11 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/rbac";
 import { redirectUriMatches, resolveClient } from "@/lib/oauth/clients";
 import { issueCode } from "@/lib/oauth/grants";
+import { issuer } from "@/lib/oauth/http";
 
 /** Allow or deny an AI app's request; redirects back to the app. */
 export async function decide(formData: FormData) {
@@ -34,6 +36,11 @@ export async function decide(formData: FormData) {
     resource: get("resource") || null,
   });
   back.searchParams.set("code", code);
-  back.searchParams.set("iss", get("issuer"));
+  const requestHeaders = await headers();
+  const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
+  back.searchParams.set(
+    "iss",
+    issuer(new Request(`${proto}://${requestHeaders.get("host") ?? "localhost"}/`, { headers: requestHeaders })),
+  );
   redirect(back.toString());
 }

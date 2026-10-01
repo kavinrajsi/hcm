@@ -7,7 +7,10 @@ export async function POST(request: Request) {
   const result = await registerClient(body);
   return result.ok
     ? json(result.body, 201)
-    : json({ error: result.error, error_description: result.description }, 400);
+    : json(
+        { error: result.error, error_description: result.description },
+        result.error === "temporarily_unavailable" ? 429 : 400,
+      );
 }
 
 export const OPTIONS = preflight;

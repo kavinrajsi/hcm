@@ -127,7 +127,7 @@ export default async function McpInstructionsPage() {
       <h2 className="mt-10 text-lg font-semibold">What it can do</h2>
       <p className="mt-1 text-sm text-zinc-500">
         Tools marked <span className="rounded bg-amber-100 px-1 text-amber-800 dark:bg-amber-950 dark:text-amber-200">changes data</span>{" "}
-        ask you before they run, and every change is logged.
+        change data. Most AI apps ask you before running them, and every change is logged in HCM.
       </p>
       <div className="mt-3 grid gap-6">
         {catalogue.map((group) => (

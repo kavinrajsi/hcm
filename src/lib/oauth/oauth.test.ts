@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { s256, sha256, verifyPkce } from "./crypto";
-import { isAllowedRedirectUri, redirectUriMatches } from "./clients";
+import { isAllowedRedirectUri, isKnownReturnAddress, redirectUriMatches } from "./clients";
 
 const db = vi.hoisted(() => ({
   oAuthCode: { create: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn() },
@@ -59,6 +59,17 @@ describe("redirect URIs", () => {
     expect(redirectUriMatches(["https://claude.ai/cb"], "https://claude.ai/cb2")).toBe(false);
     expect(redirectUriMatches(["http://127.0.0.1:1000/cb"], "http://127.0.0.1:5555/cb")).toBe(true);
     expect(redirectUriMatches(["http://127.0.0.1:1000/cb"], "http://127.0.0.1:5555/other")).toBe(false);
+  });
+});
+
+describe("known return addresses", () => {
+  it("vouches for the big AI apps, loopback and app schemes only", () => {
+    expect(isKnownReturnAddress("https://claude.ai/api/mcp/auth_callback")).toBe(true);
+    expect(isKnownReturnAddress("https://chatgpt.com/connector_platform_oauth_redirect")).toBe(true);
+    expect(isKnownReturnAddress("http://localhost:33418/callback")).toBe(true);
+    expect(isKnownReturnAddress("cursor://anysphere.cursor-retrieval/oauth/callback")).toBe(true);
+    expect(isKnownReturnAddress("https://claude.ai.evil.example/cb")).toBe(false);
+    expect(isKnownReturnAddress("https://evilclaude.ai/cb")).toBe(false);
   });
 });
 
