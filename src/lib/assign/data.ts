@@ -76,15 +76,20 @@ export async function loadHistories(): Promise<DesignerHistory[]> {
   for (const job of jobs) {
     let corrections = 0;
     let source: "manual" | "ai" | "none" = "none";
+    let unread = false;
     for (const comment of job.comments) {
       const read = effectiveLabels(
         comment.labels.map((label) => label.labels),
         comment.aiLabels,
       );
+      if (read.source === "none") unread = true;
       if (read.labels.includes("CORRECTION")) corrections++;
       if (read.source === "manual") source = "manual";
       else if (read.source === "ai" && source === "none") source = "ai";
     }
+    // A comment nobody has read yet could be a correction; counting the job
+    // as clean would overstate the record, so leave it out until it's read.
+    if (unread) continue;
     const evidence = {
       id: job.id,
       title: job.title,
