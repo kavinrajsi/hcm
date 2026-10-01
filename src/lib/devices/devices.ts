@@ -105,6 +105,20 @@ export function nextAssetTag(type: DeviceType, existing: string[]): string {
   return `${prefix}${String(highest + 1).padStart(4, "0")}`;
 }
 
+/**
+ * The big line on a printed label: MAD-LAP-<employee code> while someone
+ * holds the device, the asset tag otherwise. The asset tag itself never
+ * changes; reprint the label when the device changes hands.
+ */
+export function labelTag(device: {
+  assetTag: string;
+  type: DeviceType;
+  holder: { empId: string } | null;
+}): string {
+  const empId = device.holder?.empId.trim();
+  return empId ? `${assetTagPrefix(device.type)}${empId.toUpperCase()}` : device.assetTag;
+}
+
 /** Unguessable token for the QR URL (/d/<token>). */
 export function newPublicToken(): string {
   return randomBytes(12).toString("base64url");

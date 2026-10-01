@@ -79,6 +79,10 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
             { serialNumber: { contains: params.q, mode: "insensitive" } },
             { holder: { name: { contains: params.q, mode: "insensitive" } } },
             { holder: { empId: { contains: params.q, mode: "insensitive" } } },
+            // A label tag like MAD-LAP-PBCH0100: the code after the prefix.
+            ...(/^MAD-[A-Z]{3}-./i.test(params.q)
+              ? [{ holder: { empId: { equals: params.q.slice(8), mode: "insensitive" as const } } }]
+              : []),
           ],
         }
       : {}),

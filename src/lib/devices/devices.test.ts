@@ -3,6 +3,7 @@ import {
   canAssign,
   canMoveTicket,
   deviceScanUrl,
+  labelTag,
   newPublicToken,
   nextAssetTag,
   statusAfterService,
@@ -74,5 +75,19 @@ describe("deviceAccess", () => {
     expect(deviceAccess({ id: "u-other", role: "MANAGER" }, device)).toBeNull();
     expect(deviceAccess({ id: "u-other", role: "EMPLOYEE" }, device)).toBeNull();
     expect(deviceAccess({ id: "u-boss", role: "MANAGER" }, { holder: null })).toBeNull();
+  });
+});
+
+describe("labelTag", () => {
+  it("shows the holder's employee code while assigned", () => {
+    expect(labelTag({ assetTag: "MAD-LAP-0001", type: "LAPTOP", holder: { empId: "pbch0100" } })).toBe(
+      "MAD-LAP-PBCH0100",
+    );
+    expect(labelTag({ assetTag: "MAD-MOU-0003", type: "MOUSE", holder: { empId: "C2M000071" } })).toBe(
+      "MAD-MOU-C2M000071",
+    );
+  });
+  it("falls back to the asset tag when nobody holds it", () => {
+    expect(labelTag({ assetTag: "MAD-LAP-0001", type: "LAPTOP", holder: null })).toBe("MAD-LAP-0001");
   });
 });

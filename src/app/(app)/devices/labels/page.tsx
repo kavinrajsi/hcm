@@ -79,7 +79,15 @@ export default async function LabelsPage({
   const devices = await db.device.findMany({
     where: { id: { in: ids } },
     orderBy: { assetTag: "asc" },
-    select: { id: true, assetTag: true, type: true, brand: true, model: true, publicToken: true },
+    select: {
+      id: true,
+      assetTag: true,
+      type: true,
+      brand: true,
+      model: true,
+      publicToken: true,
+      holder: { select: { name: true, empId: true } },
+    },
   });
   const requestHeaders = await headers();
   const host = requestHeaders.get("host");
@@ -119,6 +127,7 @@ export default async function LabelsPage({
               type={label.type}
               brand={label.brand}
               model={label.model}
+              holder={label.holder}
             />
           ))}
         </div>
