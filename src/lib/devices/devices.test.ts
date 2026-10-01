@@ -14,6 +14,7 @@ import { deviceAccess } from "./access";
 describe("nextAssetTag", () => {
   it("starts at 0001 and follows the highest of the same type", () => {
     expect(nextAssetTag("LAPTOP", [])).toBe("MAD-LAP-0001");
+    expect(nextAssetTag("MOBILE", ["MAD-LAP-0003", "MAD-MOB-0001"])).toBe("MAD-MOB-0002");
     expect(
       nextAssetTag("LAPTOP", ["MAD-LAP-0002", "MAD-LAP-0010", "MAD-MOU-0099"]),
     ).toBe("MAD-LAP-0011");

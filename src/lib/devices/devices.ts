@@ -9,7 +9,7 @@ import type {
 // Company devices: labels, asset tags, the public QR token, and how a
 // device's status follows assignments and service tickets.
 
-export const DEVICE_TYPES = ["LAPTOP", "MOUSE", "IPAD", "USB_HUB", "OTHER"] as const;
+export const DEVICE_TYPES = ["LAPTOP", "MOUSE", "IPAD", "MOBILE", "USB_HUB", "OTHER"] as const;
 export const DEVICE_STATUSES = [
   "IN_STOCK",
   "ASSIGNED",
@@ -28,6 +28,7 @@ export const DEVICE_TYPE_LABELS: Record<DeviceType, string> = {
   LAPTOP: "Laptop",
   MOUSE: "Mouse",
   IPAD: "iPad",
+  MOBILE: "Mobile",
   USB_HUB: "USB hub",
   OTHER: "Other",
 };
@@ -86,6 +87,7 @@ const TAG_PREFIX: Record<DeviceType, string> = {
   LAPTOP: "LAP",
   MOUSE: "MOU",
   IPAD: "IPD",
+  MOBILE: "MOB",
   USB_HUB: "HUB",
   OTHER: "OTH",
 };

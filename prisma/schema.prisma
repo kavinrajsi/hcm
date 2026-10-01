@@ -702,6 +702,7 @@ enum DeviceType {
   LAPTOP
   MOUSE
   IPAD
+  MOBILE
   USB_HUB
   OTHER
 }

@@ -137,7 +137,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
     <PageShell>
       <PageHeader
         title="Devices"
-        description={`Laptops, mice, iPads and hubs, who has them, and their repairs. ${openTickets} open issue${openTickets === 1 ? "" : "s"}.${
+        description={`Laptops, mobiles, iPads, mice and hubs, who has them, and their repairs. ${openTickets} open issue${openTickets === 1 ? "" : "s"}.${
           user.role === "HR_ADMIN" && monthlyRent > 0 ? ` Rent: ${formatRupees(monthlyRent)}/month.` : ""
         }`}
         actions={
