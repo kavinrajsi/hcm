@@ -7,19 +7,21 @@ import { PageHeader, PageShell } from "@/components/page";
 import { Button } from "@/components/ui/button";
 import { disconnectAnyApp } from "./actions";
 import { AdminSetup } from "./admin-setup";
+import { shotUrls } from "@/lib/mcp-guide-store";
 
 export const metadata = { title: "MCP access" };
 
 // HR: who has connected an AI app to HCM, and every change made through one.
 export default async function McpAccessPage() {
   await requireRole("HR_ADMIN");
-  const [connections, log] = await Promise.all([
+  const [connections, log, shots] = await Promise.all([
     listConnections(),
     db.mcpAuditLog.findMany({
       orderBy: { createdAt: "desc" },
       take: 200,
       select: { id: true, clientName: true, tool: true, input: true, ok: true, error: true, createdAt: true, user: { select: { name: true, email: true } } },
     }),
+    shotUrls(),
   ]);
   return (
     <PageShell width="md">
@@ -82,7 +84,7 @@ export default async function McpAccessPage() {
           </ul>
         )}
       </section>
-      <AdminSetup authUrl={process.env.AUTH_URL} />
+      <AdminSetup authUrl={process.env.AUTH_URL} shots={shots} />
     </PageShell>
   );
 }

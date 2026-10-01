@@ -4,7 +4,8 @@ import { WRITE_TOOLS, buildTools, toolNamesFor } from "@/lib/madmax/tools";
 import { issuer } from "@/lib/oauth/http";
 import { CopyButton } from "./copy-button";
 import { GuideShot } from "@/components/guide-shot";
-import { GUIDE_SHOTS, shotPath, type GuideShot as Shot } from "@/lib/mcp-guide";
+import { GUIDE_SHOTS, type GuideShot as Shot } from "@/lib/mcp-guide";
+import { shotUrls } from "@/lib/mcp-guide-store";
 
 export const metadata = {
   title: "Use HCM from your AI assistant",
@@ -51,13 +52,15 @@ function Step({ title, children }: { title: string; children: React.ReactNode })
 }
 
 /** Numbered steps, each with its screenshot (shown once the file exists). */
-function Steps({ steps }: { steps: { text: React.ReactNode; shot?: Shot }[] }) {
+function Steps({ steps, urls }: { steps: { text: React.ReactNode; shot?: Shot }[]; urls: Record<string, string> }) {
   return (
     <ol className="list-decimal space-y-4 pl-5">
       {steps.map((step, index) => (
         <li key={index}>
           {step.text}
-          {step.shot && <GuideShot src={shotPath(step.shot.file)} caption={step.shot.caption} step={index + 1} />}
+          {step.shot && urls[step.shot.file] && (
+            <GuideShot src={urls[step.shot.file]} caption={step.shot.caption} step={index + 1} />
+          )}
         </li>
       ))}
     </ol>
@@ -72,6 +75,7 @@ export default async function McpInstructionsPage() {
     }),
   );
   const url = `${base}/api/mcp`;
+  const shots = await shotUrls();
   const catalogue = toolCatalogue();
 
   return (
@@ -98,6 +102,7 @@ export default async function McpInstructionsPage() {
       <div className="mt-3 grid gap-3">
         <Step title="Claude (claude.ai, desktop and mobile)">
           <Steps
+            urls={shots}
             steps={[
               {
                 text: (
@@ -176,6 +181,7 @@ export default async function McpInstructionsPage() {
         <Step title="ChatGPT">
           <p className="mb-3">Needs a Plus, Pro, Business or Enterprise plan. Set it up on chatgpt.com in a browser.</p>
           <Steps
+            urls={shots}
             steps={[
               {
                 text: (

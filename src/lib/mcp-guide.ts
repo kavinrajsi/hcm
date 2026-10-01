@@ -1,6 +1,6 @@
 // Screenshots for the "Connect an AI" guide (/mcp/instructions) and the
-// admin setup on MCP access. Each lives at public/mcp-guide/<file>; a
-// missing one is simply not shown, and MCP access lists which are missing.
+// admin setup on MCP access. HR uploads them on MCP access (stored in Blob,
+// see mcp-guide-store.ts); a step without one shows text only.
 
 export type GuideShot = { file: string; caption: string };
 
@@ -32,5 +32,3 @@ export const GUIDE_SHOTS = {
 } satisfies Record<string, GuideShot[]>;
 
 export const ALL_GUIDE_SHOTS: GuideShot[] = Object.values(GUIDE_SHOTS).flat();
-
-export const shotPath = (file: string) => `/mcp-guide/${file}`;

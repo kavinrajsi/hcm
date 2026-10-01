@@ -41,8 +41,14 @@ function focusField(form: HTMLFormElement | null, name: string | undefined) {
   form.querySelector('[role="alert"]')?.scrollIntoView?.({ block: "center" });
 }
 
-export function ValidatedForm({ fieldErrors, onSubmit, onInput, onChange, children, ...props }: Props) {
+export function ValidatedForm({ fieldErrors, onSubmit, onInput, onChange, children, ref, ...props }: Props) {
   const formRef = useRef<HTMLFormElement>(null);
+  // Keep our ref and the caller's (e.g. to requestSubmit on file pick).
+  const setRef = (node: HTMLFormElement | null) => {
+    formRef.current = node;
+    if (typeof ref === "function") ref(node);
+    else if (ref) ref.current = node;
+  };
   const [clientErrors, setClientErrors] = useState<Errors>({});
   const [cleared, setCleared] = useState<Set<string>>(new Set());
   // New server errors (a new object) show again even for fields the user
@@ -70,7 +76,7 @@ export function ValidatedForm({ fieldErrors, onSubmit, onInput, onChange, childr
     <FormErrorsContext.Provider value={{ errors, clear }}>
       <form
         {...props}
-        ref={formRef}
+        ref={setRef}
         noValidate
         onInput={(event) => {
           onEdit(event);

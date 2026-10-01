@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 
-/** A guide screenshot that quietly disappears until the file is added. */
-export function GuideShot({ src, caption, step }: { src: string; caption: string; step?: number }) {
+/** A guide screenshot; renders nothing until one is uploaded. */
+export function GuideShot({ src, caption, step }: { src?: string; caption: string; step?: number }) {
   const [missing, setMissing] = useState(false);
-  if (missing) return null;
+  if (!src || missing) return null;
   return (
     <figure className="mt-3">
-      {/* eslint-disable-next-line @next/next/no-img-element -- plain files in public/, sizes vary */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- uploaded screenshot, sizes vary */}
       <img
         src={src}
         alt={caption}

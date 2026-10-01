@@ -1,12 +1,12 @@
 import { GuideShot } from "@/components/guide-shot";
-import { ALL_GUIDE_SHOTS, GUIDE_SHOTS, shotPath } from "@/lib/mcp-guide";
+import { ALL_GUIDE_SHOTS, GUIDE_SHOTS } from "@/lib/mcp-guide";
 import { ShotChecklist } from "./shot-checklist";
 
 export const PRODUCTION_URL = "https://connect.madarth.com";
 
 // HR: the one-time server setting AI apps depend on (AUTH_URL), checked
 // live, plus which guide screenshots are still missing.
-export function AdminSetup({ authUrl }: { authUrl: string | undefined }) {
+export function AdminSetup({ authUrl, shots }: { authUrl: string | undefined; shots: Record<string, string> }) {
   const current = authUrl?.replace(/\/$/, "");
   const ok = current === PRODUCTION_URL;
   const steps = [
@@ -59,17 +59,16 @@ export function AdminSetup({ authUrl }: { authUrl: string | undefined }) {
         {steps.map((text, index) => (
           <li key={index}>
             {text}
-            <GuideShot src={shotPath(GUIDE_SHOTS.admin[index].file)} caption={GUIDE_SHOTS.admin[index].caption} step={index + 1} />
+            <GuideShot src={shots[GUIDE_SHOTS.admin[index].file]} caption={GUIDE_SHOTS.admin[index].caption} step={index + 1} />
           </li>
         ))}
       </ol>
       <h3 className="mt-6 text-sm font-semibold">Guide screenshots</h3>
       <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        Each step of the Connect an AI guide and the steps above. Added screenshots show here and in the guide;
-        missing ones are hidden from the guide. Hover an empty one to see its file name in
-        <code>public/mcp-guide/</code>.
+        One for each step of the Connect an AI guide and the steps above. Upload them here; they appear in the guide
+        straight away. Steps without one show text only.
       </p>
-      <ShotChecklist shots={ALL_GUIDE_SHOTS.map((shot) => ({ ...shot, src: shotPath(shot.file) }))} />
+      <ShotChecklist shots={ALL_GUIDE_SHOTS.map((shot) => ({ ...shot, url: shots[shot.file] ?? null }))} />
     </section>
   );
 }
