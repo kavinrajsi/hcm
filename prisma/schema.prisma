@@ -224,6 +224,7 @@ model Employee {
   devices             Device[]                @relation("DeviceHolder")
   deviceAssignments   DeviceAssignment[]
   purchaseRequests    DevicePurchaseRequest[]
+  employmentReminders EmploymentReminder[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -991,4 +992,18 @@ model McpAuditLog {
   createdAt  DateTime @default(now())
 
   @@index([createdAt(sort: Desc)])
+}
+
+/// A one-week "employment ends soon" reminder already sent to HR, so each
+/// end date (probation confirmation, contract end, internship end) is
+/// reminded once. An extended probation has a new date and a new reminder.
+model EmploymentReminder {
+  id         String   @id @default(cuid())
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId String
+  kind       String // "probation" | "contract" | "internship"
+  endsOn     DateTime @db.Date
+  sentAt     DateTime @default(now())
+
+  @@unique([employeeId, kind, endsOn])
 }

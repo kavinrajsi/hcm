@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import { addEmployeeToBasecamp, type BasecampOnboardResult } from "@/lib/basecamp-onboard";
+import { notifyTypeChange } from "@/lib/employment-emails";
 import { blindIndex, encryptField, normalizeIdentifier } from "@/lib/crypto";
 import { deleteDocument, uploadDocument } from "@/lib/blob";
 import { encryptPii } from "@/lib/employee-pii";
@@ -679,6 +680,10 @@ export async function updateEmployee(
   } else {
     await employeeUpdate;
   }
+
+  // Type changed: tell the employee, copying HR and Finance (best-effort).
+  if (current.empType !== data.empType)
+    await notifyTypeChange(employeeId, current.empType, data.empType);
 
   // The onboarding log shows joining date, designation and type; keep it
   // in step with the employee record.

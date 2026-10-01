@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { notifyTypeChange } from "@/lib/employment-emails";
 import { encryptPii } from "@/lib/employee-pii";
 import type { CandidateStatus } from "@/app/(app)/candidates/statuses";
 import { appendNote } from "@/app/(app)/candidates/notes";
@@ -103,18 +104,25 @@ export async function setLeaveDecision(
   });
 }
 
-/** Confirmation promotes the employee to permanent. */
+/** Confirmation promotes the employee to permanent (and emails them). */
 export async function confirmProbationRecord(id: string) {
-  await db.$transaction(async (transaction) => {
+  const change = await db.$transaction(async (transaction) => {
     const record = await transaction.probationRecord.update({
       where: { id },
       data: { status: "CONFIRMED", confirmedAt: new Date() },
+    });
+    const before = await transaction.employee.findUnique({
+      where: { id: record.employeeId },
+      select: { empType: true },
     });
     await transaction.employee.update({
       where: { id: record.employeeId },
       data: { empType: "PERMANENT" },
     });
+    return { employeeId: record.employeeId, from: before?.empType ?? "PROBATION" };
   });
+  if (change.from !== "PERMANENT")
+    await notifyTypeChange(change.employeeId, change.from, "PERMANENT");
 }
 
 /** The new due date is the extension date, so it re-enters the due list. */
