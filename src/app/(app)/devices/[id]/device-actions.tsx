@@ -87,12 +87,40 @@ export function ReportIssueForm({ deviceId }: { deviceId: string }) {
   );
 }
 
-export function SendForServiceForm({ ticketId }: { ticketId: string }) {
+export function SendForServiceForm({
+  ticketId,
+  vendors,
+}: {
+  ticketId: string;
+  vendors: { id: string; name: string; phone: string }[];
+}) {
   const [state, formAction, pending] = useActionState(sendForService, {});
+  if (vendors.length === 0)
+    return (
+      <p className="text-sm text-zinc-500">
+        No service centres yet. HR can add one under Devices → Vendors.
+      </p>
+    );
   return (
     <form action={formAction} className="grid gap-2 md:grid-cols-[1fr_10rem_auto] md:items-start">
       <input type="hidden" name="ticketId" value={ticketId} />
-      <Input name="serviceVendor" required placeholder="Service centre" />
+      <select
+        name="serviceVendorId"
+        required
+        defaultValue=""
+        aria-label="Service centre"
+        className="h-10 w-full rounded-md border border-input bg-transparent px-2 text-base md:h-9 md:text-sm dark:bg-input/30"
+      >
+        <option value="" disabled>
+          Service centre…
+        </option>
+        {vendors.map((vendor) => (
+          <option key={vendor.id} value={vendor.id}>
+            {vendor.name}
+            {vendor.phone ? ` · ${vendor.phone}` : ""}
+          </option>
+        ))}
+      </select>
       <Input type="date" name="expectedBackOn" aria-label="Expected back on" />
       <Button type="submit" variant="outline" disabled={pending}>
         {pending ? "Saving…" : "Send for service"}

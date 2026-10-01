@@ -13,6 +13,7 @@ import {
   deviceScanUrl,
 } from "@/lib/devices/devices";
 import { qrSvg } from "@/lib/devices/qr";
+import { SALES_KINDS, SERVICE_KINDS } from "@/lib/devices/vendors";
 import { formatDateTime, formatDay } from "@/lib/format-date";
 import { EmployeeAvatar } from "@/components/employee-avatar";
 import { PageHeader, PageShell } from "@/components/page";
@@ -38,6 +39,7 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
   const device = await db.device.findUnique({
     where: { id },
     include: {
+      vendor: { select: { id: true, name: true, phone: true } },
       holder: {
         select: {
           id: true,
@@ -59,6 +61,7 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
       tickets: {
         orderBy: { createdAt: "desc" },
         include: {
+          serviceVendor: { select: { name: true, phone: true, altPhone: true } },
           reportedBy: { select: { name: true, email: true } },
           events: {
             orderBy: { changedAt: "asc" },
@@ -79,13 +82,32 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
   const proto = requestHeaders.get("x-forwarded-proto") ?? "http";
   const scanUrl = deviceScanUrl(device.publicToken, host ? `${proto}://${host}` : undefined);
   const svg = await qrSvg(scanUrl);
-  const employees = manage
-    ? await db.employee.findMany({
-        where: { dateOfExit: null },
-        orderBy: { name: "asc" },
-        select: { id: true, empId: true, name: true },
-      })
-    : [];
+  const [employees, salesVendors, serviceVendors] = await Promise.all([
+    manage
+      ? db.employee.findMany({
+          where: { dateOfExit: null },
+          orderBy: { name: "asc" },
+          select: { id: true, empId: true, name: true },
+        })
+      : [],
+    manage
+      ? db.vendor.findMany({
+          // Keep the current vendor selectable even if it's since gone inactive.
+          where: {
+            OR: [{ active: true, kind: { in: SALES_KINDS } }, ...(device.vendorId ? [{ id: device.vendorId }] : [])],
+          },
+          orderBy: { name: "asc" },
+          select: { id: true, name: true },
+        })
+      : [],
+    device.tickets.some((ticket) => ticket.status === "OPEN")
+      ? db.vendor.findMany({
+          where: { active: true, kind: { in: SERVICE_KINDS } },
+          orderBy: { name: "asc" },
+          select: { id: true, name: true, phone: true },
+        })
+      : [],
+  ]);
   const who = (person: { name: string | null; email: string } | null) =>
     person ? person.name || person.email : "someone";
 
@@ -135,7 +157,18 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
           <dt className="text-zinc-500">Purchased</dt>
           <dd>
             {device.purchaseDate ? formatDay(device.purchaseDate) : "—"}
-            {device.vendor ? ` from ${device.vendor}` : ""}
+            {device.vendor && (
+              <>
+                {" from "}
+                {manage ? (
+                  <Link href={`/devices/vendors/${device.vendor.id}`} className="hover:underline">
+                    {device.vendor.name}
+                  </Link>
+                ) : (
+                  device.vendor.name
+                )}
+              </>
+            )}
             {manage && device.purchasePrice ? ` · ₹${Number(device.purchasePrice).toLocaleString("en-IN")}` : ""}
           </dd>
           <dt className="text-zinc-500">Warranty</dt>
@@ -205,7 +238,12 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
                   <p className="mt-1 text-sm whitespace-pre-wrap">{ticket.description}</p>
                   <p className="mt-1 text-xs text-zinc-500">
                     Reported by {who(ticket.reportedBy)} on {formatDateTime(ticket.createdAt)}
-                    {ticket.serviceVendor && ` · service: ${ticket.serviceVendor}`}
+                    {ticket.serviceVendor &&
+                      ` · service: ${ticket.serviceVendor.name}${
+                        ticket.serviceVendor.phone ? ` (${ticket.serviceVendor.phone}` : ""
+                      }${ticket.serviceVendor.altPhone ? `, ${ticket.serviceVendor.altPhone}` : ""}${
+                        ticket.serviceVendor.phone ? ")" : ""
+                      }`}
                     {ticket.expectedBackOn && ` · expected back ${formatDay(ticket.expectedBackOn)}`}
                     {ticket.cost && ` · cost ₹${Number(ticket.cost).toLocaleString("en-IN")}`}
                   </p>
@@ -221,7 +259,9 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
                   </ul>
                   {live && (
                     <div className="mt-3 flex flex-col gap-2">
-                      {ticket.status === "OPEN" && <SendForServiceForm ticketId={ticket.id} />}
+                      {ticket.status === "OPEN" && (
+                        <SendForServiceForm ticketId={ticket.id} vendors={serviceVendors} />
+                      )}
                       <ResolveForm ticketId={ticket.id} outForService={ticket.status === "SENT_FOR_SERVICE"} />
                       {ticket.status === "OPEN" && (
                         <form action={cancelTicket}>
@@ -266,6 +306,8 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
       {manage && (
         <Section title="Edit">
           <DeviceForm
+            vendors={salesVendors}
+            addVendorHref={`/devices/vendors/new?back=/devices/${device.id}`}
             values={{
               id: device.id,
               type: device.type,
@@ -275,7 +317,7 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
               specs: device.specs ?? "",
               purchaseDate: day(device.purchaseDate),
               purchasePrice: device.purchasePrice ? String(device.purchasePrice) : "",
-              vendor: device.vendor ?? "",
+              vendorId: device.vendorId ?? "",
               warrantyEndsOn: day(device.warrantyEndsOn),
               notes: device.notes ?? "",
             }}

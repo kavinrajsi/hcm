@@ -7,6 +7,7 @@ const db = vi.hoisted(() => ({
   deviceAssignment: { updateMany: vi.fn(), create: vi.fn() },
   deviceTicket: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
   deviceTicketEvent: { create: vi.fn() },
+  vendor: { findUnique: vi.fn() },
   $transaction: vi.fn(async (ops: unknown[]) => Promise.all(ops)),
 }));
 const requireUser = vi.hoisted(() => vi.fn());
@@ -68,6 +69,16 @@ describe("createDevice", () => {
       assignments: { create: { employeeId: "e1", assignedById: "hr" } },
     });
     expect(data.publicToken).toMatch(/^[\w-]{16}$/);
+  });
+
+  it("rejects a vendor that doesn't sell devices", async () => {
+    db.vendor.findUnique.mockResolvedValue({ kind: "SERVICE", active: true });
+    const state = await actions.createDevice(
+      {},
+      form({ type: "MOUSE", brand: "Logi", model: "M331", vendorId: "v-svc" }),
+    );
+    expect(state.error).toMatch(/sells devices/);
+    expect(db.device.create).not.toHaveBeenCalled();
   });
 
   it("rejects a bad price before touching the database", async () => {
@@ -133,16 +144,36 @@ describe("issues and service", () => {
 
   it("sends an open issue for service and puts the device in service", async () => {
     requireUser.mockResolvedValue({ id: "u-boss", role: "MANAGER" });
+    db.vendor.findUnique.mockResolvedValue({ name: "Apple Care T Nagar", kind: "SERVICE", active: true });
     db.deviceTicket.findUnique.mockResolvedValue({ id: "t1", status: "OPEN", deviceId: "d1" });
     const state = await actions.sendForService(
       {},
-      form({ ticketId: "t1", serviceVendor: "Apple Care T Nagar", expectedBackOn: "2026-10-10" }),
+      form({ ticketId: "t1", serviceVendorId: "v-svc", expectedBackOn: "2026-10-10" }),
     );
     expect(state.ok).toBe("Sent for service.");
     expect(db.device.update).toHaveBeenCalledWith({ where: { id: "d1" }, data: { status: "IN_SERVICE" } });
     expect(db.deviceTicketEvent.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ fromStatus: "OPEN", toStatus: "SENT_FOR_SERVICE" }),
+      data: expect.objectContaining({
+        fromStatus: "OPEN",
+        toStatus: "SENT_FOR_SERVICE",
+        note: "Sent to Apple Care T Nagar",
+      }),
     });
+    expect(db.deviceTicket.update).toHaveBeenCalledWith({
+      where: { id: "t1" },
+      data: expect.objectContaining({ serviceVendorId: "v-svc" }),
+    });
+  });
+
+  it("won't send to a vendor that only sells, or is inactive", async () => {
+    db.deviceTicket.findUnique.mockResolvedValue({ id: "t1", status: "OPEN", deviceId: "d1" });
+    db.vendor.findUnique.mockResolvedValue({ name: "Croma", kind: "SALES", active: true });
+    let state = await actions.sendForService({}, form({ ticketId: "t1", serviceVendorId: "v-shop" }));
+    expect(state.error).toMatch(/services devices/);
+    db.vendor.findUnique.mockResolvedValue({ name: "Old shop", kind: "SERVICE", active: false });
+    state = await actions.sendForService({}, form({ ticketId: "t1", serviceVendorId: "v-old" }));
+    expect(state.error).toMatch(/services devices/);
+    expect(db.device.update).not.toHaveBeenCalled();
   });
 
   it("brings the device back to its holder when service is done", async () => {

@@ -8,6 +8,7 @@ import type { DeviceTicketStatus } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { AuthorizationError, requireRole, requireUser } from "@/lib/rbac";
 import { DEVICE_ACCESS_SELECT, deviceAccess } from "@/lib/devices/access";
+import { SALES_KINDS, SERVICE_KINDS } from "@/lib/devices/vendors";
 import {
   DEVICE_TYPES,
   assetTagPrefix,
@@ -42,7 +43,7 @@ const deviceSchema = z.object({
   specs: optional,
   purchaseDate: optionalDate,
   purchasePrice: optionalMoney,
-  vendor: optional,
+  vendorId: optional,
   warrantyEndsOn: optionalDate,
   notes: optional,
 });
@@ -61,7 +62,7 @@ function deviceData(data: z.infer<typeof deviceSchema>) {
     specs: data.specs ?? null,
     purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : null,
     purchasePrice: data.purchasePrice ?? null,
-    vendor: data.vendor ?? null,
+    vendorId: data.vendorId ?? null,
     warrantyEndsOn: data.warrantyEndsOn ? new Date(data.warrantyEndsOn) : null,
     notes: data.notes ?? null,
   };
@@ -81,6 +82,13 @@ function isUniqueClash(error: unknown, column?: string): boolean {
     error.code === "P2002" &&
     (!column || JSON.stringify(error.meta ?? {}).includes(column))
   );
+}
+
+/** True when the vendor exists, is active and does this kind of work. */
+async function vendorOk(id: string | null | undefined, kinds: typeof SALES_KINDS) {
+  if (!id) return true;
+  const vendor = await db.vendor.findUnique({ where: { id }, select: { kind: true, active: true } });
+  return Boolean(vendor && vendor.active && kinds.includes(vendor.kind));
 }
 
 function revalidateDevice(id?: string) {
@@ -113,6 +121,8 @@ export async function createDevice(
   const parsed = parseDevice(formData);
   if (!parsed.success)
     return { error: parsed.error.issues[0]?.message ?? "Invalid device" };
+  if (!(await vendorOk(parsed.data.vendorId, SALES_KINDS)))
+    return { error: "Pick an active vendor that sells devices." };
   const employeeId = field(formData, "employeeId") || null;
   const conditionOut = field(formData, "conditionOut")?.trim() || null;
 
@@ -161,6 +171,8 @@ export async function updateDevice(
   const parsed = parseDevice(formData);
   if (!parsed.success)
     return { error: parsed.error.issues[0]?.message ?? "Invalid device" };
+  if (!(await vendorOk(parsed.data.vendorId, SALES_KINDS)))
+    return { error: "Pick an active vendor that sells devices." };
   try {
     // The asset tag stays: it's printed on the label.
     const { type: _type, ...rest } = deviceData(parsed.data);
@@ -323,8 +335,14 @@ export async function sendForService(
     return { error: "Only open issues can be sent for service." };
   if (device.status === "IN_SERVICE")
     return { error: "This device is already out for service." };
-  const vendor = field(formData, "serviceVendor")?.trim();
-  if (!vendor) return { error: "Where is it going? Add the service centre." };
+  const vendorId = field(formData, "serviceVendorId")?.trim();
+  if (!vendorId) return { error: "Where is it going? Pick the service centre." };
+  const vendor = await db.vendor.findUnique({
+    where: { id: vendorId },
+    select: { name: true, kind: true, active: true },
+  });
+  if (!vendor || !vendor.active || !SERVICE_KINDS.includes(vendor.kind))
+    return { error: "Pick an active vendor that services devices." };
   const expected = field(formData, "expectedBackOn")?.trim();
   if (expected && !/^\d{4}-\d{2}-\d{2}$/.test(expected))
     return { error: "Expected date must be YYYY-MM-DD." };
@@ -334,13 +352,13 @@ export async function sendForService(
       where: { id: ticket.id },
       data: {
         status: "SENT_FOR_SERVICE",
-        serviceVendor: vendor,
+        serviceVendorId: vendorId,
         sentAt: new Date(),
         expectedBackOn: expected ? new Date(expected) : null,
       },
     }),
     db.device.update({ where: { id: device.id }, data: { status: "IN_SERVICE" } }),
-    moveEvent(ticket.id, ticket.status, "SENT_FOR_SERVICE", user.id, note ?? `Sent to ${vendor}`),
+    moveEvent(ticket.id, ticket.status, "SENT_FOR_SERVICE", user.id, note ?? `Sent to ${vendor.name}`),
   ]);
   revalidateDevice(device.id);
   return { ok: "Sent for service." };

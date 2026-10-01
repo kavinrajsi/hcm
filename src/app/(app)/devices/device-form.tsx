@@ -21,7 +21,7 @@ export type DeviceValues = {
   specs: string;
   purchaseDate: string;
   purchasePrice: string;
-  vendor: string;
+  vendorId: string;
   warrantyEndsOn: string;
   notes: string;
 };
@@ -34,7 +34,7 @@ export const EMPTY_DEVICE: DeviceValues = {
   specs: "",
   purchaseDate: "",
   purchasePrice: "",
-  vendor: "",
+  vendorId: "",
   warrantyEndsOn: "",
   notes: "",
 };
@@ -58,12 +58,19 @@ function Field({
 }
 
 /** Add (with optional first holder) or edit a device. HR only. */
+export type VendorOption = { id: string; name: string };
+
 export function DeviceForm({
   values,
   employees,
+  vendors,
+  addVendorHref,
 }: {
   values: DeviceValues;
   employees?: Employee[];
+  /** Active vendors that sell devices (plus the current one when editing). */
+  vendors: VendorOption[];
+  addVendorHref: string;
 }) {
   const editing = Boolean(values.id);
   const [state, formAction, pending] = useActionState<DeviceFormState, FormData>(
@@ -101,8 +108,18 @@ export function DeviceForm({
         <Field label="Purchase price (₹)">
           <Input name="purchasePrice" inputMode="decimal" defaultValue={values.purchasePrice} />
         </Field>
-        <Field label="Vendor">
-          <Input name="vendor" defaultValue={values.vendor} />
+        <Field label="Bought from">
+          <select name="vendorId" defaultValue={values.vendorId} className={selectClass}>
+            <option value="">Not recorded</option>
+            {vendors.map((vendor) => (
+              <option key={vendor.id} value={vendor.id}>
+                {vendor.name}
+              </option>
+            ))}
+          </select>
+          <a href={addVendorHref} className="text-xs text-zinc-500 underline-offset-4 hover:underline">
+            Vendor not listed? Add one
+          </a>
         </Field>
         <Field label="Warranty ends">
           <Input type="date" name="warrantyEndsOn" defaultValue={values.warrantyEndsOn} />
