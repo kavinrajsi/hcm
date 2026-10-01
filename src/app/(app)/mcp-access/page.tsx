@@ -6,6 +6,7 @@ import { formatDateTime } from "@/lib/format-date";
 import { PageHeader, PageShell } from "@/components/page";
 import { Button } from "@/components/ui/button";
 import { disconnectAnyApp } from "./actions";
+import { AdminSetup } from "./admin-setup";
 
 export const metadata = { title: "MCP access" };
 
@@ -81,6 +82,7 @@ export default async function McpAccessPage() {
           </ul>
         )}
       </section>
+      <AdminSetup authUrl={process.env.AUTH_URL} />
     </PageShell>
   );
 }

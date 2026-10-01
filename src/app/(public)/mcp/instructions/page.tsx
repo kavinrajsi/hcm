@@ -3,6 +3,8 @@ import type { Role } from "@/generated/prisma/enums";
 import { WRITE_TOOLS, buildTools, toolNamesFor } from "@/lib/madmax/tools";
 import { issuer } from "@/lib/oauth/http";
 import { CopyButton } from "./copy-button";
+import { GuideShot } from "@/components/guide-shot";
+import { GUIDE_SHOTS, shotPath, type GuideShot as Shot } from "@/lib/mcp-guide";
 
 export const metadata = {
   title: "Use HCM from your AI assistant",
@@ -48,6 +50,20 @@ function Step({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
+/** Numbered steps, each with its screenshot (shown once the file exists). */
+function Steps({ steps }: { steps: { text: React.ReactNode; shot?: Shot }[] }) {
+  return (
+    <ol className="list-decimal space-y-4 pl-5">
+      {steps.map((step, index) => (
+        <li key={index}>
+          {step.text}
+          {step.shot && <GuideShot src={shotPath(step.shot.file)} caption={step.shot.caption} step={index + 1} />}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export default async function McpInstructionsPage() {
   const requestHeaders = await headers();
   const base = issuer(
@@ -81,20 +97,142 @@ export default async function McpInstructionsPage() {
       <h2 className="mt-10 text-lg font-semibold">Set it up</h2>
       <div className="mt-3 grid gap-3">
         <Step title="Claude (claude.ai, desktop and mobile)">
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>Open <strong>Settings → Connectors</strong>.</li>
-            <li>Choose <strong>Add custom connector</strong>, name it <em>HCM</em>, paste the URL above, and add it.</li>
-            <li>Click <strong>Connect</strong>, sign in to HCM and allow. Then ask away in any chat.</li>
-          </ol>
+          <Steps
+            steps={[
+              {
+                text: (
+                  <>
+                    Open <strong>claude.ai</strong> in a browser (or the desktop app). Click your name at the bottom
+                    left, then <strong>Settings</strong>.
+                  </>
+                ),
+                shot: GUIDE_SHOTS.claude[0],
+              },
+              {
+                text: (
+                  <>
+                    Open the <strong>Connectors</strong> tab and click <strong>Add custom connector</strong>. On a Team or
+                    Enterprise plan, an Owner adds it once under <strong>Admin settings → Connectors</strong>; everyone
+                    else skips to step 4.
+                  </>
+                ),
+                shot: GUIDE_SHOTS.claude[1],
+              },
+              {
+                text: (
+                  <>
+                    Name it <strong>HCM</strong>, paste the MCP server URL from the top of this page, and click{" "}
+                    <strong>Add</strong>. Leave the advanced OAuth fields empty.
+                  </>
+                ),
+                shot: GUIDE_SHOTS.claude[2],
+              },
+              {
+                text: (
+                  <>
+                    HCM now appears in your connectors. Click <strong>Connect</strong> next to it.
+                  </>
+                ),
+                shot: GUIDE_SHOTS.claude[3],
+              },
+              {
+                text: (
+                  <>
+                    A new tab opens on HCM. Sign in with your Madarth account if asked, check it says{" "}
+                    <strong>Claude</strong> wants access, and click <strong>Allow</strong>.
+                  </>
+                ),
+                shot: GUIDE_SHOTS.claude[4],
+              },
+              {
+                text: <>You&apos;re sent back to Claude, and HCM shows as connected.</>,
+                shot: GUIDE_SHOTS.claude[5],
+              },
+              {
+                text: (
+                  <>
+                    Start a new chat. Open <strong>Search and tools</strong> (the sliders icon by the message box) and
+                    make sure <strong>HCM</strong> is switched on.
+                  </>
+                ),
+                shot: GUIDE_SHOTS.claude[6],
+              },
+              {
+                text: (
+                  <>
+                    Ask something like &ldquo;How much leave do I have left?&rdquo;. The first time Claude uses an HCM
+                    tool it asks permission: choose <strong>Allow once</strong> or <strong>Always allow</strong>.
+                  </>
+                ),
+                shot: GUIDE_SHOTS.claude[7],
+              },
+            ]}
+          />
+          <p className="mt-3">
+            Mobile apps use the connector once it&apos;s added on the web. To remove it, use the ⋯ menu next to HCM in
+            Settings → Connectors.
+          </p>
         </Step>
         <Step title="ChatGPT">
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>
-              In <strong>Settings → Apps</strong> (Advanced), turn on <strong>Developer mode</strong>.
-            </li>
-            <li>Create a new app/connector, name it <em>HCM</em>, paste the URL, authentication <strong>OAuth</strong>.</li>
-            <li>Sign in to HCM and allow. In a chat, pick it from <strong>+ → More → Developer mode</strong>.</li>
-          </ol>
+          <p className="mb-3">Needs a Plus, Pro, Business or Enterprise plan. Set it up on chatgpt.com in a browser.</p>
+          <Steps
+            steps={[
+              {
+                text: (
+                  <>
+                    Click your name at the bottom left, then <strong>Settings → Apps &amp; Connectors</strong>.
+                  </>
+                ),
+                shot: GUIDE_SHOTS.chatgpt[0],
+              },
+              {
+                text: (
+                  <>
+                    Scroll to <strong>Advanced settings</strong> and turn on <strong>Developer mode</strong>. On Business
+                    or Enterprise, a workspace admin may need to allow it first.
+                  </>
+                ),
+                shot: GUIDE_SHOTS.chatgpt[1],
+              },
+              {
+                text: (
+                  <>
+                    Back in Apps &amp; Connectors, click <strong>Create</strong>. Name it <strong>HCM</strong>, paste the
+                    MCP server URL, set Authentication to <strong>OAuth</strong>, tick{" "}
+                    <strong>I trust this application</strong>, and click <strong>Create</strong>.
+                  </>
+                ),
+                shot: GUIDE_SHOTS.chatgpt[2],
+              },
+              {
+                text: (
+                  <>
+                    A tab opens on HCM. Sign in if asked, check it says <strong>ChatGPT</strong> wants access, and click{" "}
+                    <strong>Allow</strong>.
+                  </>
+                ),
+                shot: GUIDE_SHOTS.chatgpt[3],
+              },
+              {
+                text: (
+                  <>
+                    In a new chat, click <strong>+</strong> by the message box, then <strong>More → Developer mode</strong>,
+                    and switch on <strong>HCM</strong>.
+                  </>
+                ),
+                shot: GUIDE_SHOTS.chatgpt[4],
+              },
+              {
+                text: (
+                  <>
+                    Ask your question. When ChatGPT wants to change something in HCM (log Quantum work, approve leave),
+                    it shows the details and asks you to confirm first.
+                  </>
+                ),
+                shot: GUIDE_SHOTS.chatgpt[5],
+              },
+            ]}
+          />
         </Step>
         <Step title="Claude Code">
           <Code>{`claude mcp add --transport http hcm ${url}`}</Code>
