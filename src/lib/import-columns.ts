@@ -12,6 +12,7 @@ export const EMPLOYEE_IMPORT_COLUMNS = [
   "personalEmail",
   "workEmail",
   "emergencyContact",
+  "fatherName",
   "address",
   "city",
   "state",

@@ -145,6 +145,8 @@ model Employee {
   workEmail        String    @unique
   emergencyContact String?
 
+  fatherName String?
+
   // Address
   address String?
   city    String?

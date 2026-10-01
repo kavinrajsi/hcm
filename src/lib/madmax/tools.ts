@@ -214,6 +214,7 @@ export function buildTools(context: MadmaxContext): ToolSet {
             phone: pii.phone,
             personalEmail: pii.personalEmail,
             emergencyContact: pii.emergencyContact,
+            fatherName: employee.fatherName,
             address: pii.address,
             city: employee.city,
             state: employee.state,
@@ -344,6 +345,7 @@ export function buildTools(context: MadmaxContext): ToolSet {
         phone: z.string().optional(),
         personalEmail: z.string().optional(),
         emergencyContact: z.string().optional(),
+        fatherName: z.string().optional(),
         address: z.string().optional(),
         city: z.string().optional(),
         state: z.string().optional(),
@@ -360,6 +362,7 @@ export function buildTools(context: MadmaxContext): ToolSet {
           personalEmail: changes.personalEmail ?? pii.personalEmail ?? "",
           emergencyContact:
             changes.emergencyContact ?? pii.emergencyContact ?? undefined,
+          fatherName: changes.fatherName ?? employee.fatherName ?? undefined,
           address: changes.address ?? pii.address ?? undefined,
           city: changes.city ?? employee.city ?? undefined,
           state: changes.state ?? employee.state ?? undefined,

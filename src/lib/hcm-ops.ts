@@ -20,6 +20,12 @@ export const contactSchema = z.object({
   phone: z.string().trim().min(7, "Phone is required"),
   personalEmail: z.string().trim().pipe(z.email("Invalid personal email")),
   emergencyContact: optional,
+  fatherName: z
+    .string()
+    .trim()
+    .max(100, "Keep it under 100 characters")
+    .transform((value) => (value === "" ? undefined : value))
+    .optional(),
   address: optional,
   city: optional,
   state: optional,
@@ -28,10 +34,10 @@ export const contactSchema = z.object({
 export type ContactInput = z.infer<typeof contactSchema>;
 
 export async function saveContact(employeeId: string, input: ContactInput) {
-  const { city, state, pincode, ...pii } = input;
+  const { city, state, pincode, fatherName, ...pii } = input;
   await db.employee.update({
     where: { id: employeeId },
-    data: { city, state, pincode, ...encryptPii(pii) },
+    data: { city, state, pincode, fatherName, ...encryptPii(pii) },
   });
 }
 

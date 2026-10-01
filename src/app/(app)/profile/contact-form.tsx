@@ -3,7 +3,8 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField, FormMessage } from "@/components/form/form-field";
 import type { SelfUpdateState } from "./actions";
 
 export function ContactForm({
@@ -18,6 +19,7 @@ export function ContactForm({
     phone: string;
     personalEmail: string;
     emergencyContact?: string;
+    fatherName?: string;
     address?: string;
     city?: string;
     state?: string;
@@ -30,38 +32,41 @@ export function ContactForm({
   >(action, {});
 
   const fields = [
-    ["phone", "Phone", defaults.phone, true],
-    ["personalEmail", "Personal email", defaults.personalEmail, true],
-    ["emergencyContact", "Emergency contact", defaults.emergencyContact, false],
-    ["address", "Address", defaults.address, false],
-    ["city", "City", defaults.city, false],
-    ["state", "State", defaults.state, false],
-    ["pincode", "Pincode", defaults.pincode, false],
+    ["phone", "Phone", defaults.phone, true, "tel"],
+    ["personalEmail", "Personal email", defaults.personalEmail, true, "email"],
+    ["emergencyContact", "Emergency contact", defaults.emergencyContact, false, "text"],
+    ["fatherName", "Father's name", defaults.fatherName, false, "text"],
+    ["address", "Address", defaults.address, false, "text"],
+    ["city", "City", defaults.city, false, "text"],
+    ["state", "State", defaults.state, false, "text"],
+    ["pincode", "Pincode", defaults.pincode, false, "text"],
   ] as const;
 
   return (
-    <form
+    <ValidatedForm
       action={formAction}
+      fieldErrors={state.fieldErrors}
       className="grid gap-4 rounded-lg border border-zinc-200 p-5 sm:grid-cols-2 lg:grid-cols-3 dark:border-zinc-800"
     >
-      {fields.map(([name, label, value, required]) => (
-        <div key={name} className="flex flex-col gap-1.5">
-          <Label htmlFor={`me-${name}`}>{label}</Label>
+      {fields.map(([name, label, value, required, type]) => (
+        <FormField key={name} name={name} label={label} className="gap-1.5">
           <Input
             id={`me-${name}`}
             name={name}
+            type={type}
             defaultValue={value}
             required={required}
+            maxLength={name === "fatherName" ? 100 : undefined}
           />
-        </div>
+        </FormField>
       ))}
       <div className="flex flex-wrap items-end gap-3">
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : "Update contact info"}
         </Button>
         {state.ok && <p className="text-sm text-green-600">Saved.</p>}
-        {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+        <FormMessage error={state.error} />
       </div>
-    </form>
+    </ValidatedForm>
   );
 }

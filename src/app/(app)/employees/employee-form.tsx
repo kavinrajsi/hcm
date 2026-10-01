@@ -4,7 +4,12 @@ import { useActionState, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { ValidatedForm } from "@/components/form/validated-form";
+import {
+  FieldError,
+  FormField,
+  FormMessage,
+} from "@/components/form/form-field";
 import type { EmployeeFormState } from "./actions";
 import { istDay } from "@/lib/date-filter";
 import { PREVIOUS_EMPLOYMENT_DOCUMENTS } from "@/lib/employee-documents";
@@ -26,6 +31,7 @@ export type EmployeeDefaults = Partial<{
   personalEmail: string;
   workEmail: string;
   emergencyContact: string;
+  fatherName: string;
   address: string;
   city: string;
   state: string;
@@ -65,28 +71,6 @@ export type SensitiveMasks = Partial<{
   ifsc: string;
 }>;
 
-function Field({
-  label,
-  name,
-  error,
-  className,
-  children,
-}: {
-  label: string;
-  name: string;
-  error?: string[];
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={cn("flex flex-col gap-1.5", className)}>
-      <Label htmlFor={name}>{label}</Label>
-      {children}
-      {error && <p className="text-xs text-red-600">{error[0]}</p>}
-    </div>
-  );
-}
-
 function Section({
   title,
   children,
@@ -108,12 +92,10 @@ function Section({
  */
 function PreviousCompanies({
   rows,
-  errors,
   onAdd,
   onRemove,
 }: {
   rows: PreviousEmploymentRow[];
-  errors: Record<string, string[]>;
   onAdd: () => void;
   onRemove: (key: string) => void;
 }) {
@@ -126,9 +108,7 @@ function PreviousCompanies({
         </Button>
       </div>
       <input type="hidden" name="prevCount" value={rows.length} />
-      {errors.previousEmployments && (
-        <p className="text-xs text-red-600">{errors.previousEmployments[0]}</p>
-      )}
+      <FieldError name="previousEmployments" />
       {rows.length === 0 && (
         <p className="text-sm text-zinc-500">No previous companies added.</p>
       )}
@@ -140,25 +120,22 @@ function PreviousCompanies({
             className="grid gap-4 rounded-md border border-zinc-200 p-4 sm:grid-cols-2 lg:grid-cols-4 dark:border-zinc-800"
           >
             <input type="hidden" name={`${prefix}.id`} value={row.id ?? ""} />
-            <Field
-              label="Company name"
-              name={`${prefix}.companyName`}
-              error={errors[`${prefix}.companyName`]}
-            >
+            <FormField label="Company name" name={`${prefix}.companyName`}>
               <Input
                 id={`${prefix}.companyName`}
                 name={`${prefix}.companyName`}
                 defaultValue={row.companyName}
               />
-            </Field>
+            </FormField>
             {PREVIOUS_EMPLOYMENT_DOCUMENTS.map(([column, field, label]) => {
               const current = row[column];
               return (
-                <Field
+                // A div, not a label: the "View current" link sits inside.
+                <FormField
                   key={field}
                   label={label}
                   name={`${prefix}.${field}`}
-                  error={errors[`${prefix}.${field}`]}
+                  htmlFor={`${prefix}.${field}`}
                 >
                   <Input
                     id={`${prefix}.${field}`}
@@ -176,7 +153,7 @@ function PreviousCompanies({
                       View current — upload to replace
                     </a>
                   )}
-                </Field>
+                </FormField>
               );
             })}
             <div className="sm:col-span-2 lg:col-span-4">
@@ -249,29 +226,32 @@ export function EmployeeForm({
     defaults.typeEndDate !== undefined,
   );
   const typeEndLabel = TYPE_END_LABELS[empType as EmpTypeValue];
-  const errors = state.fieldErrors ?? {};
 
   const sensitivePlaceholder = (mask?: string) =>
     mask ? `${mask} — enter to replace` : undefined;
 
   return (
-    <form action={formAction} className="flex flex-col gap-6">
+    <ValidatedForm
+      action={formAction}
+      fieldErrors={state.fieldErrors}
+      className="flex flex-col gap-6"
+    >
       {Object.entries(hidden).map(([name, value]) => (
         <input key={name} type="hidden" name={name} value={value} />
       ))}
       <Section title="Identity">
-        <Field label="Employee ID" name="empId" error={errors.empId}>
+        <FormField label="Employee ID" name="empId">
           <Input
             id="empId"
             name="empId"
             defaultValue={defaults.empId}
             required
           />
-        </Field>
-        <Field label="Full name" name="name" error={errors.name}>
+        </FormField>
+        <FormField label="Full name" name="name">
           <Input id="name" name="name" defaultValue={defaults.name} required />
-        </Field>
-        <Field label="Gender" name="gender" error={errors.gender}>
+        </FormField>
+        <FormField label="Gender" name="gender">
           <select
             id="gender"
             name="gender"
@@ -283,11 +263,10 @@ export function EmployeeForm({
             <option value="FEMALE">Female</option>
             <option value="OTHER">Other</option>
           </select>
-        </Field>
-        <Field
+        </FormField>
+        <FormField
           label="Date of birth"
           name="dateOfBirth"
-          error={errors.dateOfBirth}
         >
           <Input
             id="dateOfBirth"
@@ -295,15 +274,15 @@ export function EmployeeForm({
             type="date"
             defaultValue={defaults.dateOfBirth}
           />
-        </Field>
-        <Field label="Blood group" name="bloodGroup" error={errors.bloodGroup}>
+        </FormField>
+        <FormField label="Blood group" name="bloodGroup">
           <Input
             id="bloodGroup"
             name="bloodGroup"
             defaultValue={defaults.bloodGroup}
           />
-        </Field>
-        <Field label="T-shirt size" name="tshirtSize" error={errors.tshirtSize}>
+        </FormField>
+        <FormField label="T-shirt size" name="tshirtSize">
           <select
             id="tshirtSize"
             name="tshirtSize"
@@ -317,22 +296,21 @@ export function EmployeeForm({
               </option>
             ))}
           </select>
-        </Field>
+        </FormField>
       </Section>
 
       <Section title="Contact">
-        <Field label="Phone" name="phone" error={errors.phone}>
+        <FormField label="Phone" name="phone">
           <Input
             id="phone"
             name="phone"
             type="tel"
             defaultValue={defaults.phone}
           />
-        </Field>
-        <Field
+        </FormField>
+        <FormField
           label="Personal email"
           name="personalEmail"
-          error={errors.personalEmail}
         >
           <Input
             id="personalEmail"
@@ -340,8 +318,8 @@ export function EmployeeForm({
             type="email"
             defaultValue={defaults.personalEmail}
           />
-        </Field>
-        <Field label="Work email" name="workEmail" error={errors.workEmail}>
+        </FormField>
+        <FormField label="Work email" name="workEmail">
           <Input
             id="workEmail"
             name="workEmail"
@@ -349,11 +327,10 @@ export function EmployeeForm({
             defaultValue={defaults.workEmail}
             required
           />
-        </Field>
-        <Field
+        </FormField>
+        <FormField
           label="Emergency contact"
           name="emergencyContact"
-          error={errors.emergencyContact}
         >
           <Input
             id="emergencyContact"
@@ -361,37 +338,44 @@ export function EmployeeForm({
             type="tel"
             defaultValue={defaults.emergencyContact}
           />
-        </Field>
+        </FormField>
       </Section>
 
       <Section title="Address">
-        <Field label="Address" name="address" error={errors.address}>
+        <FormField label="Father's name" name="fatherName">
+          <Input
+            id="fatherName"
+            name="fatherName"
+            defaultValue={defaults.fatherName}
+            maxLength={100}
+          />
+        </FormField>
+        <FormField label="Address" name="address">
           <Input id="address" name="address" defaultValue={defaults.address} />
-        </Field>
-        <Field label="City" name="city" error={errors.city}>
+        </FormField>
+        <FormField label="City" name="city">
           <Input id="city" name="city" defaultValue={defaults.city} />
-        </Field>
-        <Field label="State" name="state" error={errors.state}>
+        </FormField>
+        <FormField label="State" name="state">
           <Input id="state" name="state" defaultValue={defaults.state} />
-        </Field>
-        <Field label="Pincode" name="pincode" error={errors.pincode}>
+        </FormField>
+        <FormField label="Pincode" name="pincode">
           <Input id="pincode" name="pincode" defaultValue={defaults.pincode} />
-        </Field>
+        </FormField>
       </Section>
 
       <Section title="Employment">
-        <Field label="Department" name="department" error={errors.department}>
+        <FormField label="Department" name="department">
           <Input
             id="department"
             name="department"
             defaultValue={defaults.department}
             required
           />
-        </Field>
-        <Field
+        </FormField>
+        <FormField
           label="Designation"
           name="designation"
-          error={errors.designation}
         >
           <Input
             id="designation"
@@ -399,7 +383,7 @@ export function EmployeeForm({
             defaultValue={defaults.designation}
             required
           />
-        </Field>
+        </FormField>
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <Label htmlFor="managerId">Manager</Label>
@@ -421,27 +405,25 @@ export function EmployeeForm({
               <Label htmlFor="isFresher">Fresher</Label>
             </div>
           </div>
-          <select
-            id="managerId"
-            name="managerId"
-            className={selectClass}
-            defaultValue={defaults.managerId ?? ""}
-          >
-            <option value="">—</option>
-            {managers.map((manager) => (
-              <option key={manager.id} value={manager.id}>
-                {manager.empId} — {manager.name}
-              </option>
-            ))}
-          </select>
-          {errors.managerId && (
-            <p className="text-xs text-red-600">{errors.managerId[0]}</p>
-          )}
+          <FormField name="managerId">
+            <select
+              id="managerId"
+              name="managerId"
+              className={selectClass}
+              defaultValue={defaults.managerId ?? ""}
+            >
+              <option value="">—</option>
+              {managers.map((manager) => (
+                <option key={manager.id} value={manager.id}>
+                  {manager.empId} — {manager.name}
+                </option>
+              ))}
+            </select>
+          </FormField>
         </div>
-        <Field
+        <FormField
           label="Date of joining"
           name="dateOfJoining"
-          error={errors.dateOfJoining}
           className="sm:col-start-1"
         >
           <Input
@@ -457,8 +439,8 @@ export function EmployeeForm({
             }}
             required
           />
-        </Field>
-        <Field label="Employment type" name="empType" error={errors.empType}>
+        </FormField>
+        <FormField label="Employment type" name="empType">
           <select
             id="empType"
             name="empType"
@@ -476,12 +458,11 @@ export function EmployeeForm({
             <option value="PERMANENT">Permanent</option>
             <option value="CONTRACT">Contract</option>
           </select>
-        </Field>
+        </FormField>
         {typeEndLabel && (
-          <Field
+          <FormField
             label={typeEndLabel}
             name="typeEndDate"
-            error={errors.typeEndDate}
           >
             <Input
               id="typeEndDate"
@@ -495,14 +476,13 @@ export function EmployeeForm({
               }}
               required
             />
-          </Field>
+          </FormField>
         )}
         {!isFresher && (
           <>
-            <Field
+            <FormField
               label="LinkedIn ID"
               name="linkedinId"
-              error={errors.linkedinId}
               className="sm:col-start-1"
             >
               <Input
@@ -510,10 +490,9 @@ export function EmployeeForm({
                 name="linkedinId"
                 defaultValue={defaults.linkedinId}
               />
-            </Field>
+            </FormField>
             <PreviousCompanies
               rows={previousRows}
-              errors={errors}
               onAdd={() => setPreviousRows((rows) => [...rows, newRow()])}
               onRemove={(key) =>
                 setPreviousRows((rows) => rows.filter((row) => row.key !== key))
@@ -524,40 +503,39 @@ export function EmployeeForm({
       </Section>
 
       <Section title="Statutory & bank (stored encrypted)">
-        <Field label="PAN" name="pan" error={errors.pan}>
+        <FormField label="PAN" name="pan">
           <Input
             id="pan"
             name="pan"
             placeholder={sensitivePlaceholder(masks.pan)}
             autoComplete="off"
           />
-        </Field>
-        <Field label="Aadhaar" name="aadhaar" error={errors.aadhaar}>
+        </FormField>
+        <FormField label="Aadhaar" name="aadhaar">
           <Input
             id="aadhaar"
             name="aadhaar"
             placeholder={sensitivePlaceholder(masks.aadhaar)}
             autoComplete="off"
           />
-        </Field>
-        <Field label="PF number" name="pfNumber" error={errors.pfNumber}>
+        </FormField>
+        <FormField label="PF number" name="pfNumber">
           <Input
             id="pfNumber"
             name="pfNumber"
             defaultValue={defaults.pfNumber}
           />
-        </Field>
-        <Field label="UAN number" name="uanNumber" error={errors.uanNumber}>
+        </FormField>
+        <FormField label="UAN number" name="uanNumber">
           <Input
             id="uanNumber"
             name="uanNumber"
             defaultValue={defaults.uanNumber}
           />
-        </Field>
-        <Field
+        </FormField>
+        <FormField
           label="Bank account number"
           name="bankAccount"
-          error={errors.bankAccount}
         >
           <Input
             id="bankAccount"
@@ -565,28 +543,27 @@ export function EmployeeForm({
             placeholder={sensitivePlaceholder(masks.bankAccount)}
             autoComplete="off"
           />
-        </Field>
-        <Field label="IFSC" name="ifsc" error={errors.ifsc}>
+        </FormField>
+        <FormField label="IFSC" name="ifsc">
           <Input
             id="ifsc"
             name="ifsc"
             placeholder={sensitivePlaceholder(masks.ifsc)}
             autoComplete="off"
           />
-        </Field>
+        </FormField>
       </Section>
 
       <Section title="Documents">
-        <Field label="Passport-size photo" name="photo" error={errors.photo}>
+        <FormField label="Passport-size photo" name="photo">
           <Input id="photo" name="photo" type="file" accept="image/*" />
-        </Field>
-        <Field label="PAN upload" name="panDoc" error={errors.panDoc}>
+        </FormField>
+        <FormField label="PAN upload" name="panDoc">
           <Input id="panDoc" name="panDoc" type="file" accept="image/*,.pdf" />
-        </Field>
-        <Field
+        </FormField>
+        <FormField
           label="Aadhaar upload"
           name="aadhaarDoc"
-          error={errors.aadhaarDoc}
         >
           <Input
             id="aadhaarDoc"
@@ -594,20 +571,15 @@ export function EmployeeForm({
             type="file"
             accept="image/*,.pdf"
           />
-        </Field>
+        </FormField>
       </Section>
 
-      {state.error && (
-        <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
-          {state.error}
-        </p>
-      )}
-
-      <div>
+      <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : submitLabel}
         </Button>
+        <FormMessage error={state.error} />
       </div>
-    </form>
+    </ValidatedForm>
   );
 }
