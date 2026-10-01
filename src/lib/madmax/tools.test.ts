@@ -33,9 +33,12 @@ beforeEach(() => vi.clearAllMocks());
 describe("tool sets per role", () => {
   it("gives employees only their own tools", () => {
     const names = Object.keys(buildTools(context("EMPLOYEE")));
-    expect(names).toEqual(toolNamesFor("EMPLOYEE"));
+    expect([...names].sort()).toEqual([...toolNamesFor("EMPLOYEE")].sort());
     expect(names).not.toContain("getEmployee");
     expect(names).not.toContain("searchCandidates");
+    // Own devices yes; vendors and purchase requests are HR only.
+    expect(names).toEqual(expect.arrayContaining(["listDevices", "getDevice"]));
+    expect(names).not.toContain("listVendors");
   });
 
   it("adds team tools for managers, org tools for HR", () => {
@@ -43,7 +46,7 @@ describe("tool sets per role", () => {
     expect(manager).toContain("reviewLeave");
     expect(manager).not.toContain("setCandidateStatus");
     const hr = Object.keys(buildTools(context("HR_ADMIN")));
-    expect(hr).toEqual(expect.arrayContaining([...WRITE_TOOLS]));
+    expect(hr).toEqual(expect.arrayContaining([...WRITE_TOOLS, "listVendors", "listDeviceRequests"]));
   });
 
   it("scopes employees by role", () => {

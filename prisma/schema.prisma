@@ -111,6 +111,9 @@ model User {
   deviceTicketEvents     DeviceTicketEvent[]     @relation("DeviceTicketEvents")
   devicePurchaseRequests DevicePurchaseRequest[] @relation("DevicePurchaseRequester")
   appSettingEdits        AppSetting[]            @relation("AppSettingEditor")
+  oauthCodes             OAuthCode[]             @relation("OAuthCodes")
+  oauthTokens            OAuthToken[]            @relation("OAuthTokens")
+  mcpAuditLogs           McpAuditLog[]           @relation("McpAuditLogs")
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 }
@@ -915,4 +918,77 @@ model VendorContact {
   updatedAt DateTime @updatedAt
 
   @@index([vendorId, position])
+}
+
+// --- MCP access (AI apps such as Claude and ChatGPT, via OAuth) ---
+// HCM is its own OAuth 2.1 authorization server for the MCP endpoint at
+// /api/mcp. Tokens and codes are stored only as SHA-256 hashes.
+
+/// An AI app that can ask users for access. Either registered by the app
+/// itself (DCR, id is a random string) or identified by its metadata URL
+/// (CIMD, id is that https URL).
+model OAuthClient {
+  id               String       @id // client_id
+  name             String
+  redirectUris     String[]
+  clientUri        String?
+  logoUri          String?
+  kind             String       @default("dcr") // "dcr" | "cimd"
+  clientSecretHash String? // confidential DCR clients only
+  codes            OAuthCode[]
+  tokens           OAuthToken[]
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+/// Authorization code, single use, 10 minutes, PKCE (S256) bound.
+model OAuthCode {
+  id            String      @id @default(cuid())
+  codeHash      String      @unique
+  client        OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId      String
+  user          User        @relation("OAuthCodes", fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  redirectUri   String
+  codeChallenge String
+  scope         String
+  resource      String?
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime    @default(now())
+}
+
+/// One connection (grant): an access token and its rotating refresh token.
+model OAuthToken {
+  id               String      @id @default(cuid())
+  accessHash       String      @unique
+  refreshHash      String      @unique
+  client           OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId         String
+  user             User        @relation("OAuthTokens", fields: [userId], references: [id], onDelete: Cascade)
+  userId           String
+  scope            String
+  resource         String?
+  accessExpiresAt  DateTime
+  refreshExpiresAt DateTime
+  lastUsedAt       DateTime?
+  revokedAt        DateTime?
+  createdAt        DateTime    @default(now())
+
+  @@index([userId, revokedAt])
+}
+
+/// Every change made through MCP: who, from which AI app, what, outcome.
+model McpAuditLog {
+  id         String   @id @default(cuid())
+  user       User?    @relation("McpAuditLogs", fields: [userId], references: [id], onDelete: SetNull)
+  userId     String?
+  clientName String
+  tool       String
+  input      Json
+  ok         Boolean
+  error      String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
 }

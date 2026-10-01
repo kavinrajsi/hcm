@@ -17,6 +17,7 @@ export const NAV: NavGroup[] = [
       { title: "Dashboard", url: "/" },
       { title: "My Profile", url: "/profile" },
       { title: "MadMax AI", url: "/madmax" },
+      { title: "Connect an AI", url: "/mcp/instructions" },
     ],
   },
   {
@@ -75,6 +76,7 @@ export const NAV: NavGroup[] = [
     items: [
       { title: "Users & roles", url: "/users", roles: HR },
       { title: "AI usage", url: "/ai-usage", roles: HR },
+      { title: "MCP access", url: "/mcp-access", roles: HR },
     ],
   },
 ];

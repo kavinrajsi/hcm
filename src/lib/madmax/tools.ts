@@ -8,6 +8,14 @@ import { formatDateTime, formatDay, formatInstantDay } from "@/lib/format-date";
 import { istDay } from "@/lib/date-filter";
 import { LEAVE_STATUS_LABELS, LEAVE_TYPE_LABELS } from "@/lib/leave";
 import {
+  DEVICE_OWNERSHIP_LABELS,
+  DEVICE_STATUS_LABELS,
+  DEVICE_TYPE_LABELS,
+  TICKET_STATUS_LABELS,
+} from "@/lib/devices/devices";
+import { osSuffix } from "@/lib/devices/os";
+import { VENDOR_KIND_LABELS } from "@/lib/devices/vendors";
+import {
   addNoteToCandidate,
   confirmProbationRecord,
   contactSchema,
@@ -51,6 +59,8 @@ export const WRITE_TOOLS = [
 
 const EVERYONE = [
   "getMyProfile",
+  "listDevices",
+  "getDevice",
   "listMyQuantumEntries",
   "listMyLeave",
   "listMySessions",
@@ -68,6 +78,8 @@ const HR = [
   "addCandidateNote",
   "confirmProbation",
   "extendProbation",
+  "listVendors",
+  "listDeviceRequests",
 ];
 
 /** Tool names available to a role (the route and tests use this). */
@@ -682,6 +694,189 @@ export function buildTools(context: MadmaxContext): ToolSet {
       },
     }),
   };
+
+  // --- Devices (read only). Employees: their own; managers: their team;
+  // HR: everything, plus vendors and purchase requests. Rent and purchase
+  // prices are HR only.
+  const deviceScope: Prisma.DeviceWhereInput =
+    context.user.role === "HR_ADMIN"
+      ? {}
+      : context.user.role === "MANAGER"
+        ? { OR: [{ holder: { manager: { userId: context.user.id } } }, { holderId: context.employeeId ?? "__none__" }] }
+        : { holderId: context.employeeId ?? "__none__" };
+  const isHr = context.user.role === "HR_ADMIN";
+  const deviceRow = (device: {
+    assetTag: string;
+    type: keyof typeof DEVICE_TYPE_LABELS;
+    os: Parameters<typeof osSuffix>[0];
+    brand: string;
+    model: string;
+    status: keyof typeof DEVICE_STATUS_LABELS;
+    ownership: keyof typeof DEVICE_OWNERSHIP_LABELS;
+    monthlyRent: Prisma.Decimal | null;
+    serialNumber: string | null;
+    holder: { name: string; empId: string } | null;
+    vendor: { name: string } | null;
+  }) => ({
+    assetTag: device.assetTag,
+    device: `${DEVICE_TYPE_LABELS[device.type]}${osSuffix(device.os)} · ${device.brand} ${device.model}`,
+    serialNumber: device.serialNumber,
+    status: DEVICE_STATUS_LABELS[device.status],
+    holder: device.holder ? `${device.holder.name} (${device.holder.empId})` : null,
+    ownership: DEVICE_OWNERSHIP_LABELS[device.ownership],
+    vendor: device.vendor?.name ?? null,
+    ...(isHr && device.monthlyRent ? { monthlyRentInr: Number(device.monthlyRent) } : {}),
+  });
+  const deviceSelect = {
+    assetTag: true,
+    type: true,
+    os: true,
+    brand: true,
+    model: true,
+    status: true,
+    ownership: true,
+    monthlyRent: true,
+    serialNumber: true,
+    holder: { select: { name: true, empId: true } },
+    vendor: { select: { name: true } },
+  } as const;
+
+  Object.assign(all, {
+    listDevices: tool({
+      description:
+        "Company devices (laptops, mice, iPads, USB hubs) the user may see: their own; managers also their team's; HR all. Filter by status or holder.",
+      inputSchema: z.object({
+        status: z.enum(["IN_STOCK", "ASSIGNED", "IN_SERVICE", "RETIRED", "LOST"]).optional(),
+        query: z.string().trim().optional().describe("Asset tag, model, serial, or holder name / employee ID"),
+        limit,
+      }),
+      execute: async ({ status, query, limit: take }: { status?: keyof typeof DEVICE_STATUS_LABELS; query?: string; limit?: number }) => {
+        const devices = await db.device.findMany({
+          where: {
+            AND: [
+              deviceScope,
+              status ? { status } : {},
+              query
+                ? {
+                    OR: [
+                      { assetTag: { contains: query, mode: "insensitive" } },
+                      { model: { contains: query, mode: "insensitive" } },
+                      { serialNumber: { contains: query, mode: "insensitive" } },
+                      { holder: { name: { contains: query, mode: "insensitive" } } },
+                      { holder: { empId: { contains: query, mode: "insensitive" } } },
+                    ],
+                  }
+                : {},
+            ],
+          },
+          orderBy: { assetTag: "asc" },
+          take: take ?? CAP,
+          select: deviceSelect,
+        });
+        return devices.map(deviceRow);
+      },
+    }),
+
+    getDevice: tool({
+      description: "One device by asset tag or serial number, with its holder history and issues.",
+      inputSchema: z.object({ tag: z.string().trim().min(1) }),
+      execute: async ({ tag }: { tag: string }) => {
+        const device = await db.device.findFirst({
+          where: {
+            AND: [
+              deviceScope,
+              {
+                OR: [
+                  { assetTag: { equals: tag, mode: "insensitive" } },
+                  { stockTag: { equals: tag, mode: "insensitive" } },
+                  { serialNumber: { equals: tag, mode: "insensitive" } },
+                ],
+              },
+            ],
+          },
+          select: {
+            ...deviceSelect,
+            assignments: {
+              orderBy: { assignedAt: "desc" },
+              take: 10,
+              select: { assignedAt: true, returnedAt: true, employee: { select: { name: true, empId: true } } },
+            },
+            tickets: {
+              orderBy: { createdAt: "desc" },
+              take: 10,
+              select: { title: true, status: true, createdAt: true, serviceVendor: { select: { name: true } } },
+            },
+          },
+        });
+        if (!device) return { found: false };
+        return {
+          ...deviceRow(device),
+          history: device.assignments.map((row) => ({
+            holder: `${row.employee.name} (${row.employee.empId})`,
+            from: formatDay(row.assignedAt),
+            to: row.returnedAt ? formatDay(row.returnedAt) : "now",
+          })),
+          issues: device.tickets.map((ticket) => ({
+            title: ticket.title,
+            status: TICKET_STATUS_LABELS[ticket.status],
+            reported: formatInstantDay(ticket.createdAt),
+            serviceCentre: ticket.serviceVendor?.name ?? null,
+          })),
+        };
+      },
+    }),
+
+    listVendors: tool({
+      description: "Device vendors (shops and service centres) with contact people, phone and email. HR only.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const vendors = await db.vendor.findMany({
+          where: { active: true },
+          orderBy: { name: "asc" },
+          include: {
+            contacts: { orderBy: [{ isPrimary: "desc" }, { position: "asc" }] },
+            _count: { select: { devices: true } },
+          },
+        });
+        return vendors.map((vendor) => ({
+          name: vendor.name,
+          does: VENDOR_KIND_LABELS[vendor.kind],
+          phone: vendor.phone,
+          altPhone: vendor.altPhone,
+          email: vendor.email,
+          devices: vendor._count.devices,
+          contacts: vendor.contacts.map((contact) => ({
+            name: contact.name,
+            role: contact.role,
+            email: contact.email,
+            phone: contact.phone,
+            primary: contact.isPrimary,
+          })),
+        }));
+      },
+    }),
+
+    listDeviceRequests: tool({
+      description: "Devices asked for from vendors by email, newest first, with status. HR only.",
+      inputSchema: z.object({ open: z.boolean().optional().describe("Only those not yet received or cancelled") }),
+      execute: async ({ open }: { open?: boolean }) => {
+        const requests = await db.devicePurchaseRequest.findMany({
+          where: open ? { status: { in: ["PENDING", "SENT"] } } : {},
+          orderBy: { createdAt: "desc" },
+          take: CAP,
+          include: { vendor: { select: { name: true } }, employee: { select: { name: true, empId: true } } },
+        });
+        return requests.map((request) => ({
+          item: `${request.quantity} × ${request.itemName}`,
+          vendor: request.vendor.name,
+          status: request.status,
+          for: request.employee ? `${request.employee.name} (${request.employee.empId})` : null,
+          sentAt: request.sentAt ? formatDateTime(request.sentAt) : null,
+          neededBy: request.neededBy ? formatDay(request.neededBy) : null,
+        }));
+      },
+    }),
+  });
 
   const allowed = new Set(toolNamesFor(context.user.role));
   return Object.fromEntries(
