@@ -4,7 +4,7 @@ import { findOwnThread, loadMessages } from "@/lib/madmax/store";
 import { MadmaxChat } from "../madmax-chat";
 import { madmaxPageData } from "../data";
 
-export const metadata = { title: "MadMax" };
+export const metadata = { title: "MadMax AI" };
 
 export default async function MadmaxThreadPage({
   params,

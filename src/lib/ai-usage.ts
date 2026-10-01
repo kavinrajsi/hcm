@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 export type AiTrigger = "webhook" | "cron" | "manual-sync" | "script";
 
 export const AI_FEATURE_LABELS: Record<string, string> = {
-  madmax: "MadMax chat",
+  madmax: "MadMax AI chat",
   "leave-classify": "Leave & WFH classification",
   "leave-type-jev": "Leave type (Jev)",
   "assign-kind": "Assign: job kind",

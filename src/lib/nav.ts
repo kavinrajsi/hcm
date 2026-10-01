@@ -16,7 +16,7 @@ export const NAV: NavGroup[] = [
     items: [
       { title: "Dashboard", url: "/" },
       { title: "My Profile", url: "/profile" },
-      { title: "MadMax", url: "/madmax" },
+      { title: "MadMax AI", url: "/madmax" },
     ],
   },
   {

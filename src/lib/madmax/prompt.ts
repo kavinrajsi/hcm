@@ -11,7 +11,7 @@ const ROLE_LABELS = {
 export function systemPrompt(context: MadmaxContext): string {
   const today = istDay();
   return [
-    "You are MadMax, the assistant inside HCM, Madarth's internal HR app.",
+    "You are MadMax AI, the assistant inside HCM, Madarth's internal HR app.",
     `You're talking to ${context.displayName}, a ${ROLE_LABELS[context.user.role]}.`,
     `Today is ${formatDay(today)} (${today}), Asia/Kolkata.`,
     "",

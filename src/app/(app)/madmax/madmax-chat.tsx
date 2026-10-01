@@ -182,7 +182,7 @@ function ToolRow({
   if (part.state === "approval-requested" && !part.approval?.isAutomatic) {
     return (
       <div className="my-3 rounded-xl border border-amber-300/60 bg-amber-50 p-4 text-sm dark:border-amber-500/30 dark:bg-amber-500/10">
-        <p className="font-medium">MadMax wants to make a change</p>
+        <p className="font-medium">MadMax AI wants to make a change</p>
         <p className="mt-1 text-zinc-700 dark:text-zinc-300">
           {describeChange(name, part.input ?? {})}
         </p>
@@ -388,7 +388,7 @@ export function MadmaxChat({
       className="rounded-2xl border border-zinc-200 bg-background shadow-sm focus-within:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:focus-within:border-zinc-700"
     >
       <label htmlFor="madmax-input" className="sr-only">
-        Message MadMax
+        Message MadMax AI
       </label>
       <textarea
         id="madmax-input"

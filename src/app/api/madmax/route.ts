@@ -177,7 +177,7 @@ export async function POST(request: Request) {
       generateMessageId: createIdGenerator({ prefix: "msg", size: 16 }),
       onError: (error) => {
         console.error("[madmax] stream error", error);
-        if (!(error instanceof Error)) return "MadMax hit an error. Try again.";
+        if (!(error instanceof Error)) return "MadMax AI hit an error. Try again.";
         if (/free tier/i.test(error.message)) {
           return `${model.label} needs paid Vercel AI Gateway credits. Pick another model, or top up credits.`;
         }
@@ -186,7 +186,7 @@ export async function POST(request: Request) {
         if (
           /prisma|database|ECONN|fetch failed/i.test(error.name + error.message)
         ) {
-          return "MadMax hit an error. Try again.";
+          return "MadMax AI hit an error. Try again.";
         }
         return error.message.slice(0, 200);
       },
