@@ -381,7 +381,8 @@ export async function createEmployee(
   revalidatePath("/onboarding");
   revalidatePath("/id-cards");
   revalidatePath("/users");
-  redirect(`/employees/${employee.id}`);
+  // Next: give the new joiner a standby device or order one.
+  redirect(`/devices/provision/${employee.id}?new=1`);
 }
 
 export async function importEmployees(

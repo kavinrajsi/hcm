@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { EmployeeSelect, type Employee } from "@/components/employee-select";
 import { DEVICE_TYPES, DEVICE_TYPE_LABELS } from "@/lib/devices/devices";
-import type { DeviceType } from "@/generated/prisma/enums";
+import type { DeviceOs, DeviceType } from "@/generated/prisma/enums";
+import { DEVICE_OSES, DEVICE_OS_LABELS } from "@/lib/devices/os";
 import { createDevice, updateDevice, type DeviceFormState } from "./actions";
 
 const selectClass =
@@ -19,6 +20,7 @@ export type DeviceValues = {
   model: string;
   serialNumber: string;
   specs: string;
+  os: DeviceOs | "";
   purchaseDate: string;
   purchasePrice: string;
   vendorId: string;
@@ -32,6 +34,7 @@ export const EMPTY_DEVICE: DeviceValues = {
   model: "",
   serialNumber: "",
   specs: "",
+  os: "",
   purchaseDate: "",
   purchasePrice: "",
   vendorId: "",
@@ -65,23 +68,30 @@ export function DeviceForm({
   employees,
   vendors,
   addVendorHref,
+  initialHolder = "",
+  requestId,
 }: {
   values: DeviceValues;
   employees?: Employee[];
   /** Active vendors that sell devices (plus the current one when editing). */
   vendors: VendorOption[];
   addVendorHref: string;
+  /** Pre-selected first holder (new device only). */
+  initialHolder?: string;
+  /** Purchase request this device fulfils. */
+  requestId?: string;
 }) {
   const editing = Boolean(values.id);
   const [state, formAction, pending] = useActionState<DeviceFormState, FormData>(
     editing ? updateDevice : createDevice,
     {},
   );
-  const [holder, setHolder] = useState("");
+  const [holder, setHolder] = useState(initialHolder);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
       {values.id && <input type="hidden" name="id" value={values.id} />}
+      {requestId && <input type="hidden" name="requestId" value={requestId} />}
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Type" hint={editing ? "The type is part of the asset tag, so it can't change." : undefined}>
           <select name="type" defaultValue={values.type} className={selectClass} disabled={editing}>
@@ -101,6 +111,16 @@ export function DeviceForm({
         </Field>
         <Field label="Serial number">
           <Input name="serialNumber" defaultValue={values.serialNumber} />
+        </Field>
+        <Field label="Operating system" hint="For laptops: Mac or Windows.">
+          <select name="os" defaultValue={values.os} className={selectClass}>
+            <option value="">Not set</option>
+            {DEVICE_OSES.map((os) => (
+              <option key={os} value={os}>
+                {DEVICE_OS_LABELS[os]}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field label="Purchase date">
           <Input type="date" name="purchaseDate" defaultValue={values.purchaseDate} />

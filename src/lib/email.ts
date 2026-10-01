@@ -39,6 +39,11 @@ export async function sendEmail(options: {
   subject: string;
   html: string;
   attachments?: { filename: string; content: Buffer }[];
+  /** Overrides EMAIL_FROM, e.g. "Madarth <noreply@madarth.com>". */
+  from?: string;
+  cc?: string[];
+  /** Where replies go ("Name <address>" or a bare address). */
+  replyTo?: string;
 }) {
   const token = process.env.ZEPTOMAIL_TOKEN?.trim();
   if (!token) {
@@ -47,9 +52,15 @@ export async function sendEmail(options: {
   }
 
   const recipients = Array.isArray(options.to) ? options.to : [options.to];
+  const replyTo = options.replyTo ? parseSender(options.replyTo) : null;
   const body = {
-    from: parseSender(process.env.EMAIL_FROM || DEFAULT_FROM),
+    from: parseSender(options.from || process.env.EMAIL_FROM || DEFAULT_FROM),
     to: recipients.map((address) => ({ email_address: { address } })),
+    // ZeptoMail: cc like `to`; reply_to is a flat { address, name } list.
+    ...(options.cc?.length
+      ? { cc: options.cc.map((address) => ({ email_address: { address } })) }
+      : {}),
+    ...(replyTo ? { reply_to: [replyTo] } : {}),
     subject: options.subject,
     htmlbody: options.html,
     ...(options.attachments?.length

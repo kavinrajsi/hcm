@@ -121,4 +121,33 @@ describe("sendEmail (ZeptoMail)", () => {
       sendEmail({ to: "a@x.com", subject: "S", html: "H" }),
     ).rejects.toThrow("Email send failed: Invalid API Token found");
   });
+
+  it("sends from, cc and reply-to in ZeptoMail's shapes", async () => {
+    await sendEmail({
+      to: "sales@vendor.example",
+      subject: "Device request",
+      html: "<p>Hi</p>",
+      from: "Madarth <noreply@madarth.com>",
+      cc: ["admin@madarth.com", "hr@madarth.com"],
+      replyTo: "Madarth Admin <admin@madarth.com>",
+    });
+    expect(sentBody()).toEqual({
+      from: { address: "noreply@madarth.com", name: "Madarth" },
+      to: [{ email_address: { address: "sales@vendor.example" } }],
+      cc: [
+        { email_address: { address: "admin@madarth.com" } },
+        { email_address: { address: "hr@madarth.com" } },
+      ],
+      // reply_to is flat, not wrapped in email_address.
+      reply_to: [{ address: "admin@madarth.com", name: "Madarth Admin" }],
+      subject: "Device request",
+      htmlbody: "<p>Hi</p>",
+    });
+  });
+
+  it("leaves cc and reply_to out when not given", async () => {
+    await sendEmail({ to: "a@x.com", subject: "S", html: "H", cc: [] });
+    expect(sentBody()).not.toHaveProperty("cc");
+    expect(sentBody()).not.toHaveProperty("reply_to");
+  });
 });

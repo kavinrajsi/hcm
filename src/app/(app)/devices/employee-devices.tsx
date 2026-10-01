@@ -16,10 +16,13 @@ export async function EmployeeDevices({
   employeeId,
   title,
   history = false,
+  provision = false,
 }: {
   employeeId: string;
   title: string;
   history?: boolean;
+  /** HR: link to give or order a device. */
+  provision?: boolean;
 }) {
   const [current, past] = await Promise.all([
     db.device.findMany({
@@ -49,9 +52,23 @@ export async function EmployeeDevices({
       : Promise.resolve([]),
   ]);
 
+  const openRequests = provision
+    ? await db.devicePurchaseRequest.count({
+        where: { employeeId, status: { in: ["PENDING", "SENT"] } },
+      })
+    : 0;
+
   return (
     <section className="mt-10">
-      <h2 className="text-lg font-medium">{title}</h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-lg font-medium">{title}</h2>
+        {provision && (
+          <Link href={`/devices/provision/${employeeId}`} className="text-sm underline-offset-4 hover:underline">
+            {current.length ? "Give another device" : "Get a device"}
+            {openRequests > 0 && ` · ${openRequests} on order`}
+          </Link>
+        )}
+      </div>
       {current.length === 0 ? (
         <p className="mt-3 text-sm text-zinc-500">No company devices.</p>
       ) : (

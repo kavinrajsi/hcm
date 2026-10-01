@@ -294,7 +294,7 @@ export default async function EmployeePage({
           }}
         />
       </div>
-      <EmployeeDevices employeeId={employee.id} title="Devices" history />
+      <EmployeeDevices employeeId={employee.id} title="Devices" history provision />
     </PageShell>
   );
 }

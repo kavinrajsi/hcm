@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { AuthorizationError, requireRole, requireUser } from "@/lib/rbac";
 import { DEVICE_ACCESS_SELECT, deviceAccess } from "@/lib/devices/access";
 import { SALES_KINDS, SERVICE_KINDS } from "@/lib/devices/vendors";
+import { DEVICE_OSES } from "@/lib/devices/os";
 import {
   DEVICE_TYPES,
   assetTagPrefix,
@@ -41,6 +42,10 @@ const deviceSchema = z.object({
   model: z.string().trim().min(1, "Model is required"),
   serialNumber: optional,
   specs: optional,
+  os: z
+    .enum(DEVICE_OSES)
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   purchaseDate: optionalDate,
   purchasePrice: optionalMoney,
   vendorId: optional,
@@ -60,6 +65,7 @@ function deviceData(data: z.infer<typeof deviceSchema>) {
     model: data.model,
     serialNumber: data.serialNumber ?? null,
     specs: data.specs ?? null,
+    os: data.os ?? null,
     purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : null,
     purchasePrice: data.purchasePrice ?? null,
     vendorId: data.vendorId ?? null,
@@ -157,6 +163,15 @@ export async function createDevice(
     }
   }
   if (!created) return { error: "Couldn't allocate an asset tag. Try again." };
+  // Arrived from a purchase request: close it against this device.
+  const requestId = field(formData, "requestId");
+  if (requestId) {
+    await db.devicePurchaseRequest.updateMany({
+      where: { id: requestId, status: { in: ["PENDING", "SENT"] }, deviceId: null },
+      data: { status: "RECEIVED", deviceId: created.id },
+    });
+    revalidatePath("/devices/requests");
+  }
   revalidateDevice();
   redirect(`/devices/${created.id}`);
 }

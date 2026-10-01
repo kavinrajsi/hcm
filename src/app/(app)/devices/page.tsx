@@ -15,6 +15,7 @@ import {
   isDeviceType,
 } from "@/lib/devices/devices";
 import { AddFilter } from "@/components/data-table/add-filter";
+import { DEVICE_OSES, DEVICE_OS_LABELS, isDeviceOs, osSuffix } from "@/lib/devices/os";
 import { CountChips } from "@/components/data-table/count-chips";
 import { TablePagination } from "@/components/data-table/pagination";
 import { ListCard } from "@/components/list-card";
@@ -45,6 +46,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
   const status: DeviceStatus | undefined = isDeviceStatus(raw.status) ? raw.status : undefined;
   const brand = stringParam(raw.brand);
   const vendor = stringParam(raw.vendor);
+  const os = isDeviceOs(raw.os) ? raw.os : undefined;
   const purchased = dayRange({
     preset: stringParam(raw.purchased),
     from: stringParam(raw.from),
@@ -59,6 +61,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
     ...(isDeviceType(params.type) ? { type: params.type } : {}),
     ...(status ? { status } : {}),
     ...(brand ? { brand } : {}),
+    ...(os ? { os } : {}),
     ...(vendor ? { vendor: { name: vendor } } : {}),
     ...(purchased ? { purchaseDate: purchased } : {}),
     ...(params.q
@@ -75,7 +78,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
       : {}),
   };
 
-  const [devices, total, openTickets, types, statuses, brands, vendors] = await Promise.all([
+  const [devices, total, openTickets, types, statuses, brands, vendors, oses] = await Promise.all([
     db.device.findMany({
       where,
       orderBy: { assetTag: "asc" },
@@ -87,6 +90,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
         type: true,
         brand: true,
         model: true,
+        os: true,
         status: true,
         holder: { select: { name: true, empId: true } },
         _count: { select: { tickets: { where: { status: { in: ["OPEN", "SENT_FOR_SERVICE"] } } } } },
@@ -104,7 +108,9 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
       orderBy: { name: "asc" },
       select: { name: true, _count: { select: { devices: { where: scope } } } },
     }),
+    db.device.groupBy({ by: ["os"], where: scope, _count: true }),
   ]);
+  const osCounts = new Map(oses.map((group) => [group.os as string, group._count]));
   const typeCounts = new Map(types.map((group) => [group.type as string, group._count]));
   const statusCounts = new Map(statuses.map((group) => [group.status as string, group._count]));
 
@@ -121,6 +127,9 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
             <>
               <Button variant="outline" nativeButton={false} render={<Link href="/devices/vendors" />}>
                 Vendors
+              </Button>
+              <Button variant="outline" nativeButton={false} render={<Link href="/devices/requests" />}>
+                Requests
               </Button>
               <Button variant="outline" nativeButton={false} render={<Link href="/devices/labels" />}>
                 Print labels
@@ -160,6 +169,15 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
                   value,
                   label: DEVICE_STATUS_LABELS[value],
                   count: statusCounts.get(value) ?? 0,
+                })),
+              },
+              {
+                param: "os",
+                label: "OS",
+                options: DEVICE_OSES.map((value) => ({
+                  value,
+                  label: DEVICE_OS_LABELS[value],
+                  count: osCounts.get(value) ?? 0,
                 })),
               },
               {
@@ -210,7 +228,8 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
                     </Link>
                   </TableCell>
                   <TableCell>
-                    {DEVICE_TYPE_LABELS[device.type]} · {device.brand} {device.model}
+                    {DEVICE_TYPE_LABELS[device.type]}
+                    {osSuffix(device.os)} · {device.brand} {device.model}
                   </TableCell>
                   <TableCell>{holderText(device)}</TableCell>
                   <TableCell className={DEVICE_STATUS_CLASSES[device.status]}>
@@ -238,7 +257,10 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
               }
               meta={
                 <>
-                  <span>{DEVICE_TYPE_LABELS[device.type]}</span>
+                  <span>
+                    {DEVICE_TYPE_LABELS[device.type]}
+                    {osSuffix(device.os)}
+                  </span>
                   <span>{holderText(device)}</span>
                   {device._count.tickets > 0 && <span>{device._count.tickets} open issue(s)</span>}
                 </>

@@ -14,6 +14,7 @@ import {
 } from "@/lib/devices/devices";
 import { qrSvg } from "@/lib/devices/qr";
 import { SALES_KINDS, SERVICE_KINDS } from "@/lib/devices/vendors";
+import { osSuffix } from "@/lib/devices/os";
 import { formatDateTime, formatDay } from "@/lib/format-date";
 import { EmployeeAvatar } from "@/components/employee-avatar";
 import { PageHeader, PageShell } from "@/components/page";
@@ -117,7 +118,8 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
         title={`${device.brand} ${device.model}`}
         description={
           <>
-            <span className="font-mono">{device.assetTag}</span> · {DEVICE_TYPE_LABELS[device.type]} ·{" "}
+            <span className="font-mono">{device.assetTag}</span> · {DEVICE_TYPE_LABELS[device.type]}
+            {osSuffix(device.os)} ·{" "}
             <span className={DEVICE_STATUS_CLASSES[device.status]}>{DEVICE_STATUS_LABELS[device.status]}</span>
           </>
         }
@@ -315,6 +317,7 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
               model: device.model,
               serialNumber: device.serialNumber ?? "",
               specs: device.specs ?? "",
+              os: device.os ?? "",
               purchaseDate: day(device.purchaseDate),
               purchasePrice: device.purchasePrice ? String(device.purchasePrice) : "",
               vendorId: device.vendorId ?? "",

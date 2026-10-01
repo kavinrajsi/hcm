@@ -29,6 +29,8 @@ export function renderEmail({
   body,
   button,
   footnote,
+  footer,
+  brand,
 }: {
   /** Inbox preview text. */
   preheader: string;
@@ -38,6 +40,10 @@ export function renderEmail({
   button?: { label: string; url: string };
   /** Small print under the button, trusted HTML. */
   footnote?: string;
+  /** Replaces the "automated message" line, trusted HTML. */
+  footer?: string;
+  /** Replaces the "HCM · Madarth" header, plain text. */
+  brand?: string;
 }): string {
   const cta = button
     ? `<tr><td style="padding:8px 0 24px">
@@ -59,7 +65,7 @@ export function renderEmail({
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px">
   <tr><td align="center">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
-      <tr><td style="padding:0 4px 12px;font-size:14px;font-weight:700;letter-spacing:.2px;color:#18181b">${BRAND}</td></tr>
+      <tr><td style="padding:0 4px 12px;font-size:14px;font-weight:700;letter-spacing:.2px;color:#18181b">${escapeHtml(brand ?? BRAND)}</td></tr>
       <tr><td style="background:#ffffff;border:1px solid #e4e4e7;border-radius:12px;padding:28px 24px">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
           <tr><td style="font-size:22px;line-height:28px;font-weight:700;padding-bottom:12px">${escapeHtml(heading)}</td></tr>
@@ -69,7 +75,7 @@ export function renderEmail({
         </table>
       </td></tr>
       <tr><td style="padding:16px 4px;font-size:12px;line-height:18px;color:#a1a1aa">
-        Sent by HCM, Madarth's internal HR system. This is an automated message — replies aren't monitored.
+        ${footer ?? "Sent by HCM, Madarth's internal HR system. This is an automated message — replies aren't monitored."}
       </td></tr>
     </table>
   </td></tr>
