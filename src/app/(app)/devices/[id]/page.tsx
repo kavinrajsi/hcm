@@ -140,6 +140,7 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
             brand={device.brand}
             model={device.model}
             holder={device.holder}
+            stockTag={device.stockTag}
             className="rounded-md border border-zinc-200"
           />
           <div className="flex flex-wrap gap-2">
@@ -150,6 +151,10 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
               Download PNG
             </Button>
           </div>
+          <p className="max-w-[70mm] text-xs text-zinc-500">
+            The tag follows the holder ({device.stockTag ?? device.assetTag} when in stock). Reprint after each
+            handover.
+          </p>
           <p className="max-w-[70mm] text-xs break-all text-zinc-500">{scanUrl}</p>
         </div>
 
@@ -235,9 +240,14 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
         {manage && (
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             {canAssign(device.status) && (
-              <AssignForm deviceId={device.id} employees={employees} reassign={Boolean(device.holder)} />
+              <AssignForm
+                key={`assign-${device.assetTag}`}
+                deviceId={device.id}
+                employees={employees}
+                reassign={Boolean(device.holder)}
+              />
             )}
-            {device.holder && device.status !== "IN_SERVICE" && <ReturnForm deviceId={device.id} />}
+            {device.holder && device.status !== "IN_SERVICE" && <ReturnForm key={`return-${device.assetTag}`} deviceId={device.id} />}
           </div>
         )}
       </Section>

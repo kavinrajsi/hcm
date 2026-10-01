@@ -106,17 +106,23 @@ export function nextAssetTag(type: DeviceType, existing: string[]): string {
 }
 
 /**
- * The big line on a printed label: MAD-LAP-<employee code> while someone
- * holds the device, the asset tag otherwise. The asset tag itself never
- * changes; reprint the label when the device changes hands.
+ * The asset tag while someone holds a device: MAD-LAP-<employee code>, or
+ * MAD-LAP-<code>-2, -3… when they already hold another of the same type.
+ * `taken` is every tag already in use (excluding this device's own).
  */
-export function labelTag(device: {
-  assetTag: string;
-  type: DeviceType;
-  holder: { empId: string } | null;
-}): string {
-  const empId = device.holder?.empId.trim();
-  return empId ? `${assetTagPrefix(device.type)}${empId.toUpperCase()}` : device.assetTag;
+export function holderAssetTag(type: DeviceType, empId: string, taken: string[]): string {
+  const base = `${assetTagPrefix(type)}${empId.trim().toUpperCase()}`;
+  const used = new Set(taken.map((tag) => tag.toUpperCase()));
+  if (!used.has(base)) return base;
+  for (let n = 2; ; n++) {
+    const candidate = `${base}-${n}`;
+    if (!used.has(candidate)) return candidate;
+  }
+}
+
+/** The numbered tag a device goes back to when nobody holds it. */
+export function stockTagOf(device: { assetTag: string; stockTag: string | null }): string {
+  return device.stockTag ?? device.assetTag;
 }
 
 /** Unguessable token for the QR URL (/d/<token>). */

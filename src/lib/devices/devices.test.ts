@@ -3,10 +3,11 @@ import {
   canAssign,
   canMoveTicket,
   deviceScanUrl,
-  labelTag,
+  holderAssetTag,
   newPublicToken,
   nextAssetTag,
   statusAfterService,
+  stockTagOf,
 } from "./devices";
 import { deviceAccess } from "./access";
 
@@ -78,16 +79,22 @@ describe("deviceAccess", () => {
   });
 });
 
-describe("labelTag", () => {
-  it("shows the holder's employee code while assigned", () => {
-    expect(labelTag({ assetTag: "MAD-LAP-0001", type: "LAPTOP", holder: { empId: "pbch0100" } })).toBe(
-      "MAD-LAP-PBCH0100",
-    );
-    expect(labelTag({ assetTag: "MAD-MOU-0003", type: "MOUSE", holder: { empId: "C2M000071" } })).toBe(
-      "MAD-MOU-C2M000071",
+describe("holderAssetTag", () => {
+  it("uses the holder's employee code", () => {
+    expect(holderAssetTag("LAPTOP", "pbch0100", [])).toBe("MAD-LAP-PBCH0100");
+    expect(holderAssetTag("MOUSE", "C2M000071", ["MAD-LAP-C2M000071"])).toBe("MAD-MOU-C2M000071");
+  });
+  it("numbers a second device of the same type", () => {
+    expect(holderAssetTag("LAPTOP", "PBCH0100", ["MAD-LAP-PBCH0100"])).toBe("MAD-LAP-PBCH0100-2");
+    expect(holderAssetTag("LAPTOP", "PBCH0100", ["mad-lap-pbch0100", "MAD-LAP-PBCH0100-2"])).toBe(
+      "MAD-LAP-PBCH0100-3",
     );
   });
-  it("falls back to the asset tag when nobody holds it", () => {
-    expect(labelTag({ assetTag: "MAD-LAP-0001", type: "LAPTOP", holder: null })).toBe("MAD-LAP-0001");
+});
+
+describe("stockTagOf", () => {
+  it("prefers the stored stock tag", () => {
+    expect(stockTagOf({ assetTag: "MAD-LAP-PBCH0100", stockTag: "MAD-LAP-0001" })).toBe("MAD-LAP-0001");
+    expect(stockTagOf({ assetTag: "MAD-LAP-0002", stockTag: null })).toBe("MAD-LAP-0002");
   });
 });

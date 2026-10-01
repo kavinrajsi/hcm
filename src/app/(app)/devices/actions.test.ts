@@ -8,6 +8,7 @@ const db = vi.hoisted(() => ({
   deviceTicket: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
   deviceTicketEvent: { create: vi.fn() },
   vendor: { findUnique: vi.fn() },
+  employee: { findUnique: vi.fn() },
   $transaction: vi.fn(async (ops: unknown[]) => Promise.all(ops)),
 }));
 const requireUser = vi.hoisted(() => vi.fn());
@@ -41,6 +42,9 @@ const HR = { id: "hr", role: "HR_ADMIN" };
 const HOLDER = { id: "u-holder", role: "EMPLOYEE" };
 const device = (overrides: Record<string, unknown> = {}) => ({
   id: "d1",
+  type: "LAPTOP",
+  assetTag: "MAD-LAP-PBCH0007",
+  stockTag: "MAD-LAP-0001",
   status: "ASSIGNED",
   holderId: "e-holder",
   holder: { userId: "u-holder", manager: { userId: "u-boss" } },
@@ -52,18 +56,27 @@ beforeEach(() => {
   requireUser.mockResolvedValue(HR);
   requireRole.mockResolvedValue(HR);
   db.device.findUnique.mockResolvedValue(device());
+  db.device.findMany.mockResolvedValue([]);
+  db.employee.findUnique.mockResolvedValue({ empId: "PBCH0100" });
 });
 
 describe("createDevice", () => {
   it("allocates the next asset tag, a token, and the first holder", async () => {
-    db.device.findMany.mockResolvedValue([{ assetTag: "MAD-LAP-0004" }]);
+    db.device.findMany
+      .mockResolvedValueOnce([
+        { assetTag: "MAD-LAP-0004", stockTag: "MAD-LAP-0004" },
+        { assetTag: "MAD-LAP-PBCH0009", stockTag: "MAD-LAP-0005" },
+      ])
+      .mockResolvedValueOnce([]);
     db.device.create.mockResolvedValue({ id: "new" });
     await expect(
       actions.createDevice({}, form({ type: "LAPTOP", brand: "Apple", model: "MacBook Air", employeeId: "e1" })),
     ).rejects.toMatchObject({ url: "/devices/new" });
     const data = db.device.create.mock.calls[0][0].data;
+    // Next number counts assigned devices' stock tags too; held → holder's tag.
     expect(data).toMatchObject({
-      assetTag: "MAD-LAP-0005",
+      stockTag: "MAD-LAP-0006",
+      assetTag: "MAD-LAP-PBCH0100",
       status: "ASSIGNED",
       holderId: "e1",
       assignments: { create: { employeeId: "e1", assignedById: "hr" } },
@@ -143,15 +156,34 @@ describe("createDevice", () => {
 describe("assignDevice", () => {
   it("closes the current holder's stint and opens a new one", async () => {
     const state = await actions.assignDevice({}, form({ deviceId: "d1", employeeId: "e-new" }));
-    expect(state.ok).toBe("Assigned.");
+    expect(state.ok).toMatch(/^Assigned/);
     expect(db.deviceAssignment.updateMany).toHaveBeenCalledWith({
       where: { deviceId: "d1", returnedAt: null },
       data: expect.objectContaining({ returnedById: "hr" }),
     });
     expect(db.device.update).toHaveBeenCalledWith({
       where: { id: "d1" },
-      data: { holderId: "e-new", status: "ASSIGNED" },
+      data: { holderId: "e-new", status: "ASSIGNED", assetTag: "MAD-LAP-PBCH0100", stockTag: "MAD-LAP-0001" },
     });
+    expect(state.ok).toContain("MAD-LAP-PBCH0100");
+  });
+
+  it("numbers the tag when the new holder already has a laptop", async () => {
+    db.device.findMany.mockResolvedValue([{ assetTag: "MAD-LAP-PBCH0100" }]);
+    await actions.assignDevice({}, form({ deviceId: "d1", employeeId: "e-new" }));
+    expect(db.device.update).toHaveBeenCalledWith({
+      where: { id: "d1" },
+      data: expect.objectContaining({ assetTag: "MAD-LAP-PBCH0100-2" }),
+    });
+  });
+
+  it("goes back to its numbered tag when returned", async () => {
+    const state = await actions.returnDevice({}, form({ deviceId: "d1" }));
+    expect(db.device.update).toHaveBeenCalledWith({
+      where: { id: "d1" },
+      data: { holderId: null, status: "IN_STOCK", assetTag: "MAD-LAP-0001", stockTag: "MAD-LAP-0001" },
+    });
+    expect(state.ok).toContain("MAD-LAP-0001");
   });
 
   it("is HR only", async () => {

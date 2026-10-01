@@ -16,10 +16,13 @@ import {
   assetTagPrefix,
   canAssign,
   canMoveTicket,
+  holderAssetTag,
   newPublicToken,
   nextAssetTag,
   statusAfterService,
+  stockTagOf,
 } from "@/lib/devices/devices";
+import type { DeviceType } from "@/generated/prisma/enums";
 
 export type DeviceFormState = { error?: string; ok?: string };
 
@@ -39,24 +42,24 @@ const optionalMoney = optional.refine(
 
 const deviceSchema = z
   .object({
-  type: z.enum(DEVICE_TYPES),
-  ownership: z.enum(DEVICE_OWNERSHIPS).optional().default("OWNED"),
-  monthlyRent: optionalMoney,
-  vendorRef: optional,
-  brand: z.string().trim().min(1, "Brand is required"),
-  model: z.string().trim().min(1, "Model is required"),
-  serialNumber: optional,
-  specs: optional,
-  os: z
-    .enum(DEVICE_OSES)
-    .optional()
-    .or(z.literal("").transform(() => undefined)),
-  purchaseDate: optionalDate,
-  purchasePrice: optionalMoney,
-  vendorId: optional,
-  warrantyEndsOn: optionalDate,
-  notes: optional,
-})
+    type: z.enum(DEVICE_TYPES),
+    ownership: z.enum(DEVICE_OWNERSHIPS).optional().default("OWNED"),
+    monthlyRent: optionalMoney,
+    vendorRef: optional,
+    brand: z.string().trim().min(1, "Brand is required"),
+    model: z.string().trim().min(1, "Model is required"),
+    serialNumber: optional,
+    specs: optional,
+    os: z
+      .enum(DEVICE_OSES)
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
+    purchaseDate: optionalDate,
+    purchasePrice: optionalMoney,
+    vendorId: optional,
+    warrantyEndsOn: optionalDate,
+    notes: optional,
+  })
   .refine((device) => device.ownership !== "RENTED" || device.vendorId, {
     message: "A rented device needs the vendor it's rented from.",
   })
@@ -84,7 +87,8 @@ function deviceData(data: z.infer<typeof deviceSchema>) {
     notes: data.notes ?? null,
     ownership: data.ownership,
     // Rent only means something for a rented device.
-    monthlyRent: data.ownership === "RENTED" ? (data.monthlyRent ?? null) : null,
+    monthlyRent:
+      data.ownership === "RENTED" ? (data.monthlyRent ?? null) : null,
     vendorRef: data.vendorRef ?? null,
   };
 }
@@ -108,9 +112,7 @@ const DEVICE_FIELDS = [
 
 function parseDevice(formData: FormData) {
   return deviceSchema.safeParse(
-    Object.fromEntries(
-      DEVICE_FIELDS.map((key) => [key, field(formData, key)]),
-    ),
+    Object.fromEntries(DEVICE_FIELDS.map((key) => [key, field(formData, key)])),
   );
 }
 
@@ -123,10 +125,45 @@ function isUniqueClash(error: unknown, column?: string): boolean {
 }
 
 /** True when the vendor exists, is active and does this kind of work. */
-async function vendorOk(id: string | null | undefined, kinds: typeof SALES_KINDS) {
+async function vendorOk(
+  id: string | null | undefined,
+  kinds: typeof SALES_KINDS,
+) {
   if (!id) return true;
-  const vendor = await db.vendor.findUnique({ where: { id }, select: { kind: true, active: true } });
+  const vendor = await db.vendor.findUnique({
+    where: { id },
+    select: { kind: true, active: true },
+  });
   return Boolean(vendor && vendor.active && kinds.includes(vendor.kind));
+}
+
+/**
+ * The asset tag for `employeeId` holding a device of `type`, skipping tags
+ * other devices already use (`exceptDeviceId` is the device being moved).
+ */
+async function tagForHolder(
+  type: DeviceType,
+  employeeId: string,
+  exceptDeviceId?: string,
+) {
+  const employee = await db.employee.findUnique({
+    where: { id: employeeId },
+    select: { empId: true },
+  });
+  if (!employee) throw new Error("Employee not found");
+  const base = `${assetTagPrefix(type)}${employee.empId.trim().toUpperCase()}`;
+  const taken = await db.device.findMany({
+    where: {
+      assetTag: { startsWith: base, mode: "insensitive" },
+      ...(exceptDeviceId ? { id: { not: exceptDeviceId } } : {}),
+    },
+    select: { assetTag: true },
+  });
+  return holderAssetTag(
+    type,
+    employee.empId,
+    taken.map((row) => row.assetTag),
+  );
 }
 
 function revalidateDevice(id?: string) {
@@ -140,7 +177,15 @@ async function requireDeviceAccess(deviceId: string, need: "manage" | "act") {
   const user = await requireUser();
   const device = await db.device.findUnique({
     where: { id: deviceId },
-    select: { id: true, status: true, holderId: true, ...DEVICE_ACCESS_SELECT },
+    select: {
+      id: true,
+      status: true,
+      holderId: true,
+      type: true,
+      assetTag: true,
+      stockTag: true,
+      ...DEVICE_ACCESS_SELECT,
+    },
   });
   if (!device) throw new Error("Device not found");
   const access = deviceAccess(user, device);
@@ -166,18 +211,29 @@ export async function createDevice(
 
   let created: { id: string } | null = null;
   for (let attempt = 0; attempt < 3 && !created; attempt++) {
+    // Numbered tags live in stockTag once a device is assigned.
+    const prefix = assetTagPrefix(parsed.data.type);
     const existing = await db.device.findMany({
-      where: { assetTag: { startsWith: assetTagPrefix(parsed.data.type) } },
-      select: { assetTag: true },
+      where: {
+        OR: [
+          { assetTag: { startsWith: prefix } },
+          { stockTag: { startsWith: prefix } },
+        ],
+      },
+      select: { assetTag: true, stockTag: true },
     });
+    const stockTag = nextAssetTag(
+      parsed.data.type,
+      existing.flatMap((row) => [row.assetTag, row.stockTag ?? ""]),
+    );
     try {
       created = await db.device.create({
         data: {
           ...deviceData(parsed.data),
-          assetTag: nextAssetTag(
-            parsed.data.type,
-            existing.map((row) => row.assetTag),
-          ),
+          stockTag,
+          assetTag: employeeId
+            ? await tagForHolder(parsed.data.type, employeeId)
+            : stockTag,
           publicToken: newPublicToken(),
           status: employeeId ? "ASSIGNED" : "IN_STOCK",
           holderId: employeeId,
@@ -199,7 +255,11 @@ export async function createDevice(
   const requestId = field(formData, "requestId");
   if (requestId) {
     await db.devicePurchaseRequest.updateMany({
-      where: { id: requestId, status: { in: ["PENDING", "SENT"] }, deviceId: null },
+      where: {
+        id: requestId,
+        status: { in: ["PENDING", "SENT"] },
+        deviceId: null,
+      },
       data: { status: "RECEIVED", deviceId: created.id },
     });
     revalidatePath("/devices/requests");
@@ -247,27 +307,40 @@ export async function assignDevice(
   if (device.holderId === employeeId)
     return { error: "They already have this device." };
   const now = new Date();
-  await db.$transaction([
-    db.deviceAssignment.updateMany({
-      where: { deviceId, returnedAt: null },
-      data: { returnedAt: now, returnedById: user.id },
-    }),
-    db.deviceAssignment.create({
-      data: {
-        deviceId,
-        employeeId,
-        assignedAt: now,
-        conditionOut: field(formData, "conditionOut")?.trim() || null,
-        assignedById: user.id,
-      },
-    }),
-    db.device.update({
-      where: { id: deviceId },
-      data: { holderId: employeeId, status: "ASSIGNED" },
-    }),
-  ]);
+  const assetTag = await tagForHolder(device.type, employeeId, deviceId);
+  try {
+    await db.$transaction([
+      db.deviceAssignment.updateMany({
+        where: { deviceId, returnedAt: null },
+        data: { returnedAt: now, returnedById: user.id },
+      }),
+      db.deviceAssignment.create({
+        data: {
+          deviceId,
+          employeeId,
+          assignedAt: now,
+          conditionOut: field(formData, "conditionOut")?.trim() || null,
+          assignedById: user.id,
+        },
+      }),
+      db.device.update({
+        where: { id: deviceId },
+        // The tag follows the holder; stockTag remembers the numbered one.
+        data: {
+          holderId: employeeId,
+          status: "ASSIGNED",
+          assetTag,
+          stockTag: stockTagOf(device),
+        },
+      }),
+    ]);
+  } catch (error) {
+    if (isUniqueClash(error, "assetTag"))
+      return { error: "That tag was just taken by another device. Try again." };
+    throw error;
+  }
   revalidateDevice(deviceId);
-  return { ok: "Assigned." };
+  return { ok: `Assigned. Asset tag is now ${assetTag}; reprint the label.` };
 }
 
 export async function returnDevice(
@@ -290,11 +363,18 @@ export async function returnDevice(
     }),
     db.device.update({
       where: { id: deviceId },
-      data: { holderId: null, status: "IN_STOCK" },
+      data: {
+        holderId: null,
+        status: "IN_STOCK",
+        assetTag: stockTagOf(device),
+        stockTag: stockTagOf(device),
+      },
     }),
   ]);
   revalidateDevice(deviceId);
-  return { ok: "Returned to stock." };
+  return {
+    ok: `Returned to stock as ${stockTagOf(device)}; reprint the label.`,
+  };
 }
 
 const RETIRE_TO = ["RETIRED", "LOST", "IN_STOCK"] as const;
@@ -313,7 +393,12 @@ export async function setDeviceStatus(formData: FormData) {
     }),
     db.device.update({
       where: { id: deviceId },
-      data: { status: status as (typeof RETIRE_TO)[number], holderId: null },
+      data: {
+        status: status as (typeof RETIRE_TO)[number],
+        holderId: null,
+        assetTag: stockTagOf(device),
+        stockTag: stockTagOf(device),
+      },
     }),
   ]);
   revalidateDevice(deviceId);
@@ -369,7 +454,13 @@ function moveEvent(
   note: string | null,
 ) {
   return db.deviceTicketEvent.create({
-    data: { ticketId, fromStatus: from, toStatus: to, changedById: userId, note },
+    data: {
+      ticketId,
+      fromStatus: from,
+      toStatus: to,
+      changedById: userId,
+      note,
+    },
   });
 }
 
@@ -377,13 +468,16 @@ export async function sendForService(
   _prev: DeviceFormState,
   formData: FormData,
 ): Promise<DeviceFormState> {
-  const { user, device, ticket } = await requireTicket(field(formData, "ticketId") ?? "");
+  const { user, device, ticket } = await requireTicket(
+    field(formData, "ticketId") ?? "",
+  );
   if (!canMoveTicket(ticket.status, "SENT_FOR_SERVICE"))
     return { error: "Only open issues can be sent for service." };
   if (device.status === "IN_SERVICE")
     return { error: "This device is already out for service." };
   const vendorId = field(formData, "serviceVendorId")?.trim();
-  if (!vendorId) return { error: "Where is it going? Pick the service centre." };
+  if (!vendorId)
+    return { error: "Where is it going? Pick the service centre." };
   const vendor = await db.vendor.findUnique({
     where: { id: vendorId },
     select: { name: true, kind: true, active: true },
@@ -404,8 +498,17 @@ export async function sendForService(
         expectedBackOn: expected ? new Date(expected) : null,
       },
     }),
-    db.device.update({ where: { id: device.id }, data: { status: "IN_SERVICE" } }),
-    moveEvent(ticket.id, ticket.status, "SENT_FOR_SERVICE", user.id, note ?? `Sent to ${vendor.name}`),
+    db.device.update({
+      where: { id: device.id },
+      data: { status: "IN_SERVICE" },
+    }),
+    moveEvent(
+      ticket.id,
+      ticket.status,
+      "SENT_FOR_SERVICE",
+      user.id,
+      note ?? `Sent to ${vendor.name}`,
+    ),
   ]);
   revalidateDevice(device.id);
   return { ok: "Sent for service." };
@@ -415,7 +518,9 @@ export async function resolveTicket(
   _prev: DeviceFormState,
   formData: FormData,
 ): Promise<DeviceFormState> {
-  const { user, device, ticket } = await requireTicket(field(formData, "ticketId") ?? "");
+  const { user, device, ticket } = await requireTicket(
+    field(formData, "ticketId") ?? "",
+  );
   if (!canMoveTicket(ticket.status, "RESOLVED"))
     return { error: "This issue is already closed." };
   const resolution = field(formData, "resolution")?.trim();
@@ -449,10 +554,15 @@ export async function resolveTicket(
 }
 
 export async function cancelTicket(formData: FormData) {
-  const { user, device, ticket } = await requireTicket(field(formData, "ticketId") ?? "");
+  const { user, device, ticket } = await requireTicket(
+    field(formData, "ticketId") ?? "",
+  );
   if (!canMoveTicket(ticket.status, "CANCELLED")) return;
   await db.$transaction([
-    db.deviceTicket.update({ where: { id: ticket.id }, data: { status: "CANCELLED" } }),
+    db.deviceTicket.update({
+      where: { id: ticket.id },
+      data: { status: "CANCELLED" },
+    }),
     moveEvent(ticket.id, ticket.status, "CANCELLED", user.id, null),
   ]);
   revalidateDevice(device.id);

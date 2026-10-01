@@ -732,7 +732,8 @@ enum DeviceTicketStatus {
 
 model Device {
   id             String          @id @default(cuid())
-  assetTag       String          @unique // MAD-LAP-0007
+  assetTag       String          @unique // MAD-LAP-0007, or MAD-LAP-<emp code> while assigned
+  stockTag       String?         @unique // the numbered tag it returns to (MAD-LAP-0007)
   publicToken    String          @unique
   type           DeviceType
   brand          String

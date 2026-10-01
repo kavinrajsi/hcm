@@ -17,12 +17,13 @@ async function main() {
   });
   if (!vendor) throw new Error(`Vendor "${WIN_TECHNOLOGIES}" not found — add it first.`);
 
+  const prefix = assetTagPrefix("LAPTOP");
   const tags = (
     await db.device.findMany({
-      where: { assetTag: { startsWith: assetTagPrefix("LAPTOP") } },
-      select: { assetTag: true },
+      where: { OR: [{ assetTag: { startsWith: prefix } }, { stockTag: { startsWith: prefix } }] },
+      select: { assetTag: true, stockTag: true },
     })
-  ).map((row) => row.assetTag);
+  ).flatMap((row) => [row.assetTag, row.stockTag ?? ""]);
 
   let added = 0;
   for (const row of WIN_RENTALS) {
@@ -44,6 +45,7 @@ async function main() {
     await db.device.create({
       data: {
         assetTag,
+        stockTag: assetTag,
         publicToken: newPublicToken(),
         type: "LAPTOP",
         ...device,

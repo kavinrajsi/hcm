@@ -1,11 +1,10 @@
-import { DEVICE_TYPE_LABELS, labelTag } from "@/lib/devices/devices";
+import { DEVICE_TYPE_LABELS } from "@/lib/devices/devices";
 import type { DeviceType } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
 
 /**
- * The sticker: QR on the left; on the right MAD-LAP-<employee code> and
- * the holder's name when assigned (the asset tag when not), then the
- * device. Sized in millimetres so it prints true on an A4 3×8 label sheet
+ * The sticker: QR on the left; on the right the asset tag (MAD-LAP-<emp
+ * code> while assigned) and the holder's name, then the device. Sized in millimetres so it prints true on an A4 3×8 label sheet
  * (70 × 37 mm).
  */
 export function DeviceLabel({
@@ -15,6 +14,7 @@ export function DeviceLabel({
   brand,
   model,
   holder = null,
+  stockTag = null,
   className,
 }: {
   svg: string;
@@ -22,10 +22,12 @@ export function DeviceLabel({
   type: DeviceType;
   brand: string;
   model: string;
-  holder?: { name: string; empId: string } | null;
+  holder?: { name: string } | null;
+  /** The numbered tag, printed small when the asset tag is a holder's. */
+  stockTag?: string | null;
   className?: string;
 }) {
-  const tag = labelTag({ assetTag, type, holder });
+  const tag = assetTag;
   return (
     <div
       className={cn(
@@ -54,7 +56,7 @@ export function DeviceLabel({
         </p>
         <p className="truncate text-[7pt]">{model}</p>
         <p className="mt-[1mm] text-[6pt] text-zinc-600">
-          {holder ? `${assetTag} · ` : ""}Property of Madarth
+          {stockTag && stockTag !== assetTag ? `${stockTag} · ` : ""}Property of Madarth
         </p>
       </div>
     </div>

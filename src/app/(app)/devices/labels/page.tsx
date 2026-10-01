@@ -12,6 +12,7 @@ import { PageHeader, PageShell } from "@/components/page";
 import { Button } from "@/components/ui/button";
 import { DeviceLabel } from "../device-label";
 import { PrintButton } from "./print-button";
+import { LabelPicker } from "./label-picker";
 
 export const metadata = { title: "Print labels" };
 
@@ -50,27 +51,14 @@ export default async function LabelsPage({
         {devices.length === 0 ? (
           <p className="mt-6 text-sm text-zinc-500">No devices yet.</p>
         ) : (
-          <form method="get" className="mt-6 flex flex-col gap-3">
-            <ul className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
-              {devices.map((device) => (
-                <li key={device.id}>
-                  <label className="flex min-h-11 items-center gap-3 px-4 py-2 text-sm">
-                    <input type="checkbox" name="ids" value={device.id} className="size-4 accent-primary" />
-                    <span className="font-mono">{device.assetTag}</span>
-                    <span className="min-w-0 flex-1 truncate">
-                      {DEVICE_TYPE_LABELS[device.type]} · {device.brand} {device.model}
-                    </span>
-                    <span className="hidden text-xs text-zinc-500 md:inline">
-                      {device.holder?.name ?? DEVICE_STATUS_LABELS[device.status]}
-                    </span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-            <div>
-              <Button type="submit">Show sheet</Button>
-            </div>
-          </form>
+          <LabelPicker
+            devices={devices.map((device) => ({
+              id: device.id,
+              assetTag: device.assetTag,
+              text: `${DEVICE_TYPE_LABELS[device.type]} · ${device.brand} ${device.model}`,
+              who: device.holder?.name ?? DEVICE_STATUS_LABELS[device.status],
+            }))}
+          />
         )}
       </PageShell>
     );
@@ -86,6 +74,7 @@ export default async function LabelsPage({
       brand: true,
       model: true,
       publicToken: true,
+      stockTag: true,
       holder: { select: { name: true, empId: true } },
     },
   });
@@ -128,6 +117,7 @@ export default async function LabelsPage({
               brand={label.brand}
               model={label.model}
               holder={label.holder}
+              stockTag={label.stockTag}
             />
           ))}
         </div>
