@@ -30,20 +30,37 @@ export async function listDesigners(): Promise<DesignerRef[]> {
   }));
 }
 
-/** Client Coordinators = people who raised jobs, most active first. */
+/** Fewest jobs raised before someone counts as a Client Coordinator. */
+export const MIN_COORDINATOR_JOBS = 10;
+
+/**
+ * Client Coordinators = people who raise jobs, most active first. Anyone
+ * who also works as a designer, or raised only a handful, is left out:
+ * designers create their own to-dos too.
+ */
 export async function listCoordinators(): Promise<
   { personId: string; name: string; jobs: number }[]
 > {
-  const groups = await db.job.groupBy({
-    by: ["creatorPersonId", "creatorName"],
-    _count: { _all: true },
-    orderBy: { _count: { creatorPersonId: "desc" } },
-  });
-  return groups.map((group) => ({
-    personId: group.creatorPersonId,
-    name: group.creatorName,
-    jobs: group._count._all,
-  }));
+  const [groups, designers] = await Promise.all([
+    db.job.groupBy({
+      by: ["creatorPersonId", "creatorName"],
+      _count: { _all: true },
+      orderBy: { _count: { creatorPersonId: "desc" } },
+    }),
+    listDesigners(),
+  ]);
+  const designerIds = new Set(designers.map((designer) => designer.personId));
+  return groups
+    .filter(
+      (group) =>
+        !designerIds.has(group.creatorPersonId) &&
+        group._count._all >= MIN_COORDINATOR_JOBS,
+    )
+    .map((group) => ({
+      personId: group.creatorPersonId,
+      name: group.creatorName,
+      jobs: group._count._all,
+    }));
 }
 
 /** Every classified job, with its corrections counted, per designer. */

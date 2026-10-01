@@ -258,3 +258,29 @@ export async function classifyNow(): Promise<ClassifyState> {
   }
 }
 
+
+export type RereadState = { error?: string; ok?: string };
+
+/**
+ * Clears the model's reading of every comment in the dev and holdout sets
+ * so the next classification run reads them again with the current
+ * coordinator examples. Without this the eval page keeps measuring the
+ * prompt as it was before anyone labelled. HR only.
+ */
+export async function rereadEvalComments(): Promise<RereadState> {
+  await requireRole("HR_ADMIN");
+  const examples = await db.commentLabel.count({
+    where: { comment: { job: { evalSet: "train" } } },
+  });
+  if (examples === 0)
+    return { error: "Label some train-set comments first; there are no examples to learn from yet." };
+  const { count } = await db.jobComment.updateMany({
+    where: { job: { evalSet: { in: ["dev", "holdout"] } } },
+    data: { aiLabels: [], aiLabelledAt: null },
+  });
+  revalidatePath("/assign/eval");
+  revalidatePath("/assign");
+  return {
+    ok: `${count} dev and holdout comments will be read again with ${examples} labelled examples. Run "Read new jobs & comments" on the Assign page.`,
+  };
+}

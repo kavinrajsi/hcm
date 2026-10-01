@@ -26,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AssignTabs } from "../tabs";
+import { RereadButton } from "./reread-button";
 
 export const metadata = { title: "How well it reads" };
 
@@ -226,6 +227,16 @@ export default async function EvalPage({
             </>
           )}
         </p>
+        {user.role === "HR_ADMIN" && (
+          <>
+            <p className="mt-3 text-xs text-zinc-500">
+              The model learns from train-set labels, but comments it has already read aren&rsquo;t
+              read again. After coordinators label more of the train set, clear the dev and holdout
+              readings so the scores above reflect the current prompt.
+            </p>
+            <RereadButton />
+          </>
+        )}
       </Section>
 
       <Section title="What you believed vs. the record">
