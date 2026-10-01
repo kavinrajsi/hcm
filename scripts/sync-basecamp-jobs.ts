@@ -4,6 +4,8 @@
 //
 //   npx tsx scripts/sync-basecamp-jobs.ts            # sync + classify
 //   npx tsx scripts/sync-basecamp-jobs.ts --no-ai    # sync only
+//   npx tsx scripts/sync-basecamp-jobs.ts --full     # walk every project
+//                                                    # (default: since last sync)
 import "./load-env";
 import { db } from "@/lib/db";
 import { summarizeJobsSync, syncBasecampJobs } from "@/lib/assign/jobs-sync";
@@ -14,7 +16,7 @@ async function main() {
     if (event.type === "step") console.log(event.message);
     else if (event.type === "job" && event.status !== "unchanged")
       console.log(`  ${event.status}: ${event.bucket} · ${event.title}`);
-  }, { budgetMs: 20 * 60_000 });
+  }, { budgetMs: 20 * 60_000, full: process.argv.includes("--full") });
   console.log(summarizeJobsSync(result));
   if (process.argv.includes("--no-ai")) return;
   const classified = await classifyPending(20 * 60_000, "script");

@@ -507,3 +507,25 @@ export async function listComments(
     JOBS_AGENT,
   );
 }
+
+/**
+ * To-dos across every project, most recently updated first, stopping once
+ * a whole page is older than `since`. Recordings omit `completion`, so
+ * callers fall back to updated_at for the completion time.
+ */
+export async function listTodosUpdatedSince(
+  accessToken: string,
+  accountId: string,
+  since: Date,
+): Promise<BasecampTodoFull[]> {
+  const sinceIso = since.toISOString();
+  const todos = await fetchAllPages<BasecampTodoFull & { completion?: unknown }>(
+    accessToken,
+    `https://3.basecampapi.com/${accountId}/projects/recordings.json?type=Todo&sort=updated_at&direction=desc`,
+    JOBS_AGENT,
+    (page) => page.every((todo) => todo.updated_at < sinceIso),
+  );
+  return todos
+    .filter((todo) => todo.updated_at >= sinceIso)
+    .map((todo) => ({ ...todo, completion: todo.completion ?? null }) as BasecampTodoFull);
+}

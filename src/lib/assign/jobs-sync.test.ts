@@ -4,7 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
   employee: { findMany: vi.fn() },
-  job: { findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
+  job: {
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    aggregate: vi.fn(),
+  },
   jobComment: { createMany: vi.fn() },
 }));
 const basecamp = vi.hoisted(() => ({
@@ -13,6 +18,7 @@ const basecamp = vi.hoisted(() => ({
   listAllTodolists: vi.fn(),
   listCompletedTodos: vi.fn(),
   listComments: vi.fn(),
+  listTodosUpdatedSince: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ db }));
@@ -68,6 +74,7 @@ beforeEach(() => {
     { id: "e-sunil", workEmail: "sunil@madarth.com", personalEmail: null, personalEmailEnc: null },
   ]);
   db.job.findMany.mockResolvedValue([]);
+  db.job.aggregate.mockResolvedValue({ _max: { basecampUpdatedAt: null } });
   db.job.create.mockResolvedValue({ id: "job-1" });
   db.job.update.mockResolvedValue({ id: "job-1" });
   db.jobComment.createMany.mockResolvedValue({ count: 1 });
@@ -158,5 +165,42 @@ describe("syncBasecampJobs", () => {
     const result = await syncBasecampJobs(() => {}, { budgetMs: -1 });
     expect(result.skipped).toBe(2);
     expect(db.job.create).not.toHaveBeenCalled();
+  });
+
+  it("after the first import, reads only completed to-dos updated since the newest one", async () => {
+    db.job.aggregate.mockResolvedValue({
+      _max: { basecampUpdatedAt: new Date("2026-09-30T12:00:00.000Z") },
+    });
+    basecamp.listTodosUpdatedSince.mockResolvedValue([
+      todo({ completion: null }),
+      todo({ id: 103, completed: false }),
+    ]);
+    const result = await syncBasecampJobs();
+    expect(basecamp.listAllTodolists).not.toHaveBeenCalled();
+    // One day of overlap before the newest synced update.
+    expect(basecamp.listTodosUpdatedSince).toHaveBeenCalledWith(
+      "t",
+      "a",
+      new Date("2026-09-29T12:00:00.000Z"),
+    );
+    expect(result).toMatchObject({ todos: 1, created: 1 });
+    expect(db.job.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          completedAt: new Date("2026-09-02T10:00:00.000Z"),
+          completedBy: null,
+        }),
+      }),
+    );
+  });
+
+  it("walks every project when asked for a full sync", async () => {
+    db.job.aggregate.mockResolvedValue({
+      _max: { basecampUpdatedAt: new Date("2026-09-30T12:00:00.000Z") },
+    });
+    basecamp.listCompletedTodos.mockResolvedValue([todo()]);
+    await syncBasecampJobs(() => {}, { full: true });
+    expect(basecamp.listTodosUpdatedSince).not.toHaveBeenCalled();
+    expect(basecamp.listAllTodolists).toHaveBeenCalled();
   });
 });

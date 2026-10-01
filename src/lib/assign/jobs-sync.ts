@@ -5,6 +5,7 @@ import {
   listComments,
   listCompletedTodos,
   listProjects,
+  listTodosUpdatedSince,
   type BasecampTodoFull,
 } from "@/lib/basecamp";
 import { buildEmailIndex, htmlToText } from "@/lib/leave";
@@ -47,6 +48,9 @@ export type JobsSyncStreamEvent =
 
 // Leaves headroom for the project/list walk inside the 300s function limit.
 const DEFAULT_BUDGET_MS = 240_000;
+// Incremental runs re-read a day before the newest synced update, so a
+// to-do edited while the last run was going isn't missed.
+const OVERLAP_MS = 86_400_000;
 
 async function eachLimited<T>(
   items: T[],
@@ -63,7 +67,7 @@ async function eachLimited<T>(
 
 export async function syncBasecampJobs(
   onProgress: (event: JobsSyncEvent) => void = () => {},
-  options: { budgetMs?: number } = {},
+  options: { budgetMs?: number; full?: boolean } = {},
 ): Promise<JobsSyncResult> {
   const deadline = Date.now() + (options.budgetMs ?? DEFAULT_BUDGET_MS);
   onProgress({ type: "step", message: "Connecting to Basecamp…" });
@@ -102,31 +106,55 @@ export async function syncBasecampJobs(
     skipped: 0,
   };
 
-  onProgress({
-    type: "step",
-    message: `${projects.length} projects. Loading completed to-dos…`,
-  });
+  // A full walk of every project and list takes longer than one function
+  // run allows; after the first import, only to-dos updated since are read.
+  const newest = options.full
+    ? null
+    : (await db.job.aggregate({ _max: { basecampUpdatedAt: true } }))._max
+        .basecampUpdatedAt;
   const todos: BasecampTodoFull[] = [];
-  for (const project of projects) {
-    const lists = await listAllTodolists(
-      token.accessToken,
-      token.accountId,
-      project,
-    );
-    result.lists += lists.length;
-    for (const list of lists) {
-      const completed = await listCompletedTodos(
-        token.accessToken,
-        token.accountId,
-        project.id,
-        list.id,
-      );
-      todos.push(...completed);
-    }
+  if (newest) {
+    const since = new Date(newest.getTime() - OVERLAP_MS);
     onProgress({
       type: "step",
-      message: `${project.name}: ${lists.length} lists, ${todos.length} completed to-dos so far`,
+      message: `Loading to-dos updated since ${since.toISOString().slice(0, 10)}…`,
     });
+    const recent = await listTodosUpdatedSince(
+      token.accessToken,
+      token.accountId,
+      since,
+    );
+    todos.push(...recent.filter((todo) => todo.completed));
+    onProgress({
+      type: "step",
+      message: `${recent.length} to-dos updated, ${todos.length} of them completed`,
+    });
+  } else {
+    onProgress({
+      type: "step",
+      message: `${projects.length} projects. Loading completed to-dos…`,
+    });
+    for (const project of projects) {
+      const lists = await listAllTodolists(
+        token.accessToken,
+        token.accountId,
+        project,
+      );
+      result.lists += lists.length;
+      for (const list of lists) {
+        const completed = await listCompletedTodos(
+          token.accessToken,
+          token.accountId,
+          project.id,
+          list.id,
+        );
+        todos.push(...completed);
+      }
+      onProgress({
+        type: "step",
+        message: `${project.name}: ${lists.length} lists, ${todos.length} completed to-dos so far`,
+      });
+    }
   }
   result.todos = todos.length;
   onProgress({ type: "total", total: todos.length });
