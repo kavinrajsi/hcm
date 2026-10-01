@@ -11,6 +11,7 @@ import { DEVICE_ACCESS_SELECT, deviceAccess } from "@/lib/devices/access";
 import { SALES_KINDS, SERVICE_KINDS } from "@/lib/devices/vendors";
 import { DEVICE_OSES } from "@/lib/devices/os";
 import {
+  DEVICE_OWNERSHIPS,
   DEVICE_TYPES,
   assetTagPrefix,
   canAssign,
@@ -36,8 +37,12 @@ const optionalMoney = optional.refine(
   "Amounts must be a number like 54999 or 54999.50",
 );
 
-const deviceSchema = z.object({
+const deviceSchema = z
+  .object({
   type: z.enum(DEVICE_TYPES),
+  ownership: z.enum(DEVICE_OWNERSHIPS).optional().default("OWNED"),
+  monthlyRent: optionalMoney,
+  vendorRef: optional,
   brand: z.string().trim().min(1, "Brand is required"),
   model: z.string().trim().min(1, "Model is required"),
   serialNumber: optional,
@@ -51,7 +56,13 @@ const deviceSchema = z.object({
   vendorId: optional,
   warrantyEndsOn: optionalDate,
   notes: optional,
-});
+})
+  .refine((device) => device.ownership !== "RENTED" || device.vendorId, {
+    message: "A rented device needs the vendor it's rented from.",
+  })
+  .refine((device) => device.ownership !== "RENTED" || device.monthlyRent, {
+    message: "A rented device needs its monthly rent.",
+  });
 
 function field(formData: FormData, name: string) {
   const value = formData.get(name);
@@ -71,13 +82,34 @@ function deviceData(data: z.infer<typeof deviceSchema>) {
     vendorId: data.vendorId ?? null,
     warrantyEndsOn: data.warrantyEndsOn ? new Date(data.warrantyEndsOn) : null,
     notes: data.notes ?? null,
+    ownership: data.ownership,
+    // Rent only means something for a rented device.
+    monthlyRent: data.ownership === "RENTED" ? (data.monthlyRent ?? null) : null,
+    vendorRef: data.vendorRef ?? null,
   };
 }
+
+const DEVICE_FIELDS = [
+  "type",
+  "ownership",
+  "monthlyRent",
+  "vendorRef",
+  "brand",
+  "model",
+  "serialNumber",
+  "specs",
+  "os",
+  "purchaseDate",
+  "purchasePrice",
+  "vendorId",
+  "warrantyEndsOn",
+  "notes",
+] as const;
 
 function parseDevice(formData: FormData) {
   return deviceSchema.safeParse(
     Object.fromEntries(
-      Object.keys(deviceSchema.shape).map((key) => [key, field(formData, key)]),
+      DEVICE_FIELDS.map((key) => [key, field(formData, key)]),
     ),
   );
 }

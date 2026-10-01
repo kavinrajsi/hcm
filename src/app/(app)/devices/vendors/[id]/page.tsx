@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import {
+  formatRupees,
   DEVICE_STATUS_LABELS,
   DEVICE_TYPE_LABELS,
   TICKET_STATUS_LABELS,
@@ -25,7 +26,18 @@ export default async function VendorPage({ params }: { params: Promise<{ id: str
       contacts: { orderBy: { position: "asc" } },
       devices: {
         orderBy: { assetTag: "asc" },
-        select: { id: true, assetTag: true, type: true, brand: true, model: true, status: true, purchaseDate: true },
+        select: {
+          id: true,
+          assetTag: true,
+          type: true,
+          brand: true,
+          model: true,
+          status: true,
+          purchaseDate: true,
+          ownership: true,
+          monthlyRent: true,
+          vendorRef: true,
+        },
       },
       serviceTickets: {
         orderBy: { createdAt: "desc" },
@@ -42,6 +54,10 @@ export default async function VendorPage({ params }: { params: Promise<{ id: str
     },
   });
   if (!vendor) notFound();
+  const rentedNow = vendor.devices.filter(
+    (device) => device.ownership === "RENTED" && device.status !== "RETIRED" && device.status !== "LOST",
+  );
+  const monthlyRent = rentedNow.reduce((sum, device) => sum + Number(device.monthlyRent ?? 0), 0);
   const serviceCost = vendor.serviceTickets.reduce((sum, ticket) => sum + Number(ticket.cost ?? 0), 0);
 
   return (
@@ -138,7 +154,14 @@ export default async function VendorPage({ params }: { params: Promise<{ id: str
       </section>
 
       <section className="mt-8">
-        <h2 className="text-base font-semibold">Devices bought ({vendor.devices.length})</h2>
+        <h2 className="text-base font-semibold">
+          Devices ({vendor.devices.length})
+          {rentedNow.length > 0 && (
+            <span className="ml-2 text-sm font-normal text-zinc-500">
+              {rentedNow.length} rented · {formatRupees(monthlyRent)}/month
+            </span>
+          )}
+        </h2>
         {vendor.devices.length === 0 ? (
           <p className="mt-2 text-sm text-zinc-500">None.</p>
         ) : (
@@ -147,9 +170,15 @@ export default async function VendorPage({ params }: { params: Promise<{ id: str
               <li key={device.id} className="flex justify-between gap-3 px-4 py-2">
                 <Link href={`/devices/${device.id}`} className="hover:underline">
                   <span className="font-mono">{device.assetTag}</span> {DEVICE_TYPE_LABELS[device.type]} · {device.brand} {device.model}
+                  {device.vendorRef ? ` · ${device.vendorRef}` : ""}
                 </Link>
                 <span className="shrink-0 text-xs text-zinc-500">
-                  {device.purchaseDate ? formatDay(device.purchaseDate) : ""} {DEVICE_STATUS_LABELS[device.status]}
+                  {device.ownership === "RENTED" && device.monthlyRent
+                    ? `${formatRupees(Number(device.monthlyRent))}/mo · `
+                    : device.purchaseDate
+                      ? `${formatDay(device.purchaseDate)} · `
+                      : ""}
+                  {DEVICE_STATUS_LABELS[device.status]}
                 </span>
               </li>
             ))}

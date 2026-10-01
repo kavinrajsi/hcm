@@ -71,6 +71,55 @@ describe("createDevice", () => {
     expect(data.publicToken).toMatch(/^[\w-]{16}$/);
   });
 
+  it("saves a rented device with its rent and the vendor's reference", async () => {
+    db.vendor.findUnique.mockResolvedValue({ kind: "BOTH", active: true });
+    db.device.findMany.mockResolvedValue([]);
+    db.device.create.mockResolvedValue({ id: "r1" });
+    await expect(
+      actions.createDevice(
+        {},
+        form({
+          type: "LAPTOP",
+          brand: "HP",
+          model: "Elitebook 840 G5",
+          ownership: "RENTED",
+          monthlyRent: "2400.00",
+          vendorRef: "Laptop2",
+          vendorId: "v-win",
+        }),
+      ),
+    ).rejects.toMatchObject({ url: "/devices/r1" });
+    expect(db.device.create.mock.calls[0][0].data).toMatchObject({
+      ownership: "RENTED",
+      monthlyRent: "2400.00",
+      vendorRef: "Laptop2",
+      vendorId: "v-win",
+    });
+  });
+
+  it("needs a vendor and a rent for a rented device", async () => {
+    let state = await actions.createDevice(
+      {},
+      form({ type: "LAPTOP", brand: "HP", model: "840", ownership: "RENTED", monthlyRent: "2400" }),
+    );
+    expect(state.error).toMatch(/vendor it's rented from/);
+    state = await actions.createDevice(
+      {},
+      form({ type: "LAPTOP", brand: "HP", model: "840", ownership: "RENTED", vendorId: "v-win" }),
+    );
+    expect(state.error).toMatch(/monthly rent/);
+    expect(db.device.create).not.toHaveBeenCalled();
+  });
+
+  it("drops rent from an owned device", async () => {
+    db.device.findMany.mockResolvedValue([]);
+    db.device.create.mockResolvedValue({ id: "o1" });
+    await expect(
+      actions.createDevice({}, form({ type: "MOUSE", brand: "Logi", model: "M331", monthlyRent: "100" })),
+    ).rejects.toMatchObject({ url: "/devices/o1" });
+    expect(db.device.create.mock.calls[0][0].data).toMatchObject({ ownership: "OWNED", monthlyRent: null });
+  });
+
   it("rejects a vendor that doesn't sell devices", async () => {
     db.vendor.findUnique.mockResolvedValue({ kind: "SERVICE", active: true });
     const state = await actions.createDevice(

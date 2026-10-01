@@ -5,8 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { EmployeeSelect, type Employee } from "@/components/employee-select";
-import { DEVICE_TYPES, DEVICE_TYPE_LABELS } from "@/lib/devices/devices";
-import type { DeviceOs, DeviceType } from "@/generated/prisma/enums";
+import {
+  DEVICE_OWNERSHIPS,
+  DEVICE_OWNERSHIP_LABELS,
+  DEVICE_TYPES,
+  DEVICE_TYPE_LABELS,
+} from "@/lib/devices/devices";
+import type { DeviceOs, DeviceOwnership, DeviceType } from "@/generated/prisma/enums";
 import { DEVICE_OSES, DEVICE_OS_LABELS } from "@/lib/devices/os";
 import { createDevice, updateDevice, type DeviceFormState } from "./actions";
 
@@ -23,6 +28,9 @@ export type DeviceValues = {
   os: DeviceOs | "";
   purchaseDate: string;
   purchasePrice: string;
+  ownership: DeviceOwnership;
+  monthlyRent: string;
+  vendorRef: string;
   vendorId: string;
   warrantyEndsOn: string;
   notes: string;
@@ -37,6 +45,9 @@ export const EMPTY_DEVICE: DeviceValues = {
   os: "",
   purchaseDate: "",
   purchasePrice: "",
+  ownership: "OWNED",
+  monthlyRent: "",
+  vendorRef: "",
   vendorId: "",
   warrantyEndsOn: "",
   notes: "",
@@ -87,6 +98,8 @@ export function DeviceForm({
     {},
   );
   const [holder, setHolder] = useState(initialHolder);
+  const [ownership, setOwnership] = useState<DeviceOwnership>(values.ownership);
+  const rented = ownership === "RENTED";
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -122,14 +135,47 @@ export function DeviceForm({
             ))}
           </select>
         </Field>
-        <Field label="Purchase date">
-          <Input type="date" name="purchaseDate" defaultValue={values.purchaseDate} />
+        <Field label="Owned or rented">
+          <select
+            name="ownership"
+            value={ownership}
+            onChange={(event) => setOwnership(event.target.value as DeviceOwnership)}
+            className={selectClass}
+          >
+            {DEVICE_OWNERSHIPS.map((value) => (
+              <option key={value} value={value}>
+                {DEVICE_OWNERSHIP_LABELS[value]}
+              </option>
+            ))}
+          </select>
         </Field>
-        <Field label="Purchase price (₹)">
-          <Input name="purchasePrice" inputMode="decimal" defaultValue={values.purchasePrice} />
-        </Field>
-        <Field label="Bought from">
-          <select name="vendorId" defaultValue={values.vendorId} className={selectClass}>
+        {rented ? (
+          <>
+            <Field label="Monthly rent (₹)">
+              <Input name="monthlyRent" inputMode="decimal" required defaultValue={values.monthlyRent} />
+            </Field>
+            <Field label="Vendor's reference" hint="Their own label for it, e.g. Laptop2.">
+              <Input name="vendorRef" defaultValue={values.vendorRef} />
+            </Field>
+            <Field label="Rented since (optional)">
+              <Input type="date" name="purchaseDate" defaultValue={values.purchaseDate} />
+            </Field>
+          </>
+        ) : (
+          <>
+            <Field label="Purchase date">
+              <Input type="date" name="purchaseDate" defaultValue={values.purchaseDate} />
+            </Field>
+            <Field label="Purchase price (₹)">
+              <Input name="purchasePrice" inputMode="decimal" defaultValue={values.purchasePrice} />
+            </Field>
+            <Field label="Vendor's reference (optional)">
+              <Input name="vendorRef" defaultValue={values.vendorRef} />
+            </Field>
+          </>
+        )}
+        <Field label={rented ? "Rented from" : "Bought from"}>
+          <select name="vendorId" defaultValue={values.vendorId} required={rented} className={selectClass}>
             <option value="">Not recorded</option>
             {vendors.map((vendor) => (
               <option key={vendor.id} value={vendor.id}>

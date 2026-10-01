@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type {
+  DeviceOwnership,
   DeviceStatus,
   DeviceTicketStatus,
   DeviceType,
@@ -53,6 +54,24 @@ export const TICKET_STATUS_LABELS: Record<DeviceTicketStatus, string> = {
   RESOLVED: "Resolved",
   CANCELLED: "Cancelled",
 };
+
+export const DEVICE_OWNERSHIPS = ["OWNED", "RENTED"] as const;
+
+export const DEVICE_OWNERSHIP_LABELS: Record<DeviceOwnership, string> = {
+  OWNED: "Owned",
+  RENTED: "Rented",
+};
+
+export function isDeviceOwnership(value: unknown): value is DeviceOwnership {
+  return (
+    typeof value === "string" && (DEVICE_OWNERSHIPS as readonly string[]).includes(value)
+  );
+}
+
+/** "₹2,400" */
+export function formatRupees(value: number): string {
+  return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+}
 
 export function isDeviceType(value: unknown): value is DeviceType {
   return typeof value === "string" && (DEVICE_TYPES as readonly string[]).includes(value);

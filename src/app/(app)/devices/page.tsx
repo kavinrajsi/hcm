@@ -13,6 +13,10 @@ import {
   DEVICE_TYPE_LABELS,
   isDeviceStatus,
   isDeviceType,
+  DEVICE_OWNERSHIPS,
+  DEVICE_OWNERSHIP_LABELS,
+  formatRupees,
+  isDeviceOwnership,
 } from "@/lib/devices/devices";
 import { AddFilter } from "@/components/data-table/add-filter";
 import { DEVICE_OSES, DEVICE_OS_LABELS, isDeviceOs, osSuffix } from "@/lib/devices/os";
@@ -47,6 +51,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
   const brand = stringParam(raw.brand);
   const vendor = stringParam(raw.vendor);
   const os = isDeviceOs(raw.os) ? raw.os : undefined;
+  const ownership = isDeviceOwnership(raw.ownership) ? raw.ownership : undefined;
   const purchased = dayRange({
     preset: stringParam(raw.purchased),
     from: stringParam(raw.from),
@@ -62,6 +67,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
     ...(status ? { status } : {}),
     ...(brand ? { brand } : {}),
     ...(os ? { os } : {}),
+    ...(ownership ? { ownership } : {}),
     ...(vendor ? { vendor: { name: vendor } } : {}),
     ...(purchased ? { purchaseDate: purchased } : {}),
     ...(params.q
@@ -78,7 +84,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
       : {}),
   };
 
-  const [devices, total, openTickets, types, statuses, brands, vendors, oses] = await Promise.all([
+  const [devices, total, openTickets, types, statuses, brands, vendors, oses, ownerships, rent] = await Promise.all([
     db.device.findMany({
       where,
       orderBy: { assetTag: "asc" },
@@ -91,6 +97,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
         brand: true,
         model: true,
         os: true,
+        ownership: true,
         status: true,
         holder: { select: { name: true, empId: true } },
         _count: { select: { tickets: { where: { status: { in: ["OPEN", "SENT_FOR_SERVICE"] } } } } },
@@ -109,7 +116,15 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
       select: { name: true, _count: { select: { devices: { where: scope } } } },
     }),
     db.device.groupBy({ by: ["os"], where: scope, _count: true }),
+    db.device.groupBy({ by: ["ownership"], where: scope, _count: true }),
+    // Monthly rent of the rented devices in the current filter (HR only).
+    db.device.aggregate({
+      where: { AND: [where, { ownership: "RENTED", status: { notIn: ["RETIRED", "LOST"] } }] },
+      _sum: { monthlyRent: true },
+    }),
   ]);
+  const ownershipCounts = new Map(ownerships.map((group) => [group.ownership as string, group._count]));
+  const monthlyRent = Number(rent._sum.monthlyRent ?? 0);
   const osCounts = new Map(oses.map((group) => [group.os as string, group._count]));
   const typeCounts = new Map(types.map((group) => [group.type as string, group._count]));
   const statusCounts = new Map(statuses.map((group) => [group.status as string, group._count]));
@@ -121,7 +136,9 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
     <PageShell>
       <PageHeader
         title="Devices"
-        description={`Laptops, mice, iPads and hubs, who has them, and their repairs. ${openTickets} open issue${openTickets === 1 ? "" : "s"}.`}
+        description={`Laptops, mice, iPads and hubs, who has them, and their repairs. ${openTickets} open issue${openTickets === 1 ? "" : "s"}.${
+          user.role === "HR_ADMIN" && monthlyRent > 0 ? ` Rent: ${formatRupees(monthlyRent)}/month.` : ""
+        }`}
         actions={
           user.role === "HR_ADMIN" ? (
             <>
@@ -141,11 +158,14 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
       />
 
       <CountChips
-        items={DEVICE_STATUSES.map((value) => ({
-          key: value,
-          label: DEVICE_STATUS_LABELS[value],
-          count: statusCounts.get(value) ?? 0,
-        }))}
+        items={[
+          ...DEVICE_STATUSES.map((value) => ({
+            key: value,
+            label: DEVICE_STATUS_LABELS[value],
+            count: statusCounts.get(value) ?? 0,
+          })),
+          { key: "RENTED", label: "Rented", count: ownershipCounts.get("RENTED") ?? 0 },
+        ]}
       />
 
       <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:items-center">
@@ -169,6 +189,15 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
                   value,
                   label: DEVICE_STATUS_LABELS[value],
                   count: statusCounts.get(value) ?? 0,
+                })),
+              },
+              {
+                param: "ownership",
+                label: "Owned / rented",
+                options: DEVICE_OWNERSHIPS.map((value) => ({
+                  value,
+                  label: DEVICE_OWNERSHIP_LABELS[value],
+                  count: ownershipCounts.get(value) ?? 0,
                 })),
               },
               {
@@ -230,6 +259,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
                   <TableCell>
                     {DEVICE_TYPE_LABELS[device.type]}
                     {osSuffix(device.os)} · {device.brand} {device.model}
+                    {device.ownership === "RENTED" && <span className="ml-2 text-xs text-zinc-500">Rented</span>}
                   </TableCell>
                   <TableCell>{holderText(device)}</TableCell>
                   <TableCell className={DEVICE_STATUS_CLASSES[device.status]}>

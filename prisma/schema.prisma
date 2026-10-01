@@ -704,6 +704,11 @@ enum DeviceOs {
   OTHER
 }
 
+enum DeviceOwnership {
+  OWNED
+  RENTED
+}
+
 enum DeviceStatus {
   IN_STOCK
   ASSIGNED
@@ -726,24 +731,27 @@ enum DeviceTicketStatus {
 }
 
 model Device {
-  id             String       @id @default(cuid())
-  assetTag       String       @unique // MAD-LAP-0007
-  publicToken    String       @unique
+  id             String          @id @default(cuid())
+  assetTag       String          @unique // MAD-LAP-0007
+  publicToken    String          @unique
   type           DeviceType
   brand          String
   model          String
-  serialNumber   String?      @unique
+  serialNumber   String?         @unique
   specs          String?
   os             DeviceOs? // laptops: Mac or Windows
-  purchaseDate   DateTime?    @db.Date
-  purchasePrice  Decimal?     @db.Decimal(12, 2)
-  vendor         Vendor?      @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  purchaseDate   DateTime?       @db.Date
+  purchasePrice  Decimal?        @db.Decimal(12, 2)
+  vendor         Vendor?         @relation(fields: [vendorId], references: [id], onDelete: SetNull)
   vendorId       String?
-  warrantyEndsOn DateTime?    @db.Date
+  warrantyEndsOn DateTime?       @db.Date
   notes          String?
-  status         DeviceStatus @default(IN_STOCK)
+  ownership      DeviceOwnership @default(OWNED)
+  monthlyRent    Decimal?        @db.Decimal(12, 2) // rented devices
+  vendorRef      String? // the vendor's own label, e.g. "Laptop2"
+  status         DeviceStatus    @default(IN_STOCK)
   // Current holder, kept in step with the open DeviceAssignment.
-  holder         Employee?    @relation("DeviceHolder", fields: [holderId], references: [id], onDelete: SetNull)
+  holder         Employee?       @relation("DeviceHolder", fields: [holderId], references: [id], onDelete: SetNull)
   holderId       String?
 
   assignments     DeviceAssignment[]

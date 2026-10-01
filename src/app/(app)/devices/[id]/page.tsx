@@ -11,6 +11,7 @@ import {
   TICKET_STATUS_LABELS,
   canAssign,
   deviceScanUrl,
+  formatRupees,
 } from "@/lib/devices/devices";
 import { qrSvg } from "@/lib/devices/qr";
 import { SALES_KINDS, SERVICE_KINDS } from "@/lib/devices/vendors";
@@ -156,10 +157,30 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
           <dd>{device.serialNumber ?? "—"}</dd>
           <dt className="text-zinc-500">Specs</dt>
           <dd className="whitespace-pre-wrap">{device.specs ?? "—"}</dd>
-          <dt className="text-zinc-500">Purchased</dt>
+          {device.ownership === "RENTED" && (
+            <>
+              <dt className="text-zinc-500">Rented</dt>
+              <dd>
+                {device.vendor ? (
+                  manage ? (
+                    <Link href={`/devices/vendors/${device.vendor.id}`} className="hover:underline">
+                      {device.vendor.name}
+                    </Link>
+                  ) : (
+                    device.vendor.name
+                  )
+                ) : (
+                  "Vendor not set"
+                )}
+                {manage && device.monthlyRent ? ` · ${formatRupees(Number(device.monthlyRent))}/month` : ""}
+                {device.vendorRef ? ` · their ref ${device.vendorRef}` : ""}
+              </dd>
+            </>
+          )}
+          <dt className="text-zinc-500">{device.ownership === "RENTED" ? "Rented since" : "Purchased"}</dt>
           <dd>
             {device.purchaseDate ? formatDay(device.purchaseDate) : "—"}
-            {device.vendor && (
+            {device.vendor && device.ownership !== "RENTED" && (
               <>
                 {" from "}
                 {manage ? (
@@ -320,6 +341,9 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
               os: device.os ?? "",
               purchaseDate: day(device.purchaseDate),
               purchasePrice: device.purchasePrice ? String(device.purchasePrice) : "",
+              ownership: device.ownership,
+              monthlyRent: device.monthlyRent ? String(device.monthlyRent) : "",
+              vendorRef: device.vendorRef ?? "",
               vendorId: device.vendorId ?? "",
               warrantyEndsOn: day(device.warrantyEndsOn),
               notes: device.notes ?? "",
