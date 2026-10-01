@@ -24,6 +24,7 @@ import {
 import {
   Breadcrumb,
   BreadcrumbItem,
+  BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
@@ -91,20 +92,36 @@ export function AppSidebar({
   );
 }
 
-export function HeaderBreadcrumb() {
+/**
+ * "Group › Page" for the current URL. The group links to its first page
+ * this role can open; the page links back to its list when you're deeper
+ * in (a device's page → All devices).
+ */
+export function HeaderBreadcrumb({ role }: { role: Role }) {
   const pathname = usePathname();
   const current = findCurrent(pathname);
   if (!current) return null;
+
+  const groupHome = navFor(role).find((group) => group.title === current.group)?.items[0]?.url;
+  const onItemPage = pathname === current.item.url;
 
   return (
     <Breadcrumb>
       <BreadcrumbList>
         <BreadcrumbItem className="hidden md:block">
-          {current.group}
+          {groupHome && groupHome !== pathname ? (
+            <BreadcrumbLink render={<Link href={groupHome} />}>{current.group}</BreadcrumbLink>
+          ) : (
+            current.group
+          )}
         </BreadcrumbItem>
         <BreadcrumbSeparator className="hidden md:block" />
         <BreadcrumbItem>
-          <BreadcrumbPage>{current.item.title}</BreadcrumbPage>
+          {onItemPage ? (
+            <BreadcrumbPage>{current.item.title}</BreadcrumbPage>
+          ) : (
+            <BreadcrumbLink render={<Link href={current.item.url} />}>{current.item.title}</BreadcrumbLink>
+          )}
         </BreadcrumbItem>
       </BreadcrumbList>
     </Breadcrumb>

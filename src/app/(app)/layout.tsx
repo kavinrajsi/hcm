@@ -35,7 +35,7 @@ export default async function AppLayout({
               orientation="vertical"
               className="mr-2 hidden data-vertical:h-4 data-vertical:self-auto md:block"
             />
-            <HeaderBreadcrumb />
+            <HeaderBreadcrumb role={user.role} />
           </div>
           <div className="md:hidden">
             <AccountMenu email={email} signOutAction={signOutAction} />

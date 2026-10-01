@@ -33,7 +33,7 @@ async function main() {
     if (target === device.assetTag && device.stockTag === stock) continue;
     changed++;
     console.log(
-      `${apply ? "retag" : "would retag"} ${device.assetTag} → ${target}${device.holder ? `  (${device.holder.name})` : "  (in stock)"}`,
+      `${apply ? "retag" : "would retag"} ${device.assetTag} → ${target}${device.holder ? `  (${device.holder.name})` : "  (no holder)"}`,
     );
     if (apply)
       await db.device.update({ where: { id: device.id }, data: { assetTag: target, stockTag: stock } });
