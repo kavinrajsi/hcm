@@ -20,7 +20,10 @@ export default async function VendorsPage({
   const vendors = await db.vendor.findMany({
     where: { active: !showInactive },
     orderBy: { name: "asc" },
-    include: { _count: { select: { devices: true, serviceTickets: true } } },
+    include: {
+      contacts: { orderBy: [{ isPrimary: "desc" }, { position: "asc" }], take: 1 },
+      _count: { select: { devices: true, serviceTickets: true, contacts: true } },
+    },
   });
 
   const contact = (vendor: (typeof vendors)[number]) => (
@@ -92,7 +95,21 @@ export default async function VendorsPage({
                     </Link>
                     <p className="text-xs text-zinc-500">{VENDOR_KIND_LABELS[vendor.kind]}</p>
                   </TableCell>
-                  <TableCell>{vendor.contactPerson ?? "—"}</TableCell>
+                  <TableCell>
+                    {vendor.contacts[0] ? (
+                      <>
+                        {vendor.contacts[0].name}
+                        {vendor.contacts[0].role && (
+                          <span className="text-xs text-zinc-500"> · {vendor.contacts[0].role}</span>
+                        )}
+                        {vendor._count.contacts > 1 && (
+                          <span className="text-xs text-zinc-500"> +{vendor._count.contacts - 1} more</span>
+                        )}
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
                   <TableCell>{contact(vendor)}</TableCell>
                   <TableCell>
                     {vendor.email ? (
@@ -120,7 +137,12 @@ export default async function VendorsPage({
               subtitle={VENDOR_KIND_LABELS[vendor.kind]}
               meta={
                 <>
-                  {vendor.contactPerson && <span>{vendor.contactPerson}</span>}
+                  {vendor.contacts[0] && (
+                    <span>
+                      {vendor.contacts[0].name}
+                      {vendor._count.contacts > 1 ? ` +${vendor._count.contacts - 1}` : ""}
+                    </span>
+                  )}
                   <span>{vendor.phone || "add phone"}</span>
                   {vendor.email && <span>{vendor.email}</span>}
                 </>

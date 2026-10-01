@@ -5,6 +5,14 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { DEVICE_TYPES, DEVICE_TYPE_LABELS } from "@/lib/devices/devices";
 import type { DeviceOs, DeviceType } from "@/generated/prisma/enums";
 import { DEVICE_OSES, DEVICE_OS_LABELS } from "@/lib/devices/os";
@@ -21,7 +29,8 @@ const selectClass =
 export type OrderVendor = {
   id: string;
   name: string;
-  email: string | null;
+  /** Who the email can go to; the first is the default. */
+  recipients: { key: string; label: string }[];
   catalog: { type: DeviceType; name: string }[];
 };
 
@@ -47,6 +56,7 @@ export function OrderForm({
   designation?: string;
 }) {
   const [vendorId, setVendorId] = useState("");
+  const [recipient, setRecipient] = useState("");
   const [pick, setPick] = useState(OTHER);
   const [type, setType] = useState<DeviceType>("LAPTOP");
   const [os, setOs] = useState<DeviceOs | "">(recommendedOs ?? "");
@@ -58,6 +68,7 @@ export function OrderForm({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SendState | null>(null);
   const [requestKey, setRequestKey] = useState(newKey);
+  const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const vendor = vendors.find((row) => row.id === vendorId);
@@ -77,6 +88,7 @@ export function OrderForm({
     const data = new FormData();
     if (employeeId) data.set("employeeId", employeeId);
     data.set("vendorId", vendorId);
+    data.set("recipient", recipient);
     data.set("type", type);
     data.set("os", type === "LAPTOP" ? os : "");
     data.set("itemName", itemName);
@@ -99,6 +111,9 @@ export function OrderForm({
   function send() {
     const data = fields();
     data.set("requestKey", requestKey);
+    // The server refuses a send that didn't come through this confirmation.
+    data.set("confirmed", "yes");
+    setConfirming(false);
     startTransition(async () => {
       const state = await sendPurchaseRequest(data);
       setResult(state);
@@ -133,7 +148,9 @@ export function OrderForm({
             value={vendorId}
             disabled={!editing}
             onChange={(event) => {
+              const next = vendors.find((row) => row.id === event.target.value);
               setVendorId(event.target.value);
+              setRecipient(next?.recipients[0]?.key ?? "");
               setPick(OTHER);
             }}
             className={selectClass}
@@ -142,13 +159,30 @@ export function OrderForm({
               Pick a vendor…
             </option>
             {vendors.map((row) => (
-              <option key={row.id} value={row.id} disabled={!row.email}>
+              <option key={row.id} value={row.id} disabled={!row.recipients.length}>
                 {row.name}
-                {row.email ? "" : " (no email, add one first)"}
+                {row.recipients.length ? "" : " (no email, add one first)"}
               </option>
             ))}
           </select>
         </label>
+        {vendor && (
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">Send to</span>
+            <select
+              value={recipient}
+              disabled={!editing}
+              onChange={(event) => setRecipient(event.target.value)}
+              className={selectClass}
+            >
+              {vendor.recipients.map((option) => (
+                <option key={option.key} value={option.key}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {vendor && (
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium">Device</span>
@@ -297,13 +331,37 @@ export function OrderForm({
             className="h-96 w-full rounded-md border border-zinc-200 bg-white dark:border-zinc-800"
           />
           <div className="flex flex-wrap gap-2">
-            <Button type="button" disabled={pending} onClick={send}>
-              {pending ? "Sending…" : `Send to ${preview.to}`}
+            <Button type="button" disabled={pending} onClick={() => setConfirming(true)}>
+              {pending ? "Sending…" : "Send email…"}
             </Button>
             <Button type="button" variant="outline" disabled={pending} onClick={() => setPreview(null)}>
               Edit
             </Button>
           </div>
+          <Dialog open={confirming} onOpenChange={setConfirming}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Send this email to the vendor?</DialogTitle>
+                <DialogDescription>It goes out straight away and can&rsquo;t be unsent.</DialogDescription>
+              </DialogHeader>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                <dt className="text-zinc-500">To</dt>
+                <dd className="break-all">{preview.to}</dd>
+                <dt className="text-zinc-500">CC</dt>
+                <dd className="break-all">{preview.cc.length ? preview.cc.join(", ") : "—"}</dd>
+                <dt className="text-zinc-500">Subject</dt>
+                <dd>{preview.subject}</dd>
+              </dl>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setConfirming(false)}>
+                  Not yet
+                </Button>
+                <Button type="button" disabled={pending} onClick={send}>
+                  Yes, send email
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
     </div>

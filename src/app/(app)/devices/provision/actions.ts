@@ -15,6 +15,7 @@ import {
   parseEmailList,
   purchaseRequestEmail,
   readPurchaseEmailSettings,
+  vendorRecipients,
 } from "@/lib/devices/purchase";
 
 // Ordering a device from a vendor for a new joiner: preview the email,
@@ -63,11 +64,28 @@ function readForm(formData: FormData) {
   });
 }
 
+/** The vendor's chosen recipient (default: the first available). */
+function pickRecipient(
+  vendor: NonNullable<Awaited<ReturnType<typeof purchasableVendor>>>,
+  key: FormDataEntryValue | null,
+) {
+  const recipients = vendorRecipients(vendor);
+  return recipients.find((recipient) => recipient.key === key) ?? recipients[0] ?? null;
+}
+
 /** The vendor, if it can be emailed for a purchase. */
 async function purchasableVendor(id: string) {
   const vendor = await db.vendor.findUnique({
     where: { id },
-    select: { name: true, email: true, contactPerson: true, kind: true, active: true },
+    select: {
+      name: true,
+      email: true,
+      kind: true,
+      active: true,
+      contacts: {
+        select: { id: true, name: true, role: true, email: true, isPrimary: true, position: true },
+      },
+    },
   });
   if (!vendor || !vendor.active || !SALES_KINDS.includes(vendor.kind)) return null;
   return vendor;
@@ -91,19 +109,20 @@ export async function previewPurchaseRequest(formData: FormData): Promise<Previe
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form" };
   const vendor = await purchasableVendor(parsed.data.vendorId);
   if (!vendor) return { error: "Pick an active vendor that sells devices." };
-  if (!vendor.email)
+  const recipient = pickRecipient(vendor, formData.get("recipient"));
+  if (!recipient)
     return { error: `${vendor.name} has no email address. Add one on the vendor page first.` };
   const settings = await emailSettings();
   const { subject, html } = purchaseRequestEmail({
     vendorName: vendor.name,
-    contactPerson: vendor.contactPerson,
+    contactName: recipient.name,
     ...parsed.data,
     replyTo: settings.replyTo,
   });
   return {
     preview: {
       from: PURCHASE_EMAIL_FROM,
-      to: vendor.email,
+      to: recipient.name ? `${recipient.name} <${recipient.email}>` : recipient.email,
       cc: settings.cc,
       replyTo: settings.replyTo,
       subject,
@@ -118,11 +137,11 @@ export type SendState = { error?: string; ok?: string; requestId?: string };
 async function deliver(requestId: string): Promise<SendState> {
   const request = await db.devicePurchaseRequest.findUniqueOrThrow({
     where: { id: requestId },
-    include: { vendor: { select: { name: true, contactPerson: true } } },
+    include: { vendor: { select: { name: true } } },
   });
   const { html } = purchaseRequestEmail({
     vendorName: request.vendor.name,
-    contactPerson: request.vendor.contactPerson,
+    contactName: request.contactName,
     type: request.type,
     os: request.os,
     itemName: request.itemName,
@@ -169,17 +188,21 @@ function revalidateRequests(employeeId: string | null) {
 
 export async function sendPurchaseRequest(formData: FormData): Promise<SendState> {
   const user = await requireRole("HR_ADMIN");
+  if (formData.get("confirmed") !== "yes")
+    return { error: "Confirm the email before it's sent." };
   const key = formData.get("requestKey");
   if (typeof key !== "string" || !/^[\w-]{10,64}$/.test(key))
     return { error: "Refresh the page and try again." };
   const parsed = readForm(formData);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form" };
   const vendor = await purchasableVendor(parsed.data.vendorId);
-  if (!vendor?.email) return { error: "Pick an active vendor that sells devices and has an email." };
+  const recipient = vendor ? pickRecipient(vendor, formData.get("recipient")) : null;
+  if (!vendor || !recipient)
+    return { error: "Pick an active vendor that sells devices and has an email." };
   const settings = await emailSettings();
   const { subject } = purchaseRequestEmail({
     vendorName: vendor.name,
-    contactPerson: vendor.contactPerson,
+    contactName: recipient.name,
     ...parsed.data,
     replyTo: settings.replyTo,
   });
@@ -188,7 +211,8 @@ export async function sendPurchaseRequest(formData: FormData): Promise<SendState
   const data: Prisma.DevicePurchaseRequestUncheckedCreateInput = {
     id: key,
     ...parsed.data,
-    emailTo: vendor.email,
+    emailTo: recipient.email,
+    contactName: recipient.name,
     emailCc: settings.cc,
     emailReplyTo: settings.replyTo,
     emailSubject: subject,
@@ -205,6 +229,8 @@ export async function sendPurchaseRequest(formData: FormData): Promise<SendState
 /** Resend a request whose email failed. Claims it first so it sends once. */
 export async function retryPurchaseRequest(formData: FormData): Promise<SendState> {
   await requireRole("HR_ADMIN");
+  if (formData.get("confirmed") !== "yes")
+    return { error: "Confirm the email before it's sent." };
   const id = formData.get("id");
   if (typeof id !== "string") return { error: "Missing request" };
   const claimed = await db.devicePurchaseRequest.updateMany({

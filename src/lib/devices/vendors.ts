@@ -54,7 +54,6 @@ export const vendorSchema = z
   .object({
     name: z.string().trim().min(2, "Vendor name is required"),
     kind: z.enum(VENDOR_KINDS),
-    contactPerson: optionalText,
     email: z
       .string()
       .trim()
@@ -86,3 +85,74 @@ export const vendorSchema = z
   });
 
 export type VendorInput = z.infer<typeof vendorSchema>;
+
+// --- Contact people ---
+
+const optionalPhone = (label: string) =>
+  z
+    .string()
+    .trim()
+    .optional()
+    .transform((value, ctx) => {
+      if (!value) return null;
+      const normalized = normalizePhone(value);
+      if (!normalized) {
+        ctx.addIssue({ code: "custom", message: `${label} must be 7–15 digits` });
+        return z.NEVER;
+      }
+      return normalized;
+    });
+
+export const contactSchema = z.object({
+  name: z.string().default("").pipe(z.string().trim().min(1, "Each contact needs a name").max(120)),
+  role: optionalText,
+  email: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => (value ? value.toLowerCase() : null))
+    .refine((value) => value === null || z.email().safeParse(value).success, "Enter a valid contact email"),
+  phone: optionalPhone("Contact phone"),
+  altPhone: optionalPhone("Contact alternative phone"),
+  isPrimary: z.boolean().optional().default(false),
+});
+
+export type ContactInput = z.infer<typeof contactSchema>;
+
+/**
+ * Contacts posted as JSON from the vendor form. Blank rows are dropped;
+ * exactly one is primary when there are any (the first, if none is marked).
+ */
+export function parseContacts(
+  json: unknown,
+): { ok: true; contacts: (ContactInput & { position: number })[] } | { ok: false; error: string } {
+  let raw: unknown = [];
+  if (typeof json === "string" && json.trim()) {
+    try {
+      raw = JSON.parse(json);
+    } catch {
+      return { ok: false, error: "Couldn't read the contacts" };
+    }
+  }
+  if (!Array.isArray(raw)) return { ok: false, error: "Couldn't read the contacts" };
+  const rows = raw.filter(
+    (row) =>
+      row &&
+      typeof row === "object" &&
+      ["name", "role", "email", "phone", "altPhone"].some(
+        (key) => typeof (row as Record<string, unknown>)[key] === "string" && ((row as Record<string, string>)[key]).trim(),
+      ),
+  );
+  if (rows.length > 20) return { ok: false, error: "Up to 20 contacts per vendor" };
+  const contacts: (ContactInput & { position: number })[] = [];
+  for (const row of rows) {
+    const parsed = contactSchema.safeParse(row);
+    if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the contacts" };
+    contacts.push({ ...parsed.data, position: contacts.length });
+  }
+  const primary = contacts.findIndex((contact) => contact.isPrimary);
+  contacts.forEach((contact, index) => {
+    contact.isPrimary = index === (primary === -1 ? 0 : primary);
+  });
+  return { ok: true, contacts };
+}

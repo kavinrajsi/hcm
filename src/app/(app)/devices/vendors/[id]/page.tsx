@@ -22,6 +22,7 @@ export default async function VendorPage({ params }: { params: Promise<{ id: str
   const vendor = await db.vendor.findUnique({
     where: { id },
     include: {
+      contacts: { orderBy: { position: "asc" } },
       devices: {
         orderBy: { assetTag: "asc" },
         select: { id: true, assetTag: true, type: true, brand: true, model: true, status: true, purchaseDate: true },
@@ -65,9 +66,7 @@ export default async function VendorPage({ params }: { params: Promise<{ id: str
       />
 
       <dl className="mt-6 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-        <dt className="text-zinc-500">Contact</dt>
-        <dd>{vendor.contactPerson ?? "—"}</dd>
-        <dt className="text-zinc-500">Phone</dt>
+        <dt className="text-zinc-500">Company phone</dt>
         <dd>
           {vendor.phone ? (
             <a href={`tel:${vendor.phone.replace(/\s/g, "")}`} className="hover:underline">
@@ -87,7 +86,7 @@ export default async function VendorPage({ params }: { params: Promise<{ id: str
             "—"
           )}
         </dd>
-        <dt className="text-zinc-500">Email</dt>
+        <dt className="text-zinc-500">Company email</dt>
         <dd>
           {vendor.email ? (
             <a href={`mailto:${vendor.email}`} className="hover:underline">
@@ -104,6 +103,39 @@ export default async function VendorPage({ params }: { params: Promise<{ id: str
           </>
         )}
       </dl>
+
+      <section className="mt-8">
+        <h2 className="text-base font-semibold">Contact people ({vendor.contacts.length})</h2>
+        {vendor.contacts.length === 0 ? (
+          <p className="mt-2 text-sm text-zinc-500">None yet. Add them under Edit.</p>
+        ) : (
+          <ul className="mt-2 grid gap-2 md:grid-cols-2">
+            {vendor.contacts.map((contact) => (
+              <li key={contact.id} className="rounded-xl border border-zinc-200 px-4 py-3 text-sm dark:border-zinc-800">
+                <p className="font-medium">
+                  {contact.name}
+                  {contact.isPrimary && (
+                    <span className="ml-2 text-xs font-normal text-emerald-600 dark:text-emerald-400">Primary</span>
+                  )}
+                </p>
+                {contact.role && <p className="text-xs text-zinc-500">{contact.role}</p>}
+                <p className="mt-1 flex flex-col gap-0.5">
+                  {contact.email && (
+                    <a href={`mailto:${contact.email}`} className="hover:underline">
+                      {contact.email}
+                    </a>
+                  )}
+                  {[contact.phone, contact.altPhone].filter(Boolean).map((number) => (
+                    <a key={number} href={`tel:${number!.replace(/\s/g, "")}`} className="hover:underline">
+                      {number}
+                    </a>
+                  ))}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="mt-8">
         <h2 className="text-base font-semibold">Devices bought ({vendor.devices.length})</h2>
@@ -160,7 +192,14 @@ export default async function VendorPage({ params }: { params: Promise<{ id: str
               id: vendor.id,
               name: vendor.name,
               kind: vendor.kind,
-              contactPerson: vendor.contactPerson ?? "",
+              contacts: vendor.contacts.map((contact) => ({
+                name: contact.name,
+                role: contact.role ?? "",
+                email: contact.email ?? "",
+                phone: contact.phone ?? "",
+                altPhone: contact.altPhone ?? "",
+                isPrimary: contact.isPrimary,
+              })),
               email: vendor.email ?? "",
               phone: vendor.phone,
               altPhone: vendor.altPhone ?? "",

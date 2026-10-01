@@ -35,12 +35,15 @@ const STATUS: Record<PurchaseRequestStatus, { label: string; className: string }
 /** Purchase requests with their next step: retry, mark received or cancel. */
 export function RequestList({ rows, showEmployee }: { rows: RequestRow[]; showEmployee?: boolean }) {
   const [message, setMessage] = useState<string | null>(null);
+  const [confirmRetry, setConfirmRetry] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   if (rows.length === 0) return <p className="text-sm text-zinc-500">No requests yet.</p>;
 
   function retry(id: string) {
     const data = new FormData();
     data.set("id", id);
+    data.set("confirmed", "yes");
+    setConfirmRetry(null);
     startTransition(async () => {
       const state = await retryPurchaseRequest(data);
       setMessage(state.ok ?? state.error ?? null);
@@ -94,10 +97,21 @@ export function RequestList({ rows, showEmployee }: { rows: RequestRow[]; showEm
               </div>
               {open && (
                 <div className="flex shrink-0 flex-wrap gap-2">
-                  {row.status === "PENDING" && row.sendError && (
-                    <Button type="button" size="sm" variant="outline" disabled={pending} onClick={() => retry(row.id)}>
+                  {row.status === "PENDING" && row.sendError && confirmRetry !== row.id && (
+                    <Button type="button" size="sm" variant="outline" disabled={pending} onClick={() => setConfirmRetry(row.id)}>
                       Retry email
                     </Button>
+                  )}
+                  {confirmRetry === row.id && (
+                    <span className="flex flex-wrap items-center gap-2 text-xs">
+                      Send again to {row.emailTo}?
+                      <Button type="button" size="sm" disabled={pending} onClick={() => retry(row.id)}>
+                        Yes, send
+                      </Button>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmRetry(null)}>
+                        No
+                      </Button>
+                    </span>
                   )}
                   <Button
                     size="sm"

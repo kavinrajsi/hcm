@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
-import { vendorSchema } from "@/lib/devices/vendors";
+import { parseContacts, vendorSchema } from "@/lib/devices/vendors";
 
 export type VendorFormState = { error?: string; ok?: string };
 
@@ -17,7 +17,6 @@ function parse(formData: FormData) {
   return vendorSchema.safeParse({
     name: value("name"),
     kind: value("kind"),
-    contactPerson: value("contactPerson"),
     email: value("email"),
     phone: value("phone"),
     altPhone: value("altPhone"),
@@ -37,9 +36,14 @@ export async function createVendor(
   await requireRole("HR_ADMIN");
   const parsed = parse(formData);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid vendor" };
+  const contacts = parseContacts(formData.get("contacts"));
+  if (!contacts.ok) return { error: contacts.error };
   let id: string;
   try {
-    ({ id } = await db.vendor.create({ data: parsed.data, select: { id: true } }));
+    ({ id } = await db.vendor.create({
+      data: { ...parsed.data, contacts: { create: contacts.contacts } },
+      select: { id: true },
+    }));
   } catch (error) {
     if (nameTaken(error)) return { error: "A vendor with that name already exists." };
     throw error;
@@ -59,8 +63,17 @@ export async function updateVendor(
   if (typeof id !== "string") return { error: "Missing vendor" };
   const parsed = parse(formData);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid vendor" };
+  const contacts = parseContacts(formData.get("contacts"));
+  if (!contacts.ok) return { error: contacts.error };
   try {
-    await db.vendor.update({ where: { id }, data: parsed.data });
+    // Contacts are replaced as a set; the vendor row is updated in place.
+    await db.$transaction([
+      db.vendor.update({ where: { id }, data: parsed.data }),
+      db.vendorContact.deleteMany({ where: { vendorId: id } }),
+      db.vendorContact.createMany({
+        data: contacts.contacts.map((contact) => ({ ...contact, vendorId: id })),
+      }),
+    ]);
   } catch (error) {
     if (nameTaken(error)) return { error: "A vendor with that name already exists." };
     throw error;

@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import { DEVICE_STATUS_LABELS, DEVICE_TYPE_LABELS } from "@/lib/devices/devices";
 import { SALES_KINDS } from "@/lib/devices/vendors";
-import { vendorCatalog } from "@/lib/devices/purchase";
+import { vendorCatalog, vendorRecipients } from "@/lib/devices/purchase";
 import { DEVICE_OS_LABELS, osSuffix, recommendedOs } from "@/lib/devices/os";
 import { laptopOsMap } from "@/lib/devices/os-settings";
 import { formatDay } from "@/lib/format-date";
@@ -54,6 +54,9 @@ export default async function ProvisionPage({
         id: true,
         name: true,
         email: true,
+        contacts: {
+          select: { id: true, name: true, role: true, email: true, isPrimary: true, position: true },
+        },
         devices: {
           orderBy: { createdAt: "desc" },
           take: 50,
@@ -178,7 +181,7 @@ export default async function ProvisionPage({
             vendors={vendors.map((vendor) => ({
               id: vendor.id,
               name: vendor.name,
-              email: vendor.email,
+              recipients: vendorRecipients(vendor).map(({ key, label }) => ({ key, label })),
               catalog: vendorCatalog(vendor.devices),
             }))}
           />

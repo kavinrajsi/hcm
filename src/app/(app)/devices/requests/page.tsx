@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import { SALES_KINDS } from "@/lib/devices/vendors";
-import { vendorCatalog } from "@/lib/devices/purchase";
+import { vendorCatalog, vendorRecipients } from "@/lib/devices/purchase";
 import { PageHeader, PageShell } from "@/components/page";
 import { Button } from "@/components/ui/button";
 import { OrderForm } from "../provision/order-form";
@@ -26,6 +26,9 @@ export default async function RequestsPage() {
         id: true,
         name: true,
         email: true,
+        contacts: {
+          select: { id: true, name: true, role: true, email: true, isPrimary: true, position: true },
+        },
         devices: { orderBy: { createdAt: "desc" }, take: 50, select: { type: true, brand: true, model: true } },
       },
     }),
@@ -64,7 +67,7 @@ export default async function RequestsPage() {
             vendors={vendors.map((vendor) => ({
               id: vendor.id,
               name: vendor.name,
-              email: vendor.email,
+              recipients: vendorRecipients(vendor).map(({ key, label }) => ({ key, label })),
               catalog: vendorCatalog(vendor.devices),
             }))}
           />

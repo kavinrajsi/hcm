@@ -823,10 +823,11 @@ model Vendor {
   id               String                  @id @default(cuid())
   name             String                  @unique
   kind             VendorKind              @default(BOTH)
-  contactPerson    String?
-  email            String?
-  phone            String
+  contactPerson    String? // retired: moved to VendorContact; kept until dropped safely
+  email            String? // company email
+  phone            String // company phone
   altPhone         String?
+  contacts         VendorContact[]
   address          String?
   notes            String?
   active           Boolean                 @default(true) // inactive = hidden from pickers
@@ -865,6 +866,7 @@ model DevicePurchaseRequest {
   emailCc       String[]              @default([])
   emailReplyTo  String
   emailSubject  String
+  contactName   String? // who the email greets
   sentAt        DateTime?
   emailId       String? // ZeptoMail request id
   sendError     String?
@@ -886,4 +888,22 @@ model AppSetting {
   updatedAt   DateTime @updatedAt
   updatedBy   User?    @relation("AppSettingEditor", fields: [updatedById], references: [id], onDelete: SetNull)
   updatedById String?
+}
+
+/// A person at a vendor (sales, service, accounts…). One may be primary.
+model VendorContact {
+  id        String   @id @default(cuid())
+  vendor    Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  vendorId  String
+  name      String
+  role      String?
+  email     String?
+  phone     String?
+  altPhone  String?
+  isPrimary Boolean  @default(false)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([vendorId, position])
 }

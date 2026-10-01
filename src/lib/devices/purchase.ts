@@ -49,7 +49,8 @@ export function readPurchaseEmailSettings(value: unknown): PurchaseEmailSettings
 
 export type PurchaseRequestInput = {
   vendorName: string;
-  contactPerson: string | null;
+  /** The person the email greets, if it goes to someone by name. */
+  contactName: string | null;
   type: DeviceType;
   os?: DeviceOs | null;
   itemName: string;
@@ -68,7 +69,7 @@ export function purchaseRequestSubject(input: Pick<PurchaseRequestInput, "itemNa
  * price and availability. No employee details: the vendor doesn't need them.
  */
 export function purchaseRequestEmail(input: PurchaseRequestInput): { subject: string; html: string } {
-  const greeting = input.contactPerson ? `Hi ${escapeHtml(input.contactPerson)},` : "Hello,";
+  const greeting = input.contactName ? `Hi ${escapeHtml(input.contactName)},` : "Hello,";
   const rows: [string, string][] = [
     ["Device", `${escapeHtml(DEVICE_TYPE_LABELS[input.type] + osSuffix(input.os))}: ${escapeHtml(input.itemName)}`],
     ["Quantity", String(input.quantity)],
@@ -112,4 +113,29 @@ export function vendorCatalog(
     items.push({ type: device.type, name });
   }
   return items;
+}
+
+export type Recipient = { key: string; label: string; email: string; name: string | null };
+
+/**
+ * Who a vendor's purchase email can go to: each contact with an email
+ * (primary first), then the company email. The first is the default.
+ */
+export function vendorRecipients(vendor: {
+  email: string | null;
+  contacts: { id: string; name: string; role: string | null; email: string | null; isPrimary: boolean; position: number }[];
+}): Recipient[] {
+  const people = [...vendor.contacts]
+    .filter((contact) => contact.email)
+    .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || a.position - b.position)
+    .map((contact) => ({
+      key: contact.id,
+      label: `${contact.name}${contact.role ? ` (${contact.role})` : ""} · ${contact.email}`,
+      email: contact.email!,
+      name: contact.name,
+    }));
+  const company = vendor.email
+    ? [{ key: "company", label: `Company email · ${vendor.email}`, email: vendor.email, name: null }]
+    : [];
+  return [...people, ...company];
 }

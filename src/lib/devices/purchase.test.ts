@@ -5,6 +5,7 @@ import {
   purchaseRequestEmail,
   readPurchaseEmailSettings,
   vendorCatalog,
+  vendorRecipients,
 } from "./purchase";
 
 describe("parseEmailList", () => {
@@ -43,7 +44,7 @@ describe("readPurchaseEmailSettings", () => {
 describe("purchaseRequestEmail", () => {
   const input = {
     vendorName: "Croma",
-    contactPerson: "Ravi",
+    contactName: "Ravi",
     type: "LAPTOP" as const,
     itemName: "MacBook Air <M3>",
     quantity: 2,
@@ -69,7 +70,7 @@ describe("purchaseRequestEmail", () => {
   });
 
   it("greets generically without a contact person and skips an empty needed-by", () => {
-    const { html } = purchaseRequestEmail({ ...input, contactPerson: null, neededBy: null });
+    const { html } = purchaseRequestEmail({ ...input, contactName: null, neededBy: null });
     expect(html).toContain("Hello,");
     expect(html).not.toContain("Needed by");
   });
@@ -87,5 +88,35 @@ describe("vendorCatalog", () => {
       { type: "LAPTOP", name: "Dell Latitude 5440" },
       { type: "MOUSE", name: "Logitech M331" },
     ]);
+  });
+});
+
+describe("vendorRecipients", () => {
+  const contact = (overrides: Record<string, unknown>) => ({
+    id: "c",
+    name: "X",
+    role: null,
+    email: null,
+    isPrimary: false,
+    position: 0,
+    ...overrides,
+  });
+
+  it("lists contacts with an email (primary first), then the company email", () => {
+    const list = vendorRecipients({
+      email: "info@shop.test",
+      contacts: [
+        contact({ id: "a", name: "Ravi", role: "Sales", email: "ravi@shop.test", position: 0 }),
+        contact({ id: "b", name: "Meena", email: "meena@shop.test", isPrimary: true, position: 1 }),
+        contact({ id: "c", name: "No Email", position: 2 }),
+      ],
+    });
+    expect(list.map((recipient) => recipient.key)).toEqual(["b", "a", "company"]);
+    expect(list[1]).toEqual({ key: "a", label: "Ravi (Sales) · ravi@shop.test", email: "ravi@shop.test", name: "Ravi" });
+    expect(list[2]).toMatchObject({ email: "info@shop.test", name: null });
+  });
+
+  it("is empty when nobody can be emailed", () => {
+    expect(vendorRecipients({ email: null, contacts: [contact({ name: "Ravi" })] })).toEqual([]);
   });
 });
