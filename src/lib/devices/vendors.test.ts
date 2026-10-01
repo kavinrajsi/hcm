@@ -80,9 +80,27 @@ describe("parseContacts", () => {
     expect(parseContacts(JSON.stringify([{ role: "Sales", phone: "9840012345" }]))).toEqual({
       ok: false,
       error: "Each contact needs a name",
+      fieldErrors: { "contacts.0.name": ["Each contact needs a name"] },
     });
     expect(parseContacts(JSON.stringify([{ name: "A", email: "nope" }]))).toMatchObject({ ok: false });
     expect(parseContacts(JSON.stringify([{ name: "A", phone: "123" }]))).toMatchObject({ ok: false });
     expect(parseContacts("{not json")).toMatchObject({ ok: false });
+  });
+
+  it("keys each problem by the contact's row in the form, blank rows included", () => {
+    const result = parseContacts(
+      JSON.stringify([
+        { name: "Ravi", email: "ravi@shop.test" },
+        { name: "", role: "", email: "", phone: "" },
+        { name: "Meena", email: "nope", phone: "123" },
+      ]),
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      fieldErrors: {
+        "contacts.2.email": ["Enter a valid contact email"],
+        "contacts.2.phone": ["Contact phone must be 7–15 digits"],
+      },
+    });
   });
 });

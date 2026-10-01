@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { fieldError, invalid, type FormState } from "@/lib/form-state";
 import { requireRole, requireSelfOrRole } from "@/lib/rbac";
 import { getAccessToken, listProjects, listProjectTodos } from "@/lib/basecamp";
 import {
@@ -15,8 +16,8 @@ import {
 } from "@/lib/csv-import";
 
 const entrySchema = z.object({
-  employeeId: z.string().min(1),
-  date: z.string().min(1),
+  employeeId: z.string().min(1, "Pick an employee"),
+  date: z.string().min(1, "Date is required"),
   brand: z.string().trim().min(1, "Brand is required"),
   workName: z.string().trim().min(1, "Work name is required"),
   link: z
@@ -24,26 +25,27 @@ const entrySchema = z.object({
     .trim()
     .transform((value) => (value === "" ? undefined : value))
     .optional(),
-  durationMins: z.coerce.number().int().min(0),
+  durationMins: z.coerce
+    .number({ error: "Enter the duration in minutes" })
+    .int("Enter whole minutes")
+    .min(0, "Duration can't be negative"),
 });
 
-export type QuantumFormState = { error?: string; ok?: boolean };
+export type QuantumFormState = FormState;
 
 export async function addQuantumEntry(
   _prev: QuantumFormState,
   formData: FormData,
 ): Promise<QuantumFormState> {
   const parsed = entrySchema.safeParse({
-    employeeId: formData.get("employeeId"),
-    date: formData.get("date"),
-    brand: formData.get("brand"),
-    workName: formData.get("workName"),
+    employeeId: formData.get("employeeId") ?? "",
+    date: formData.get("date") ?? "",
+    brand: formData.get("brand") ?? "",
+    workName: formData.get("workName") ?? "",
     link: formData.get("link") ?? undefined,
     durationMins: formData.get("durationMins"),
   });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid entry" };
-  }
+  if (!parsed.success) return invalid(parsed.error);
 
   // Employees may log their own work; HR can log for anyone.
   await requireSelfOrRole(parsed.data.employeeId, "HR_ADMIN");
@@ -136,9 +138,9 @@ export async function importFromBasecamp(
   const employeeId = formData.get("employeeId");
   const projectId = formData.get("projectId");
   if (typeof employeeId !== "string" || !employeeId)
-    return { error: "Pick an employee to import for" };
+    return fieldError("employeeId", "Pick an employee to import for");
   if (typeof projectId !== "string" || !projectId)
-    return { error: "Pick a Basecamp project" };
+    return fieldError("projectId", "Pick a Basecamp project");
 
   const auth = await getAccessToken(user.id);
   if (!auth) return { error: "Basecamp not connected — connect it first" };
@@ -147,7 +149,7 @@ export async function importFromBasecamp(
   const project = projects.find(
     (basecampProject) => String(basecampProject.id) === projectId,
   );
-  if (!project) return { error: "Project not found" };
+  if (!project) return fieldError("projectId", "Project not found");
 
   const todos = await listProjectTodos(
     auth.accessToken,

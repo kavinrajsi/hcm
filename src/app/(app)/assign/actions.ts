@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
+import { fieldError, invalid, type FormState } from "@/lib/form-state";
 import { classifyDescription, classifyPending } from "@/lib/assign/classify";
 import { listDesigners, loadHistories } from "@/lib/assign/data";
 import { splitSample } from "@/lib/assign/eval";
@@ -29,6 +30,7 @@ const askSchema = z.object({
 
 export type AskState = {
   error?: string;
+  fieldErrors?: FormState["fieldErrors"];
   queryId?: string;
   kindBy?: "ai" | "manual";
   result?: SuggestionResult;
@@ -44,9 +46,7 @@ export async function askSuggestion(
     coordinatorId: formData.get("coordinatorId") ?? undefined,
     kind: formData.get("kind") ?? undefined,
   });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid request" };
-  }
+  if (!parsed.success) return invalid(parsed.error);
   const { description } = parsed.data;
   const coordinatorId = parsed.data.coordinatorId || null;
 
@@ -84,7 +84,7 @@ export async function askSuggestion(
   return { queryId: query.id, kindBy, result };
 }
 
-export type ChoiceState = { error?: string; ok?: boolean };
+export type ChoiceState = FormState;
 
 /** What the floor manager actually decided, against the query it answered. */
 export async function recordChoice(
@@ -94,8 +94,9 @@ export async function recordChoice(
   const user = await requireRole(...ASSIGN_ROLES);
   const queryId = formData.get("queryId");
   const personId = formData.get("personId");
-  if (typeof queryId !== "string" || typeof personId !== "string" || !personId)
-    return { error: "Pick a designer first." };
+  if (typeof queryId !== "string") return { error: "Missing question" };
+  if (typeof personId !== "string" || !personId)
+    return fieldError("personId", "Pick a designer first.");
   const { count } = await db.assignmentQuery.updateMany({
     where: { id: queryId, userId: user.id },
     data: { chosenPersonId: personId, chosenAt: new Date() },
@@ -155,7 +156,7 @@ export async function setJobKind(formData: FormData) {
 const HOLDOUT = 50;
 const DEV = 40;
 
-export type SampleState = { error?: string; ok?: string };
+export type SampleState = FormState;
 
 /**
  * Draws the labelling sample: jobs with comments that aren't in a set yet,

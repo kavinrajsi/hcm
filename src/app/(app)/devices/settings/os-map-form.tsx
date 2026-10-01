@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DEVICE_OSES, DEVICE_OS_LABELS } from "@/lib/devices/os";
 import type { DeviceOs } from "@/generated/prisma/enums";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField, FormMessage } from "@/components/form/form-field";
 import { saveLaptopOsMap, type SettingsState } from "../provision/actions";
 
 const selectClass =
@@ -18,7 +20,7 @@ export function LaptopOsMapForm({
 }) {
   const [state, formAction, pending] = useActionState<SettingsState, FormData>(saveLaptopOsMap, {});
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <ValidatedForm action={formAction} fieldErrors={state.fieldErrors} className="flex flex-col gap-4">
       <ul className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 text-sm dark:divide-zinc-800 dark:border-zinc-800">
         {rows.map((row) => (
           <li key={row.designation} className="grid grid-cols-[1fr_9rem] items-center gap-3 px-4 py-2">
@@ -29,35 +31,45 @@ export function LaptopOsMapForm({
                 · {row.people ? `${row.people} ${row.people === 1 ? "person" : "people"}` : "nobody now"}
               </span>
             </span>
-            <select name={`os:${row.designation}`} defaultValue={row.os ?? ""} className={selectClass}>
-              <option value="">No preference</option>
+            <FormField name={`os:${row.designation}`}>
+              <select
+                name={`os:${row.designation}`}
+                aria-label={`Laptop OS for ${row.designation}`}
+                defaultValue={row.os ?? ""}
+                className={selectClass}
+              >
+                <option value="">No preference</option>
+                {DEVICE_OSES.map((os) => (
+                  <option key={os} value={os}>
+                    {DEVICE_OS_LABELS[os]}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+          </li>
+        ))}
+        <li className="grid grid-cols-[1fr_9rem] items-start gap-3 px-4 py-2">
+          <FormField name="newDesignation">
+            <Input name="newDesignation" aria-label="Another designation" placeholder="Another designation (optional)" />
+          </FormField>
+          <FormField name="newOs">
+            <select name="newOs" aria-label="Laptop OS for that designation" defaultValue="" className={selectClass}>
+              <option value="">—</option>
               {DEVICE_OSES.map((os) => (
                 <option key={os} value={os}>
                   {DEVICE_OS_LABELS[os]}
                 </option>
               ))}
             </select>
-          </li>
-        ))}
-        <li className="grid grid-cols-[1fr_9rem] items-center gap-3 px-4 py-2">
-          <Input name="newDesignation" placeholder="Another designation (optional)" />
-          <select name="newOs" defaultValue="" className={selectClass}>
-            <option value="">—</option>
-            {DEVICE_OSES.map((os) => (
-              <option key={os} value={os}>
-                {DEVICE_OS_LABELS[os]}
-              </option>
-            ))}
-          </select>
+          </FormField>
         </li>
       </ul>
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save"}
         </Button>
-        {state.ok && <p className="text-sm text-emerald-600">{state.ok}</p>}
-        {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+        <FormMessage error={state.error} ok={state.ok} />
       </div>
-    </form>
+    </ValidatedForm>
   );
 }

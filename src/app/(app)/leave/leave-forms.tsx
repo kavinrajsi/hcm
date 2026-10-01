@@ -5,6 +5,8 @@ import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditIcon } from "@/components/icons";
 import { Input } from "@/components/ui/input";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField, FormMessage } from "@/components/form/form-field";
 import {
   Dialog,
   DialogContent,
@@ -223,15 +225,16 @@ export function LeaveEditDialog({
             <LeaveHistoryDrawer entryId={entry.id} name={entry.creatorName} />
           </div>
         </DialogHeader>
-        <form
+        <ValidatedForm
           action={formAction}
+          fieldErrors={state.fieldErrors}
           className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2"
         >
           <input type="hidden" name="id" value={entry.id} />
-          <label className="flex flex-col gap-1 sm:col-span-2">
-            Type
+          <FormField name="type" label="Type" className="sm:col-span-2">
             <select
               name="type"
+              required
               defaultValue={entry.type ?? "FULL_DAY"}
               className={selectClass}
             >
@@ -241,41 +244,39 @@ export function LeaveEditDialog({
                 </option>
               ))}
             </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            Start
+          </FormField>
+          <FormField name="startDate" label="Start">
             <Input
               type="date"
               name="startDate"
               defaultValue={entry.startDate}
               required
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            End
+          </FormField>
+          <FormField name="endDate" label="End">
             <Input type="date" name="endDate" defaultValue={entry.endDate} />
-          </label>
-          <label className="flex flex-col gap-1">
-            Days
+          </FormField>
+          <FormField name="days" label="Days">
             <Input
               type="number"
               name="days"
               step="0.5"
               min="0"
+              max="99"
               defaultValue={entry.days}
               required
             />
-          </label>
+          </FormField>
           <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
             <Button type="submit" disabled={pending}>
               {pending ? "Saving…" : "Save"}
             </Button>
-            {state.error && <p className="text-red-600">{state.error}</p>}
-            {state.ok && (
+            <FormMessage error={state.error} />
+            {state.ok && !state.error && (
               <p className="text-emerald-600 dark:text-emerald-400">Saved.</p>
             )}
           </div>
-        </form>
+        </ValidatedForm>
       </DialogContent>
     </Dialog>
   );

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { fieldError, type FormState } from "@/lib/form-state";
 import { requireRole } from "@/lib/rbac";
 import { mailPasswordLink, provisionLogin } from "@/lib/logins";
 import {
@@ -14,8 +15,7 @@ import type { Role } from "@/generated/prisma/enums";
 
 const ROLES = ["HR_ADMIN", "MANAGER", "EMPLOYEE"] as const;
 
-export type LinkState = {
-  error?: string;
+export type LinkState = FormState & {
   link?: string;
   emailed?: boolean;
   email?: string;
@@ -47,7 +47,7 @@ export async function inviteUser(
     name: formData.get("name") || undefined,
     role: formData.get("role"),
   });
-  if (!parsed.success) return { error: "Pick a role" };
+  if (!parsed.success) return fieldError("role", "Pick a role");
   const { employeeId, role } = parsed.data;
 
   let email = parsed.data.email?.toLowerCase();
@@ -57,17 +57,21 @@ export async function inviteUser(
       where: { id: employeeId },
       select: { workEmail: true, name: true, userId: true, dateOfExit: true },
     });
-    if (!employee) return { error: "Employee not found" };
-    if (employee.userId) return { error: "This employee already has a login" };
-    if (employee.dateOfExit) return { error: "This employee has exited" };
+    if (!employee) return fieldError("employeeId", "Employee not found");
+    if (employee.userId)
+      return fieldError("employeeId", "This employee already has a login");
+    if (employee.dateOfExit)
+      return fieldError("employeeId", "This employee has exited");
     email = employee.workEmail.toLowerCase();
     name = employee.name;
   }
-  if (!email || !z.email().safeParse(email).success) {
-    return { error: "Pick an employee or enter a valid email" };
-  }
+  if (!email) return fieldError("email", "Pick an employee or enter an email");
+  if (!z.email().safeParse(email).success)
+    return fieldError("email", "Enter a valid email");
   const result = await provisionLogin({ email, name, role, employeeId });
-  if ("error" in result) return { error: result.error };
+  // Without an employee the only problem is the email being taken.
+  if ("error" in result)
+    return employeeId ? { error: result.error } : fieldError("email", result.error);
 
   revalidatePath("/users");
   return { link: result.link, emailed: result.emailed, email: result.email };

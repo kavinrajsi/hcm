@@ -2,6 +2,8 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField, FormMessage } from "@/components/form/form-field";
 import { importFromBasecamp, type QuantumFormState } from "./actions";
 
 export function BasecampImportForm({
@@ -20,26 +22,41 @@ export function BasecampImportForm({
     "h-10 w-full rounded-md border border-input bg-transparent px-2 text-base md:h-9 md:text-sm dark:bg-input/30";
 
   return (
-    <form
+    <ValidatedForm
       action={formAction}
-      className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center"
+      fieldErrors={state.fieldErrors}
+      className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-start"
     >
-      <select name="employeeId" required className={`${selectClass} md:w-52`}>
-        <option value="">Import for employee…</option>
-        {employees.map((employee) => (
-          <option key={employee.id} value={employee.id}>
-            {employee.empId} — {employee.name}
-          </option>
-        ))}
-      </select>
-      <select name="projectId" required className={`${selectClass} md:w-52`}>
-        <option value="">Basecamp project…</option>
-        {projects.map((project) => (
-          <option key={project.id} value={project.id}>
-            {project.name}
-          </option>
-        ))}
-      </select>
+      <FormField name="employeeId">
+        <select
+          name="employeeId"
+          required
+          aria-label="Import for employee"
+          className={`${selectClass} md:w-52`}
+        >
+          <option value="">Import for employee…</option>
+          {employees.map((employee) => (
+            <option key={employee.id} value={employee.id}>
+              {employee.empId} — {employee.name}
+            </option>
+          ))}
+        </select>
+      </FormField>
+      <FormField name="projectId">
+        <select
+          name="projectId"
+          required
+          aria-label="Basecamp project"
+          className={`${selectClass} md:w-52`}
+        >
+          <option value="">Basecamp project…</option>
+          {projects.map((project) => (
+            <option key={project.id} value={project.id}>
+              {project.name}
+            </option>
+          ))}
+        </select>
+      </FormField>
       <Button
         type="submit"
         variant="outline"
@@ -48,8 +65,10 @@ export function BasecampImportForm({
       >
         {pending ? "Importing…" : "Import todos"}
       </Button>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-      {state.ok && <p className="text-sm text-green-600">Import complete.</p>}
-    </form>
+      <FormMessage error={state.error} />
+      {state.ok && !state.error && (
+        <p className="text-sm text-green-600">Import complete.</p>
+      )}
+    </ValidatedForm>
   );
 }

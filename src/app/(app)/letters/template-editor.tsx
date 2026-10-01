@@ -4,6 +4,12 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmailEditor } from "@/components/email-editor";
+import { ValidatedForm } from "@/components/form/validated-form";
+import {
+  FieldError,
+  FormField,
+  FormMessage,
+} from "@/components/form/form-field";
 import {
   resetLetterTemplate,
   saveLetterTemplate,
@@ -41,12 +47,13 @@ export function TemplateEditor({
           {custom ? (editedNote ?? "Customised") : "Default template"}
         </span>
       </div>
-      <form action={action} className="mt-3 flex flex-col gap-3">
+      <ValidatedForm
+        action={action}
+        fieldErrors={state.fieldErrors}
+        className="mt-3 flex flex-col gap-3"
+      >
         <input type="hidden" name="type" value={type} />
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor={`${id}-subject`} className="text-sm font-medium">
-            Subject
-          </label>
+        <FormField label="Subject" name="subject">
           <Input
             id={`${id}-subject`}
             name="subject"
@@ -55,32 +62,39 @@ export function TemplateEditor({
             maxLength={200}
             required
           />
+        </FormField>
+        <div className="flex flex-col gap-1">
+          <EmailEditor
+            name="body"
+            defaultValue={body}
+            subject={subject}
+            placeholders
+            label={`${label} body`}
+          />
+          <FieldError name="body" />
         </div>
-        <EmailEditor
-          name="body"
-          defaultValue={body}
-          subject={subject}
-          placeholders
-          label={`${label} body`}
-        />
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" disabled={pending}>
             {pending ? "Saving…" : "Save template"}
           </Button>
           {custom && (
-            <Button
-              type="submit"
-              variant="outline"
-              formAction={resetLetterTemplate}
-              formNoValidate
-            >
+            // Posts the separate reset form below, so the subject/body
+            // checks (and the editor's unsaved text) don't get in the way.
+            <Button type="submit" variant="outline" form={`${id}-reset`}>
               Reset to default
             </Button>
           )}
-          {state.ok && <p className="text-sm text-green-600">Saved.</p>}
-          {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+          {state.ok && !state.error && (
+            <p className="text-sm text-green-600">Saved.</p>
+          )}
+          <FormMessage error={state.error} />
         </div>
-      </form>
+      </ValidatedForm>
+      {custom && (
+        <form id={`${id}-reset`} action={resetLetterTemplate} hidden>
+          <input type="hidden" name="type" value={type} />
+        </form>
+      )}
     </section>
   );
 }

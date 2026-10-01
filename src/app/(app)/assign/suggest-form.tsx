@@ -4,6 +4,8 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { EmployeeAvatar } from "@/components/employee-avatar";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField, FormMessage } from "@/components/form/form-field";
 import { ArrowOutwardIcon } from "@/components/icons";
 import { formatDay } from "@/lib/format-date";
 import { JOB_KINDS, JOB_KIND_LABELS } from "@/lib/assign/taxonomy";
@@ -34,9 +36,12 @@ export function SuggestForm({
 
   return (
     <div className="flex flex-col gap-6">
-      <form action={formAction} className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">The job</span>
+      <ValidatedForm
+        action={formAction}
+        fieldErrors={state.fieldErrors}
+        className="flex flex-col gap-3"
+      >
+        <FormField label="The job" name="description">
           <Textarea
             name="description"
             required
@@ -44,10 +49,13 @@ export function SuggestForm({
             rows={4}
             placeholder="Paste the brief or describe it: client, what's needed, sizes, where it goes."
           />
-        </label>
+        </FormField>
         <div className="grid gap-3 md:grid-cols-2">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Client Coordinator</span>
+          <FormField
+            label="Client Coordinator"
+            name="coordinatorId"
+            hint="Rework counts describe a designer and a coordinator together, so comparing under one coordinator is fairer."
+          >
             <select name="coordinatorId" className={selectClass} defaultValue="">
               <option value="">Any — compare across all coordinators</option>
               {coordinators.map((coordinator) => (
@@ -56,13 +64,8 @@ export function SuggestForm({
                 </option>
               ))}
             </select>
-            <span className="text-xs text-zinc-500">
-              Rework counts describe a designer and a coordinator together, so
-              comparing under one coordinator is fairer.
-            </span>
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Kind of job</span>
+          </FormField>
+          <FormField label="Kind of job" name="kind">
             <select name="kind" className={selectClass} defaultValue="">
               <option value="">Let the system read the description</option>
               {JOB_KINDS.map((kind) => (
@@ -71,15 +74,15 @@ export function SuggestForm({
                 </option>
               ))}
             </select>
-          </label>
+          </FormField>
         </div>
         <div className="flex items-center gap-3">
           <Button type="submit" disabled={pending}>
             {pending ? "Reading the record…" : "Who should take this?"}
           </Button>
-          {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+          <FormMessage error={state.error} />
         </div>
-      </form>
+      </ValidatedForm>
 
       {state.result && state.queryId && (
         <Result
@@ -274,25 +277,38 @@ function ChoiceForm({
   if (state.ok)
     return <p className="text-sm text-emerald-600">Noted. Thanks — this is what the system gets compared against.</p>;
   return (
-    <form
+    <ValidatedForm
       action={formAction}
-      className="flex flex-col gap-2 rounded-xl border border-dashed border-zinc-200 p-4 md:flex-row md:items-center dark:border-zinc-800"
+      fieldErrors={state.fieldErrors}
+      className="flex flex-col gap-2 rounded-xl border border-dashed border-zinc-200 p-4 md:flex-row md:items-start dark:border-zinc-800"
     >
       <input type="hidden" name="queryId" value={queryId} />
-      <label className="text-sm font-medium md:mr-2">Who did you give it to?</label>
-      <select name="personId" required className={`${selectClass} md:w-56`} defaultValue="">
-        <option value="">Pick a designer…</option>
-        {designers.map((designer) => (
-          <option key={designer.personId} value={designer.personId}>
-            {designer.name}
-          </option>
-        ))}
-      </select>
+      <label htmlFor={`choice-${queryId}`} className="text-sm font-medium md:mr-2 md:leading-9">
+        Who did you give it to?
+      </label>
+      <FormField name="personId">
+        <select
+          id={`choice-${queryId}`}
+          name="personId"
+          required
+          className={`${selectClass} md:w-56`}
+          defaultValue=""
+        >
+          <option value="">Pick a designer…</option>
+          {designers.map((designer) => (
+            <option key={designer.personId} value={designer.personId}>
+              {designer.name}
+            </option>
+          ))}
+        </select>
+      </FormField>
       <Button type="submit" variant="outline" disabled={pending}>
         {pending ? "Saving…" : "Record choice"}
       </Button>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-    </form>
+      <div className="md:pt-2">
+        <FormMessage error={state.error} />
+      </div>
+    </ValidatedForm>
   );
 }
 

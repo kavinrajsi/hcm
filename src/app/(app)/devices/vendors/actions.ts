@@ -4,10 +4,16 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { fieldError, FIX_FIELDS, invalid, type FormState } from "@/lib/form-state";
 import { requireRole } from "@/lib/rbac";
-import { parseContacts, vendorSchema } from "@/lib/devices/vendors";
+import {
+  parseContacts,
+  vendorSchema,
+  type ContactInput,
+  type VendorInput,
+} from "@/lib/devices/vendors";
 
-export type VendorFormState = { error?: string; ok?: string };
+export type VendorFormState = FormState;
 
 function parse(formData: FormData) {
   const value = (key: string) => {
@@ -25,6 +31,26 @@ function parse(formData: FormData) {
   });
 }
 
+/** The vendor and its contacts, or every problem with either at once. */
+function parseAll(
+  formData: FormData,
+):
+  | { vendor: VendorInput; contacts: (ContactInput & { position: number })[] }
+  | { state: VendorFormState } {
+  const parsed = parse(formData);
+  const contacts = parseContacts(formData.get("contacts"));
+  if (parsed.success && contacts.ok) return { vendor: parsed.data, contacts: contacts.contacts };
+  const state: VendorFormState = parsed.success ? {} : invalid(parsed.error);
+  if (!contacts.ok) {
+    if (!contacts.fieldErrors) return { state: { ...state, error: contacts.error } };
+    state.fieldErrors = { ...state.fieldErrors, ...contacts.fieldErrors };
+    state.error = FIX_FIELDS;
+  }
+  return { state };
+}
+
+const NAME_TAKEN = "A vendor with that name already exists.";
+
 function nameTaken(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
@@ -34,18 +60,16 @@ export async function createVendor(
   formData: FormData,
 ): Promise<VendorFormState> {
   await requireRole("HR_ADMIN");
-  const parsed = parse(formData);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid vendor" };
-  const contacts = parseContacts(formData.get("contacts"));
-  if (!contacts.ok) return { error: contacts.error };
+  const parsed = parseAll(formData);
+  if ("state" in parsed) return parsed.state;
   let id: string;
   try {
     ({ id } = await db.vendor.create({
-      data: { ...parsed.data, contacts: { create: contacts.contacts } },
+      data: { ...parsed.vendor, contacts: { create: parsed.contacts } },
       select: { id: true },
     }));
   } catch (error) {
-    if (nameTaken(error)) return { error: "A vendor with that name already exists." };
+    if (nameTaken(error)) return fieldError("name", NAME_TAKEN);
     throw error;
   }
   revalidatePath("/devices/vendors");
@@ -61,21 +85,19 @@ export async function updateVendor(
   await requireRole("HR_ADMIN");
   const id = formData.get("id");
   if (typeof id !== "string") return { error: "Missing vendor" };
-  const parsed = parse(formData);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid vendor" };
-  const contacts = parseContacts(formData.get("contacts"));
-  if (!contacts.ok) return { error: contacts.error };
+  const parsed = parseAll(formData);
+  if ("state" in parsed) return parsed.state;
   try {
     // Contacts are replaced as a set; the vendor row is updated in place.
     await db.$transaction([
-      db.vendor.update({ where: { id }, data: parsed.data }),
+      db.vendor.update({ where: { id }, data: parsed.vendor }),
       db.vendorContact.deleteMany({ where: { vendorId: id } }),
       db.vendorContact.createMany({
-        data: contacts.contacts.map((contact) => ({ ...contact, vendorId: id })),
+        data: parsed.contacts.map((contact) => ({ ...contact, vendorId: id })),
       }),
     ]);
   } catch (error) {
-    if (nameTaken(error)) return { error: "A vendor with that name already exists." };
+    if (nameTaken(error)) return fieldError("name", NAME_TAKEN);
     throw error;
   }
   revalidatePath("/devices/vendors");

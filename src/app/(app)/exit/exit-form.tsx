@@ -4,6 +4,12 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmployeeSelect, type Employee } from "@/components/employee-select";
+import { ValidatedForm } from "@/components/form/validated-form";
+import {
+  FieldError,
+  FormField,
+  FormMessage,
+} from "@/components/form/form-field";
 import { markExit, type ExitFormState } from "./actions";
 
 export function ExitForm({ activeEmployees }: { activeEmployees: Employee[] }) {
@@ -19,8 +25,9 @@ export function ExitForm({ activeEmployees }: { activeEmployees: Employee[] }) {
   );
 
   return (
-    <form
+    <ValidatedForm
       action={formAction}
+      fieldErrors={state.fieldErrors}
       className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 md:flex-row md:flex-wrap md:items-end dark:border-zinc-800"
     >
       <div className="flex flex-col gap-1.5">
@@ -43,11 +50,9 @@ export function ExitForm({ activeEmployees }: { activeEmployees: Employee[] }) {
           selectedId={selected?.id ?? ""}
           onSelect={setSelectedId}
         />
+        <FieldError name="employeeId" />
       </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="dateOfExit" className="text-sm font-medium">
-          Date of exit
-        </label>
+      <FormField name="dateOfExit" label="Date of exit">
         <Input
           id="dateOfExit"
           name="dateOfExit"
@@ -55,16 +60,16 @@ export function ExitForm({ activeEmployees }: { activeEmployees: Employee[] }) {
           required
           className="md:w-44"
         />
-      </div>
+      </FormField>
       <Button type="submit" disabled={pending || !selected}>
         {pending ? "Recording…" : "Record exit"}
       </Button>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-      {state.ok && (
+      <FormMessage error={state.error} />
+      {state.ok && !state.error && (
         <p className="text-sm text-green-600">
           Exit recorded — ID card flagged for return.
         </p>
       )}
-    </form>
+    </ValidatedForm>
   );
 }

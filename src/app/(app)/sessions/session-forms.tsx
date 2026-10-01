@@ -3,6 +3,8 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FieldError, FormField, FormMessage } from "@/components/form/form-field";
 import { createSession, logAttendance, type SessionFormState } from "./actions";
 
 const selectClass =
@@ -15,20 +17,15 @@ export function NewSessionForm() {
   >(createSession, {});
 
   return (
-    <form
+    <ValidatedForm
       action={formAction}
+      fieldErrors={state.fieldErrors}
       className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 md:flex-row md:flex-wrap md:items-end dark:border-zinc-800"
     >
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="s-name" className="text-sm font-medium">
-          Session name
-        </label>
+      <FormField name="name" label="Session name">
         <Input id="s-name" name="name" required className="w-full md:w-56" />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="s-date" className="text-sm font-medium">
-          Date & time
-        </label>
+      </FormField>
+      <FormField name="date" label="Date & time">
         <Input
           id="s-date"
           name="date"
@@ -36,32 +33,26 @@ export function NewSessionForm() {
           required
           className="w-full md:w-52"
         />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="s-trainer" className="text-sm font-medium">
-          Trainer
-        </label>
+      </FormField>
+      <FormField name="trainer" label="Trainer">
         <Input
           id="s-trainer"
           name="trainer"
           required
           className="w-full md:w-44"
         />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="s-mode" className="text-sm font-medium">
-          Mode
-        </label>
+      </FormField>
+      <FormField name="mode" label="Mode">
         <select id="s-mode" name="mode" className={`${selectClass} md:w-auto`}>
           <option value="IN_PERSON">In-person</option>
           <option value="VIRTUAL">Virtual</option>
         </select>
-      </div>
+      </FormField>
       <Button type="submit" disabled={pending} className="w-full md:w-auto">
         {pending ? "Adding…" : "Add session"}
       </Button>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-    </form>
+      <FormMessage error={state.error} />
+    </ValidatedForm>
   );
 }
 
@@ -78,14 +69,12 @@ export function AttendanceForm({
   >(logAttendance, {});
 
   return (
-    <form
+    <ValidatedForm
       action={formAction}
+      fieldErrors={state.fieldErrors}
       className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 md:flex-row md:flex-wrap md:items-end dark:border-zinc-800"
     >
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="a-emp" className="text-sm font-medium">
-          Employee
-        </label>
+      <FormField name="employeeId" label="Employee">
         <select
           id="a-emp"
           name="employeeId"
@@ -99,11 +88,8 @@ export function AttendanceForm({
             </option>
           ))}
         </select>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="a-session" className="text-sm font-medium">
-          Calendar session (optional)
-        </label>
+      </FormField>
+      <FormField name="sessionId" label="Calendar session (optional)">
         <select
           id="a-session"
           name="sessionId"
@@ -129,22 +115,16 @@ export function AttendanceForm({
             </option>
           ))}
         </select>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="a-name" className="text-sm font-medium">
-          Session name
-        </label>
+      </FormField>
+      <FormField name="sessionName" label="Session name">
         <Input
           id="a-name"
           name="sessionName"
           required
           className="w-full md:w-52"
         />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="a-date" className="text-sm font-medium">
-          Date
-        </label>
+      </FormField>
+      <FormField name="date" label="Date">
         <Input
           id="a-date"
           name="date"
@@ -152,19 +132,13 @@ export function AttendanceForm({
           required
           className="w-full md:w-40"
         />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="a-trainer" className="text-sm font-medium">
-          Trainer
-        </label>
+      </FormField>
+      <FormField name="trainer" label="Trainer">
         <Input id="a-trainer" name="trainer" className="w-full md:w-40" />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="a-notes" className="text-sm font-medium">
-          Notes
-        </label>
+      </FormField>
+      <FormField name="notes" label="Notes">
         <Input id="a-notes" name="notes" className="w-full md:w-48" />
-      </div>
+      </FormField>
       <div className="flex min-h-10 items-center gap-2 md:min-h-0 md:pb-2">
         <input
           id="a-attended"
@@ -176,12 +150,15 @@ export function AttendanceForm({
         <label htmlFor="a-attended" className="text-sm font-medium">
           Attended
         </label>
+        <FieldError name="attended" />
       </div>
       <Button type="submit" disabled={pending} className="w-full md:w-auto">
         {pending ? "Logging…" : "Log attendance"}
       </Button>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-      {state.ok && <p className="text-sm text-green-600">Logged.</p>}
-    </form>
+      <FormMessage error={state.error} />
+      {state.ok && !state.error && (
+        <p className="text-sm text-green-600">Logged.</p>
+      )}
+    </ValidatedForm>
   );
 }

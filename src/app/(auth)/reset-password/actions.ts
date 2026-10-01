@@ -4,12 +4,12 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { invalid, type FormState } from "@/lib/form-state";
 
-export type ResetFormState = { error?: string; ok?: boolean };
+export type ResetFormState = FormState;
 
 const resetSchema = z
   .object({
-    token: z.string().min(1, "Reset link is invalid"),
     newPassword: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
   })
@@ -22,17 +22,19 @@ export async function resetPassword(
   _prev: ResetFormState,
   formData: FormData,
 ): Promise<ResetFormState> {
+  // The token rides in a hidden input, so a bad one is the form's problem.
+  const rawToken = formData.get("token");
+  if (typeof rawToken !== "string" || !rawToken) {
+    return { error: "This reset link is invalid or has expired" };
+  }
   const parsed = resetSchema.safeParse({
-    token: formData.get("token"),
     newPassword: formData.get("newPassword"),
     confirmPassword: formData.get("confirmPassword"),
   });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
+  if (!parsed.success) return invalid(parsed.error);
 
   const tokenHash = createHash("sha256")
-    .update(parsed.data.token)
+    .update(rawToken)
     .digest("hex");
   const token = await db.passwordResetToken.findFirst({
     where: { tokenHash, usedAt: null, expiresAt: { gt: new Date() } },

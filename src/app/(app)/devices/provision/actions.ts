@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { fieldError, invalid, type FormState } from "@/lib/form-state";
 import { requireRole } from "@/lib/rbac";
 import { sendEmail } from "@/lib/email";
 import { DEVICE_TYPES } from "@/lib/devices/devices";
@@ -100,18 +101,18 @@ export type EmailPreview = {
   html: string;
 };
 
-export type PreviewState = { error?: string; preview?: EmailPreview };
+export type PreviewState = FormState & { preview?: EmailPreview };
 
 /** Exactly what will be sent, for the confirm step. Sends nothing. */
 export async function previewPurchaseRequest(formData: FormData): Promise<PreviewState> {
   await requireRole("HR_ADMIN");
   const parsed = readForm(formData);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form" };
+  if (!parsed.success) return invalid(parsed.error);
   const vendor = await purchasableVendor(parsed.data.vendorId);
-  if (!vendor) return { error: "Pick an active vendor that sells devices." };
+  if (!vendor) return fieldError("vendorId", "Pick an active vendor that sells devices.");
   const recipient = pickRecipient(vendor, formData.get("recipient"));
   if (!recipient)
-    return { error: `${vendor.name} has no email address. Add one on the vendor page first.` };
+    return fieldError("vendorId", `${vendor.name} has no email address. Add one on the vendor page first.`);
   const settings = await emailSettings();
   const { subject, html } = purchaseRequestEmail({
     vendorName: vendor.name,
@@ -131,7 +132,7 @@ export async function previewPurchaseRequest(formData: FormData): Promise<Previe
   };
 }
 
-export type SendState = { error?: string; ok?: string; requestId?: string };
+export type SendState = FormState & { requestId?: string };
 
 /** Emails a saved request; marks it sent, or records why it wasn't. */
 async function deliver(requestId: string): Promise<SendState> {
@@ -194,11 +195,11 @@ export async function sendPurchaseRequest(formData: FormData): Promise<SendState
   if (typeof key !== "string" || !/^[\w-]{10,64}$/.test(key))
     return { error: "Refresh the page and try again." };
   const parsed = readForm(formData);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form" };
+  if (!parsed.success) return invalid(parsed.error);
   const vendor = await purchasableVendor(parsed.data.vendorId);
   const recipient = vendor ? pickRecipient(vendor, formData.get("recipient")) : null;
   if (!vendor || !recipient)
-    return { error: "Pick an active vendor that sells devices and has an email." };
+    return fieldError("vendorId", "Pick an active vendor that sells devices and has an email.");
   const settings = await emailSettings();
   const { subject } = purchaseRequestEmail({
     vendorName: vendor.name,
@@ -256,7 +257,7 @@ export async function cancelPurchaseRequest(formData: FormData) {
   revalidateRequests(request.employeeId);
 }
 
-export type SettingsState = { error?: string; ok?: string };
+export type SettingsState = FormState;
 
 export async function savePurchaseEmailSettings(
   _prev: SettingsState,
@@ -264,10 +265,10 @@ export async function savePurchaseEmailSettings(
 ): Promise<SettingsState> {
   const user = await requireRole("HR_ADMIN");
   const replyTo = parseEmailList(String(formData.get("replyTo") ?? ""));
-  if (!replyTo.ok) return { error: `Reply-to: ${replyTo.error}` };
-  if (replyTo.emails.length !== 1) return { error: "Reply-to must be exactly one address." };
+  if (!replyTo.ok) return fieldError("replyTo", replyTo.error);
+  if (replyTo.emails.length !== 1) return fieldError("replyTo", "Enter exactly one address.");
   const cc = parseEmailList(String(formData.get("cc") ?? ""));
-  if (!cc.ok) return { error: `CC: ${cc.error}` };
+  if (!cc.ok) return fieldError("cc", cc.error);
   const value = { replyTo: replyTo.emails[0], cc: cc.emails };
   await db.appSetting.upsert({
     where: { key: PURCHASE_EMAIL_SETTING },
@@ -293,8 +294,10 @@ export async function saveLaptopOsMap(
   }
   const extra = String(formData.get("newDesignation") ?? "").trim();
   const extraOs = String(formData.get("newOs") ?? "");
-  if (extra && (DEVICE_OSES as readonly string[]).includes(extraOs))
-    map[extra] = extraOs as (typeof DEVICE_OSES)[number];
+  const extraOsOk = (DEVICE_OSES as readonly string[]).includes(extraOs);
+  if (extra && !extraOsOk) return fieldError("newOs", "Pick the laptop OS for this designation.");
+  if (!extra && extraOs) return fieldError("newDesignation", "Type the designation this OS is for.");
+  if (extra && extraOsOk) map[extra] = extraOs as (typeof DEVICE_OSES)[number];
   await db.appSetting.upsert({
     where: { key: LAPTOP_OS_SETTING },
     create: { key: LAPTOP_OS_SETTING, value: map, updatedById: user.id },

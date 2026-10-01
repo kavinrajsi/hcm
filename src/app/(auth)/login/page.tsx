@@ -3,6 +3,8 @@ import { currentUser } from "@/lib/rbac";
 import { signIn } from "@/lib/auth";
 import { AuthError } from "next-auth";
 import { safeCallbackPath } from "@/lib/safe-redirect";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField, FormMessage } from "@/components/form/form-field";
 
 export const metadata = { title: "Sign in" };
 
@@ -44,27 +46,33 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           Sign in with your email and password.
         </p>
 
-        <form action={credentialsSignIn} className="mt-8 flex flex-col gap-3">
+        <ValidatedForm action={credentialsSignIn} className="mt-8 flex flex-col gap-3">
           <input type="hidden" name="callbackUrl" value={back} />
-          <input
-            name="email"
-            type="email"
-            required
-            placeholder="Email"
-            autoComplete="email"
-            className={inputClass}
+          <FormField name="email">
+            <input
+              name="email"
+              type="email"
+              required
+              aria-label="Email"
+              placeholder="Email"
+              autoComplete="email"
+              className={inputClass}
+            />
+          </FormField>
+          <FormField name="password">
+            <input
+              name="password"
+              type="password"
+              required
+              aria-label="Password"
+              placeholder="Password"
+              autoComplete="current-password"
+              className={inputClass}
+            />
+          </FormField>
+          <FormMessage
+            error={error === "invalid" ? "Invalid email or password." : undefined}
           />
-          <input
-            name="password"
-            type="password"
-            required
-            placeholder="Password"
-            autoComplete="current-password"
-            className={inputClass}
-          />
-          {error === "invalid" && (
-            <p className="text-sm text-red-600">Invalid email or password.</p>
-          )}
           <p className="text-right text-xs">
             <a
               href="/forgot-password"
@@ -79,7 +87,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           >
             Sign in
           </button>
-        </form>
+        </ValidatedForm>
       </div>
     </main>
   );

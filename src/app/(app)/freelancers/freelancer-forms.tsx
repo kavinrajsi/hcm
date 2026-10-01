@@ -3,6 +3,8 @@
 import { useActionState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField, FormMessage } from "@/components/form/form-field";
 import { addFreelancer, type FreelancerFormState } from "./actions";
 
 const selectClass =
@@ -33,49 +35,83 @@ export function FreelancerAddForm() {
   }, [state]);
 
   return (
-    <form
+    <ValidatedForm
       ref={formRef}
       id="fl-add-form"
       action={formAction}
-      className="flex flex-col gap-2 rounded-lg border border-zinc-200 p-4 md:flex-row md:flex-wrap md:items-end dark:border-zinc-800"
+      fieldErrors={state.fieldErrors}
+      className="flex flex-col gap-2 rounded-lg border border-zinc-200 p-4 md:flex-row md:flex-wrap md:items-start dark:border-zinc-800"
     >
-      <Input
-        id="fl-name"
-        name="name"
-        placeholder="Name *"
-        required
-        className="w-full md:w-44"
-      />
-      <Input
-        name="email"
-        type="email"
-        placeholder="Email"
-        className="w-full md:w-48"
-      />
-      <Input name="phone" placeholder="Phone" className="w-full md:w-36" />
-      <Input
-        name="skillset"
-        placeholder="Skillset *"
-        required
-        className="w-full md:w-48"
-      />
-      <Input name="rate" placeholder="Rate" className="w-full md:w-28" />
-      <select
-        name="availability"
-        className={`${selectClass} md:w-auto`}
-        defaultValue="UNKNOWN"
-      >
-        {AVAILABILITY_OPTIONS.map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-      </select>
-      <Input name="notes" placeholder="Notes" className="w-full md:w-48" />
+      <FormField name="name">
+        <Input
+          id="fl-name"
+          name="name"
+          placeholder="Name *"
+          aria-label="Name"
+          required
+          className="w-full md:w-44"
+        />
+      </FormField>
+      <FormField name="email">
+        <Input
+          name="email"
+          type="email"
+          placeholder="Email"
+          aria-label="Email"
+          className="w-full md:w-48"
+        />
+      </FormField>
+      <FormField name="phone">
+        <Input
+          name="phone"
+          placeholder="Phone"
+          aria-label="Phone"
+          className="w-full md:w-36"
+        />
+      </FormField>
+      <FormField name="skillset">
+        <Input
+          name="skillset"
+          placeholder="Skillset *"
+          aria-label="Skillset"
+          required
+          className="w-full md:w-48"
+        />
+      </FormField>
+      <FormField name="rate">
+        <Input
+          name="rate"
+          placeholder="Rate"
+          aria-label="Rate"
+          className="w-full md:w-28"
+        />
+      </FormField>
+      <FormField name="availability">
+        <select
+          name="availability"
+          aria-label="Availability"
+          className={`${selectClass} md:w-auto`}
+          defaultValue="UNKNOWN"
+        >
+          {AVAILABILITY_OPTIONS.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </FormField>
+      <FormField name="notes">
+        <Input
+          name="notes"
+          placeholder="Notes"
+          aria-label="Notes"
+          className="w-full md:w-48"
+        />
+      </FormField>
       <Button type="submit" disabled={pending} className="w-full md:w-auto">
         {pending ? "Adding…" : "Add"}
       </Button>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-    </form>
+      <FormMessage error={state.error} />
+    </ValidatedForm>
   );
 }

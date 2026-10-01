@@ -5,14 +5,13 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { PII_SELECT, readPii } from "@/lib/employee-pii";
 import { requireRole } from "@/lib/rbac";
+import { fieldError, invalid, type FormState } from "@/lib/form-state";
 import { sendEmail } from "@/lib/email";
 import { letterEmail } from "@/lib/emails";
 import { fillTemplate, getLetterTemplate } from "@/lib/letter-templates";
 import { isBlankHtml, toEmailHtml } from "@/lib/email-html";
 
-export type LetterFormState = {
-  error?: string;
-  ok?: boolean;
+export type LetterFormState = FormState & {
   // Draft round-trip: generate returns a prefilled draft for editing.
   draft?: {
     employeeId: string;
@@ -36,9 +35,7 @@ export async function generateLetter(
     employeeId: formData.get("employeeId"),
     type: formData.get("type"),
   });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
+  if (!parsed.success) return invalid(parsed.error);
 
   const employee = await db.employee.findUnique({
     where: { id: parsed.data.employeeId },
@@ -51,7 +48,7 @@ export async function generateLetter(
       dateOfJoining: true,
     },
   });
-  if (!employee) return { error: "Employee not found" };
+  if (!employee) return fieldError("employeeId", "Employee not found");
 
   const template = await getLetterTemplate(parsed.data.type);
   return {
@@ -82,12 +79,10 @@ export async function sendLetter(
     subject: formData.get("subject"),
     bodyHtml: formData.get("bodyHtml"),
   });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid letter" };
-  }
+  if (!parsed.success) return invalid(parsed.error);
   // Never trust the browser's HTML: keep only what email clients support.
   const bodyHtml = toEmailHtml(parsed.data.bodyHtml);
-  if (isBlankHtml(bodyHtml)) return { error: "Body is required" };
+  if (isBlankHtml(bodyHtml)) return fieldError("bodyHtml", "Body is required");
 
   const employee = await db.employee.findUnique({
     where: { id: parsed.data.employeeId },
@@ -148,7 +143,7 @@ const templateSchema = z.object({
   body: z.string().trim().min(1, "Body is required").max(100_000),
 });
 
-export type TemplateFormState = { error?: string; ok?: boolean };
+export type TemplateFormState = FormState;
 
 /** Saves HR's version of a starting template (placeholders kept). */
 export async function saveLetterTemplate(
@@ -161,11 +156,9 @@ export async function saveLetterTemplate(
     subject: formData.get("subject"),
     body: formData.get("body"),
   });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid template" };
-  }
+  if (!parsed.success) return invalid(parsed.error);
   const body = toEmailHtml(parsed.data.body);
-  if (isBlankHtml(body)) return { error: "Body is required" };
+  if (isBlankHtml(body)) return fieldError("body", "Body is required");
 
   await db.letterTemplate.upsert({
     where: { type: parsed.data.type },

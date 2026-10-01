@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowOutwardIcon } from "@/components/icons";
 import { PageHeader, PageShell } from "@/components/page";
 import { setJobKind } from "../../actions";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField } from "@/components/form/form-field";
 import { LabelForm, type CommentToLabel } from "./label-form";
 
 export const metadata = { title: "Label comments" };
@@ -111,33 +113,36 @@ export default async function LabelJobPage({
         </p>
       )}
 
-      <form action={setJobKind} className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+      <ValidatedForm action={setJobKind} className="mt-4 flex flex-wrap items-start gap-2 text-sm">
         <input type="hidden" name="jobId" value={job.id} />
-        <label htmlFor="kind" className="font-medium">
+        <label htmlFor="kind" className="leading-9 font-medium">
           Kind of job
         </label>
-        <select
-          id="kind"
-          name="kind"
-          defaultValue={isJobKind(job.kind) ? job.kind : ""}
-          className={selectClass}
-        >
-          <option value="" disabled>
-            Not read yet
-          </option>
-          {JOB_KINDS.map((kind) => (
-            <option key={kind} value={kind}>
-              {JOB_KIND_LABELS[kind]}
+        <FormField name="kind">
+          <select
+            id="kind"
+            name="kind"
+            required
+            defaultValue={isJobKind(job.kind) ? job.kind : ""}
+            className={selectClass}
+          >
+            <option value="" disabled>
+              Not read yet
             </option>
-          ))}
-        </select>
+            {JOB_KINDS.map((kind) => (
+              <option key={kind} value={kind}>
+                {JOB_KIND_LABELS[kind]}
+              </option>
+            ))}
+          </select>
+        </FormField>
         <Button type="submit" variant="outline" size="sm">
           Fix kind
         </Button>
-        <span className="text-xs text-zinc-500">
+        <span className="text-xs leading-9 text-zinc-500">
           {job.kindBy === "manual" ? "set by a person" : job.kindBy === "ai" ? "read by the model" : ""}
         </span>
-      </form>
+      </ValidatedForm>
 
       <div className="mt-6">
         {comments.length === 0 ? (

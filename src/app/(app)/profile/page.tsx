@@ -307,6 +307,7 @@ export default async function ProfilePage() {
             phone: pii.phone ?? "",
             personalEmail: pii.personalEmail ?? "",
             emergencyContact: pii.emergencyContact ?? undefined,
+            fatherName: employee.fatherName ?? undefined,
             address: pii.address ?? undefined,
             city: employee.city ?? undefined,
             state: employee.state ?? undefined,

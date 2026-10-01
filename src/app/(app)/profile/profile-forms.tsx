@@ -3,7 +3,8 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField, FormMessage } from "@/components/form/form-field";
 import {
   changePassword,
   updateAccountName,
@@ -17,19 +18,22 @@ export function NameForm({ defaultName }: { defaultName: string }) {
   >(updateAccountName, {});
 
   return (
-    <form action={formAction} className="flex flex-col gap-3 sm:max-w-sm">
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="profile-name">Display name</Label>
+    <ValidatedForm
+      action={formAction}
+      fieldErrors={state.fieldErrors}
+      className="flex flex-col gap-3 sm:max-w-sm"
+    >
+      <FormField name="name" label="Display name" className="gap-1.5">
         <Input id="profile-name" name="name" defaultValue={defaultName} required />
-      </div>
+      </FormField>
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save name"}
         </Button>
         {state.ok && <p className="text-sm text-green-600">Saved.</p>}
-        {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+        <FormMessage error={state.error} />
       </div>
-    </form>
+    </ValidatedForm>
   );
 }
 
@@ -40,10 +44,13 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
   >(changePassword, {});
 
   return (
-    <form action={formAction} className="flex flex-col gap-3 sm:max-w-sm">
+    <ValidatedForm
+      action={formAction}
+      fieldErrors={state.fieldErrors}
+      className="flex flex-col gap-3 sm:max-w-sm"
+    >
       {hasPassword && (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="profile-current">Current password</Label>
+        <FormField name="currentPassword" label="Current password" className="gap-1.5">
           <Input
             id="profile-current"
             name="currentPassword"
@@ -51,10 +58,9 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
             autoComplete="current-password"
             required
           />
-        </div>
+        </FormField>
       )}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="profile-new">New password</Label>
+      <FormField name="newPassword" label="New password" className="gap-1.5">
         <Input
           id="profile-new"
           name="newPassword"
@@ -63,9 +69,8 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
           required
           minLength={8}
         />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="profile-confirm">Confirm new password</Label>
+      </FormField>
+      <FormField name="confirmPassword" label="Confirm new password" className="gap-1.5">
         <Input
           id="profile-confirm"
           name="confirmPassword"
@@ -74,7 +79,7 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
           required
           minLength={8}
         />
-      </div>
+      </FormField>
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>
           {pending
@@ -84,8 +89,8 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
               : "Set password"}
         </Button>
         {state.ok && <p className="text-sm text-green-600">Password updated.</p>}
-        {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+        <FormMessage error={state.error} />
       </div>
-    </form>
+    </ValidatedForm>
   );
 }

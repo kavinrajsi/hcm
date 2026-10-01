@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { fieldError, invalid, type FormState } from "@/lib/form-state";
 import { AuthorizationError, requireRole } from "@/lib/rbac";
 import { LEAVE_TYPES } from "@/lib/leave";
 import { syncLeaveFromBasecamp } from "@/lib/leave-sync";
@@ -48,15 +49,20 @@ export async function syncLeave(): Promise<LeaveSyncState> {
 const updateSchema = z.object({
   id: z.string().min(1),
   type: z.enum(LEAVE_TYPES),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Start date is required"),
+  startDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Start date is required"),
   endDate: z
     .string()
     .transform((value) => (value === "" ? undefined : value))
     .optional(),
-  days: z.coerce.number().min(0).max(99),
+  days: z.coerce
+    .number({ error: "Enter the number of days" })
+    .min(0, "Days can't be negative")
+    .max(99, "At most 99 days"),
 });
 
-export type LeaveEditState = { error?: string; ok?: boolean };
+export type LeaveEditState = FormState;
 
 export async function updateLeaveEntry(
   _prev: LeaveEditState,
@@ -65,13 +71,11 @@ export async function updateLeaveEntry(
   const parsed = updateSchema.safeParse({
     id: formData.get("id"),
     type: formData.get("type"),
-    startDate: formData.get("startDate"),
+    startDate: formData.get("startDate") ?? "",
     endDate: formData.get("endDate") ?? undefined,
     days: formData.get("days"),
   });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid entry" };
-  }
+  if (!parsed.success) return invalid(parsed.error);
 
   if (!(await requireLeaveReviewer(parsed.data.id))) {
     return { error: "Entry not found" };
@@ -81,7 +85,8 @@ export async function updateLeaveEntry(
   const endDate = parsed.data.endDate
     ? new Date(parsed.data.endDate)
     : startDate;
-  if (endDate < startDate) return { error: "End date is before start date" };
+  if (endDate < startDate)
+    return fieldError("endDate", "End date is before start date");
 
   await db.leaveEntry.update({
     where: { id: parsed.data.id },

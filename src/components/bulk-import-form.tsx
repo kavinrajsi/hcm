@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import Papa from "papaparse";
 import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField } from "@/components/form/form-field";
 import type { ImportState } from "@/lib/csv-import";
 
 const PREVIEW_ROWS = 20;
@@ -163,6 +165,13 @@ export function BulkImportForm({
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [file, setFile] = useState<File | null>(null);
+  // Every import failure before any row is read (no file, too big, bad CSV)
+  // is about the upload, so it shows under the file input. Memoised on the
+  // state so picking a new file clears it until the next submit.
+  const fileErrors = useMemo(
+    () => (state.error ? { file: [state.error] } : undefined),
+    [state],
+  );
   const templateHref = `data:text/csv;charset=utf-8,${encodeURIComponent(
     columns.join(",") + "\n",
   )}`;
@@ -183,22 +192,28 @@ export function BulkImportForm({
             </a>
           </DialogDescription>
         </DialogHeader>
-        <form action={formAction} className="flex flex-col gap-3">
-          <Input
-            type="file"
-            name="file"
-            accept=".csv,text/csv"
-            required
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-          />
+        <ValidatedForm
+          action={formAction}
+          fieldErrors={fileErrors}
+          className="flex flex-col gap-3"
+        >
+          <FormField name="file">
+            <Input
+              type="file"
+              name="file"
+              accept=".csv,text/csv"
+              required
+              aria-label="CSV file"
+              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            />
+          </FormField>
           <div className="flex gap-2">
             <CsvPreviewDrawer file={file} columns={columns} />
             <Button type="submit" disabled={pending} className="flex-1">
               {pending ? "Importing…" : "Import"}
             </Button>
           </div>
-        </form>
-        {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+        </ValidatedForm>
         {state.ok && (
           <p className="text-sm text-emerald-600 dark:text-emerald-400">
             {state.ok}

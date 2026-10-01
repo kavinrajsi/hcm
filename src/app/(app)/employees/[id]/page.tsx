@@ -264,6 +264,7 @@ export default async function EmployeePage({
             personalEmail: pii.personalEmail ?? undefined,
             workEmail: employee.workEmail,
             emergencyContact: pii.emergencyContact ?? undefined,
+            fatherName: employee.fatherName ?? undefined,
             address: pii.address ?? undefined,
             city: employee.city ?? undefined,
             state: employee.state ?? undefined,

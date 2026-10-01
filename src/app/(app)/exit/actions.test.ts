@@ -133,7 +133,11 @@ describe("markExit", () => {
 
   it("needs an employee and a date", async () => {
     const result = await markExit({}, form({ employeeId: "e1" }));
-    expect(result.error).toMatch(/required/);
+    expect(result.fieldErrors?.dateOfExit?.[0]).toMatch(/required/);
+    expect(result.fieldErrors?.employeeId).toBeUndefined();
+    const blank = await markExit({}, form({ employeeId: "", dateOfExit: "" }));
+    expect(blank.fieldErrors?.employeeId?.[0]).toMatch(/Pick the employee/);
+    expect(blank.fieldErrors?.dateOfExit?.[0]).toMatch(/required/);
   });
 });
 

@@ -97,7 +97,14 @@ describe("inviteUser", () => {
       {},
       form({ role: "EMPLOYEE", email: "nope" }),
     );
-    expect(result.error).toMatch(/valid email/);
+    expect(result.fieldErrors?.email?.[0]).toMatch(/valid email/);
+  });
+
+  it("asks for an employee or an email on the email field, and a role on the role field", async () => {
+    const nobody = await inviteUser({}, form({ role: "EMPLOYEE" }));
+    expect(nobody.fieldErrors?.email?.[0]).toMatch(/Pick an employee or enter an email/);
+    const noRole = await inviteUser({}, form({ role: "BOSS", email: "a@x.com" }));
+    expect(noRole.fieldErrors?.role).toEqual(["Pick a role"]);
   });
 
   it("refuses an employee who already has a login", async () => {
@@ -111,7 +118,7 @@ describe("inviteUser", () => {
       {},
       form({ role: "EMPLOYEE", employeeId: "e1" }),
     );
-    expect(result.error).toMatch(/already has a login/);
+    expect(result.fieldErrors?.employeeId?.[0]).toMatch(/already has a login/);
   });
 
   it("refuses an exited employee", async () => {
@@ -125,7 +132,7 @@ describe("inviteUser", () => {
       {},
       form({ role: "EMPLOYEE", employeeId: "e1" }),
     );
-    expect(result.error).toMatch(/exited/);
+    expect(result.fieldErrors?.employeeId?.[0]).toMatch(/exited/);
   });
 
   it("refuses an email that already has an account", async () => {
@@ -134,7 +141,7 @@ describe("inviteUser", () => {
       {},
       form({ role: "MANAGER", email: "Taken@X.com" }),
     );
-    expect(result.error).toMatch(/already exists/);
+    expect(result.fieldErrors?.email?.[0]).toMatch(/already exists/);
     expect(db.user.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({ where: { email: "taken@x.com" } }),
     );

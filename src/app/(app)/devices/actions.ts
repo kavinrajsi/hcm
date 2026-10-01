@@ -6,6 +6,7 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import type { DeviceTicketStatus } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
+import { fieldError, invalid, type FormState } from "@/lib/form-state";
 import { AuthorizationError, requireRole, requireUser } from "@/lib/rbac";
 import { DEVICE_ACCESS_SELECT, deviceAccess } from "@/lib/devices/access";
 import { SALES_KINDS, SERVICE_KINDS } from "@/lib/devices/vendors";
@@ -24,7 +25,7 @@ import {
 } from "@/lib/devices/devices";
 import type { DeviceType } from "@/generated/prisma/enums";
 
-export type DeviceFormState = { error?: string; ok?: string };
+export type DeviceFormState = FormState;
 
 const optional = z
   .string()
@@ -62,9 +63,11 @@ const deviceSchema = z
   })
   .refine((device) => device.ownership !== "RENTED" || device.vendorId, {
     message: "A rented device needs the vendor it's rented from.",
+    path: ["vendorId"],
   })
   .refine((device) => device.ownership !== "RENTED" || device.monthlyRent, {
     message: "A rented device needs its monthly rent.",
+    path: ["monthlyRent"],
   });
 
 function field(formData: FormData, name: string) {
@@ -203,9 +206,9 @@ export async function createDevice(
   const user = await requireRole("HR_ADMIN");
   const parsed = parseDevice(formData);
   if (!parsed.success)
-    return { error: parsed.error.issues[0]?.message ?? "Invalid device" };
+    return invalid(parsed.error);
   if (!(await vendorOk(parsed.data.vendorId, SALES_KINDS)))
-    return { error: "Pick an active vendor that sells devices." };
+    return fieldError("vendorId", "Pick an active vendor that sells devices.");
   const employeeId = field(formData, "employeeId") || null;
   const conditionOut = field(formData, "conditionOut")?.trim() || null;
 
@@ -245,7 +248,7 @@ export async function createDevice(
       });
     } catch (error) {
       if (isUniqueClash(error, "serialNumber"))
-        return { error: "Another device already has that serial number." };
+        return fieldError("serialNumber", "Another device already has that serial number.");
       // Two devices added at once can draw the same tag; draw again.
       if (!isUniqueClash(error, "assetTag")) throw error;
     }
@@ -277,9 +280,9 @@ export async function updateDevice(
   if (!id) return { error: "Missing device" };
   const parsed = parseDevice(formData);
   if (!parsed.success)
-    return { error: parsed.error.issues[0]?.message ?? "Invalid device" };
+    return invalid(parsed.error);
   if (!(await vendorOk(parsed.data.vendorId, SALES_KINDS)))
-    return { error: "Pick an active vendor that sells devices." };
+    return fieldError("vendorId", "Pick an active vendor that sells devices.");
   try {
     // The asset tag stays: it's printed on the label.
     const { type: _type, ...rest } = deviceData(parsed.data);
@@ -287,7 +290,7 @@ export async function updateDevice(
     await db.device.update({ where: { id }, data: rest });
   } catch (error) {
     if (isUniqueClash(error, "serialNumber"))
-      return { error: "Another device already has that serial number." };
+      return fieldError("serialNumber", "Another device already has that serial number.");
     throw error;
   }
   revalidateDevice(id);
@@ -300,7 +303,7 @@ export async function assignDevice(
 ): Promise<DeviceFormState> {
   const deviceId = field(formData, "deviceId") ?? "";
   const employeeId = field(formData, "employeeId") ?? "";
-  if (!employeeId) return { error: "Pick an employee." };
+  if (!employeeId) return fieldError("employeeId", "Pick an employee.");
   const { user, device } = await requireDeviceAccess(deviceId, "manage");
   if (!canAssign(device.status))
     return { error: "Only devices in stock or assigned can be handed out." };
@@ -422,7 +425,7 @@ export async function reportIssue(
     description: field(formData, "description"),
   });
   if (!parsed.success)
-    return { error: parsed.error.issues[0]?.message ?? "Invalid issue" };
+    return invalid(parsed.error);
   await db.deviceTicket.create({
     data: {
       deviceId,
@@ -477,16 +480,16 @@ export async function sendForService(
     return { error: "This device is already out for service." };
   const vendorId = field(formData, "serviceVendorId")?.trim();
   if (!vendorId)
-    return { error: "Where is it going? Pick the service centre." };
+    return fieldError("serviceVendorId", "Where is it going? Pick the service centre.");
   const vendor = await db.vendor.findUnique({
     where: { id: vendorId },
     select: { name: true, kind: true, active: true },
   });
   if (!vendor || !vendor.active || !SERVICE_KINDS.includes(vendor.kind))
-    return { error: "Pick an active vendor that services devices." };
+    return fieldError("serviceVendorId", "Pick an active vendor that services devices.");
   const expected = field(formData, "expectedBackOn")?.trim();
   if (expected && !/^\d{4}-\d{2}-\d{2}$/.test(expected))
-    return { error: "Expected date must be YYYY-MM-DD." };
+    return fieldError("expectedBackOn", "Enter a valid date");
   const note = field(formData, "note")?.trim() || null;
   await db.$transaction([
     db.deviceTicket.update({
@@ -524,10 +527,10 @@ export async function resolveTicket(
   if (!canMoveTicket(ticket.status, "RESOLVED"))
     return { error: "This issue is already closed." };
   const resolution = field(formData, "resolution")?.trim();
-  if (!resolution) return { error: "Say how it was resolved." };
+  if (!resolution) return fieldError("resolution", "Say how it was resolved.");
   const cost = field(formData, "cost")?.trim();
   if (cost && !/^\d+(\.\d{1,2})?$/.test(cost))
-    return { error: "Cost must be a number like 2500 or 2500.50." };
+    return fieldError("cost", "Enter a number like 2500 or 2500.50");
   const wasOut = ticket.status === "SENT_FOR_SERVICE";
   await db.$transaction([
     db.deviceTicket.update({

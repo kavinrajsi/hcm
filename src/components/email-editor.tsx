@@ -1,5 +1,6 @@
 "use client";
 
+import { useClearFieldError } from "@/components/form/validated-form";
 import { useState } from "react";
 import {
   EditorContent,
@@ -345,6 +346,7 @@ export function EmailEditor({
   placeholders?: boolean;
   label: string;
 }) {
+  const clearError = useClearFieldError();
   const [tab, setTab] = useState<Tab>("write");
   const [html, setHtml] = useState(() => toEmailHtml(defaultValue));
   const [source, setSource] = useState(html);
@@ -379,7 +381,10 @@ export function EmailEditor({
         class: "email-editor min-h-60 px-4 py-3 text-sm leading-6 outline-none",
       },
     },
-    onUpdate: ({ editor: current }) => setHtml(toEmailHtml(current.getHTML())),
+    onUpdate: ({ editor: current }) => {
+      setHtml(toEmailHtml(current.getHTML()));
+      clearError(name);
+    },
   });
 
   function switchTab(next: Tab) {
@@ -463,7 +468,10 @@ export function EmailEditor({
         <textarea
           aria-label={`${label} HTML`}
           value={source}
-          onChange={(event) => setSource(event.target.value)}
+          onChange={(event) => {
+            setSource(event.target.value);
+            clearError(name);
+          }}
           spellCheck={false}
           className="block min-h-60 w-full resize-y bg-transparent px-4 py-3 font-mono text-xs outline-none"
         />

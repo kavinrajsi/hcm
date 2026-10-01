@@ -3,6 +3,8 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField, FormMessage } from "@/components/form/form-field";
 import { addQuantumEntry, type QuantumFormState } from "./actions";
 
 export function QuantumEntryForm({
@@ -20,15 +22,13 @@ export function QuantumEntryForm({
   >(addQuantumEntry, {});
 
   return (
-    <form
+    <ValidatedForm
       action={formAction}
+      fieldErrors={state.fieldErrors}
       className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 md:flex-row md:flex-wrap md:items-end dark:border-zinc-800"
     >
       {showEmployeePicker ? (
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="q-emp" className="text-sm font-medium">
-            Employee
-          </label>
+        <FormField name="employeeId" label="Employee">
           <select
             id="q-emp"
             name="employeeId"
@@ -43,14 +43,11 @@ export function QuantumEntryForm({
               </option>
             ))}
           </select>
-        </div>
+        </FormField>
       ) : (
         <input type="hidden" name="employeeId" value={employeeId} />
       )}
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="q-date" className="text-sm font-medium">
-          Date
-        </label>
+      <FormField name="date" label="Date">
         <Input
           id="q-date"
           name="date"
@@ -58,47 +55,36 @@ export function QuantumEntryForm({
           required
           className="w-full md:w-40"
         />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="q-brand" className="text-sm font-medium">
-          Brand
-        </label>
+      </FormField>
+      <FormField name="brand" label="Brand">
         <Input id="q-brand" name="brand" required className="w-full md:w-36" />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="q-work" className="text-sm font-medium">
-          Name of the work
-        </label>
+      </FormField>
+      <FormField name="workName" label="Name of the work">
         <Input
           id="q-work"
           name="workName"
           required
           className="w-full md:w-56"
         />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="q-link" className="text-sm font-medium">
-          Basecamp/Figma link
-        </label>
+      </FormField>
+      <FormField name="link" label="Basecamp/Figma link">
         <Input id="q-link" name="link" type="url" className="w-full md:w-56" />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="q-mins" className="text-sm font-medium">
-          Duration (mins)
-        </label>
+      </FormField>
+      <FormField name="durationMins" label="Duration (mins)">
         <Input
           id="q-mins"
           name="durationMins"
           type="number"
           min="0"
+          step="1"
           required
           className="w-full md:w-28"
         />
-      </div>
+      </FormField>
       <Button type="submit" disabled={pending} className="w-full md:w-auto">
         {pending ? "Adding…" : "Add entry"}
       </Button>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-    </form>
+      <FormMessage error={state.error} />
+    </ValidatedForm>
   );
 }

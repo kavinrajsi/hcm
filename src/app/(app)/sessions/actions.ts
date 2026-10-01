@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { invalid, type FormState } from "@/lib/form-state";
 import { requireRole, requireUser } from "@/lib/rbac";
 import {
   cell,
@@ -14,13 +15,13 @@ import {
   type ImportState,
 } from "@/lib/csv-import";
 
-export type SessionFormState = { error?: string; ok?: boolean };
+export type SessionFormState = FormState;
 
 const sessionSchema = z.object({
   name: z.string().trim().min(1, "Session name is required"),
   date: z.string().min(1, "Date is required"),
   trainer: z.string().trim().min(1, "Trainer is required"),
-  mode: z.enum(["IN_PERSON", "VIRTUAL"]),
+  mode: z.enum(["IN_PERSON", "VIRTUAL"], { error: "Pick in-person or virtual" }),
   notes: z
     .string()
     .trim()
@@ -34,15 +35,13 @@ export async function createSession(
 ): Promise<SessionFormState> {
   await requireRole("HR_ADMIN");
   const parsed = sessionSchema.safeParse({
-    name: formData.get("name"),
-    date: formData.get("date"),
-    trainer: formData.get("trainer"),
+    name: formData.get("name") ?? "",
+    date: formData.get("date") ?? "",
+    trainer: formData.get("trainer") ?? "",
     mode: formData.get("mode"),
     notes: formData.get("notes") ?? undefined,
   });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid session" };
-  }
+  if (!parsed.success) return invalid(parsed.error);
 
   await db.trainingSession.create({
     data: { ...parsed.data, date: new Date(parsed.data.date) },
@@ -137,17 +136,15 @@ export async function logAttendance(
 ): Promise<SessionFormState> {
   await requireRole("HR_ADMIN");
   const parsed = attendanceSchema.safeParse({
-    employeeId: formData.get("employeeId"),
+    employeeId: formData.get("employeeId") ?? "",
     sessionId: formData.get("sessionId") ?? undefined,
-    sessionName: formData.get("sessionName"),
-    date: formData.get("date"),
+    sessionName: formData.get("sessionName") ?? "",
+    date: formData.get("date") ?? "",
     attended: formData.get("attended") === "on" ? "true" : "",
     trainer: formData.get("trainer") ?? undefined,
     notes: formData.get("notes") ?? undefined,
   });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid entry" };
-  }
+  if (!parsed.success) return invalid(parsed.error);
 
   await db.sessionAttendance.create({
     data: { ...parsed.data, date: new Date(parsed.data.date) },

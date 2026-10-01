@@ -15,6 +15,8 @@ import {
   type BulkLoginResult,
   type LinkState,
 } from "./actions";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FieldError, FormField } from "@/components/form/form-field";
 
 export const ROLE_LABELS: Record<Role, string> = {
   HR_ADMIN: "HR admin",
@@ -66,8 +68,9 @@ export function InviteForm({ employees }: { employees: Employee[] }) {
   const [employeeId, setEmployeeId] = useState("");
 
   return (
-    <form
+    <ValidatedForm
       action={formAction}
+      fieldErrors={state.fieldErrors}
       className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 md:flex-row md:flex-wrap md:items-end dark:border-zinc-800"
     >
       <div className="flex flex-col gap-1.5">
@@ -90,12 +93,14 @@ export function InviteForm({ employees }: { employees: Employee[] }) {
           selectedId={employeeId}
           onSelect={setEmployeeId}
         />
+        <FieldError name="employeeId" />
       </div>
       {!employeeId && (
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="invite-email" className="text-sm font-medium">
-            …or email (no employee record)
-          </label>
+        <FormField
+          name="email"
+          label="…or email (no employee record)"
+          className="gap-1.5"
+        >
           <Input
             id="invite-email"
             name="email"
@@ -103,12 +108,9 @@ export function InviteForm({ employees }: { employees: Employee[] }) {
             placeholder="name@madarth.com"
             className="md:w-56"
           />
-        </div>
+        </FormField>
       )}
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="invite-role" className="text-sm font-medium">
-          Role
-        </label>
+      <FormField name="role" label="Role" className="gap-1.5">
         <select
           id="invite-role"
           name="role"
@@ -121,12 +123,12 @@ export function InviteForm({ employees }: { employees: Employee[] }) {
             </option>
           ))}
         </select>
-      </div>
+      </FormField>
       <Button type="submit" disabled={pending}>
         {pending ? "Creating…" : "Create login"}
       </Button>
       <LinkResult state={state} />
-    </form>
+    </ValidatedForm>
   );
 }
 

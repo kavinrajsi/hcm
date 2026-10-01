@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField, FormMessage } from "@/components/form/form-field";
 import { resetPassword, type ResetFormState } from "./actions";
 
 export function ResetForm({ token }: { token: string }) {
@@ -26,10 +27,13 @@ export function ResetForm({ token }: { token: string }) {
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-3">
+    <ValidatedForm
+      action={formAction}
+      fieldErrors={state.fieldErrors}
+      className="flex flex-col gap-3"
+    >
       <input type="hidden" name="token" value={token} />
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="reset-new">New password</Label>
+      <FormField name="newPassword" label="New password" className="gap-1.5">
         <Input
           id="reset-new"
           name="newPassword"
@@ -38,9 +42,8 @@ export function ResetForm({ token }: { token: string }) {
           required
           minLength={8}
         />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="reset-confirm">Confirm new password</Label>
+      </FormField>
+      <FormField name="confirmPassword" label="Confirm new password" className="gap-1.5">
         <Input
           id="reset-confirm"
           name="confirmPassword"
@@ -49,11 +52,11 @@ export function ResetForm({ token }: { token: string }) {
           required
           minLength={8}
         />
-      </div>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      </FormField>
+      <FormMessage error={state.error} />
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Set new password"}
       </Button>
-    </form>
+    </ValidatedForm>
   );
 }

@@ -115,12 +115,12 @@ describe("createDevice", () => {
       {},
       form({ type: "LAPTOP", brand: "HP", model: "840", ownership: "RENTED", monthlyRent: "2400" }),
     );
-    expect(state.error).toMatch(/vendor it's rented from/);
+    expect(state.fieldErrors?.vendorId?.[0]).toMatch(/vendor it's rented from/);
     state = await actions.createDevice(
       {},
       form({ type: "LAPTOP", brand: "HP", model: "840", ownership: "RENTED", vendorId: "v-win" }),
     );
-    expect(state.error).toMatch(/monthly rent/);
+    expect(state.fieldErrors?.monthlyRent?.[0]).toMatch(/monthly rent/);
     expect(db.device.create).not.toHaveBeenCalled();
   });
 
@@ -139,7 +139,7 @@ describe("createDevice", () => {
       {},
       form({ type: "MOUSE", brand: "Logi", model: "M331", vendorId: "v-svc" }),
     );
-    expect(state.error).toMatch(/sells devices/);
+    expect(state.fieldErrors?.vendorId?.[0]).toMatch(/sells devices/);
     expect(db.device.create).not.toHaveBeenCalled();
   });
 
@@ -148,7 +148,7 @@ describe("createDevice", () => {
       {},
       form({ type: "MOUSE", brand: "Logi", model: "M331", purchasePrice: "abc" }),
     );
-    expect(state.error).toMatch(/Amounts/);
+    expect(state.fieldErrors?.purchasePrice?.[0]).toMatch(/Amounts/);
     expect(db.device.create).not.toHaveBeenCalled();
   });
 });
@@ -250,10 +250,10 @@ describe("issues and service", () => {
     db.deviceTicket.findUnique.mockResolvedValue({ id: "t1", status: "OPEN", deviceId: "d1" });
     db.vendor.findUnique.mockResolvedValue({ name: "Croma", kind: "SALES", active: true });
     let state = await actions.sendForService({}, form({ ticketId: "t1", serviceVendorId: "v-shop" }));
-    expect(state.error).toMatch(/services devices/);
+    expect(state.fieldErrors?.serviceVendorId?.[0]).toMatch(/services devices/);
     db.vendor.findUnique.mockResolvedValue({ name: "Old shop", kind: "SERVICE", active: false });
     state = await actions.sendForService({}, form({ ticketId: "t1", serviceVendorId: "v-old" }));
-    expect(state.error).toMatch(/services devices/);
+    expect(state.fieldErrors?.serviceVendorId?.[0]).toMatch(/services devices/);
     expect(db.device.update).not.toHaveBeenCalled();
   });
 

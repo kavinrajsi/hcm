@@ -3,7 +3,8 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField, FormMessage } from "@/components/form/form-field";
 import { requestPasswordReset, type ForgotFormState } from "./actions";
 
 export function ForgotForm() {
@@ -22,9 +23,12 @@ export function ForgotForm() {
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="forgot-email">Email</Label>
+    <ValidatedForm
+      action={formAction}
+      fieldErrors={state.fieldErrors}
+      className="flex flex-col gap-3"
+    >
+      <FormField name="email" label="Email" className="gap-1.5">
         <Input
           id="forgot-email"
           name="email"
@@ -32,11 +36,11 @@ export function ForgotForm() {
           autoComplete="email"
           required
         />
-      </div>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      </FormField>
+      <FormMessage error={state.error} />
       <Button type="submit" disabled={pending}>
         {pending ? "Sending…" : "Send reset link"}
       </Button>
-    </form>
+    </ValidatedForm>
   );
 }

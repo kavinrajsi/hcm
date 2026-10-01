@@ -4,6 +4,12 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmailEditor } from "@/components/email-editor";
+import { ValidatedForm } from "@/components/form/validated-form";
+import {
+  FieldError,
+  FormField,
+  FormMessage,
+} from "@/components/form/form-field";
 import { generateLetter, sendLetter, type LetterFormState } from "./actions";
 
 const selectClass =
@@ -37,14 +43,12 @@ export function LetterComposer({
 
   return (
     <div className="flex flex-col gap-4">
-      <form
+      <ValidatedForm
         action={genAction}
-        className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 md:flex-row md:flex-wrap md:items-end dark:border-zinc-800"
+        fieldErrors={genState.fieldErrors}
+        className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 md:flex-row md:flex-wrap md:items-start dark:border-zinc-800"
       >
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="l-emp" className="text-sm font-medium">
-            Employee
-          </label>
+        <FormField label="Employee" name="employeeId">
           <select
             id="l-emp"
             name="employeeId"
@@ -58,11 +62,8 @@ export function LetterComposer({
               </option>
             ))}
           </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="l-type" className="text-sm font-medium">
-            Letter type
-          </label>
+        </FormField>
+        <FormField label="Letter type" name="type">
           <select
             id="l-type"
             name="type"
@@ -74,14 +75,17 @@ export function LetterComposer({
               </option>
             ))}
           </select>
+        </FormField>
+        {/* Spacer keeps the button level with the selects, not their labels. */}
+        <div className="md:pt-6">
+          <Button type="submit" disabled={genPending}>
+            {genPending ? "Generating…" : "Generate draft"}
+          </Button>
         </div>
-        <Button type="submit" disabled={genPending}>
-          {genPending ? "Generating…" : "Generate draft"}
-        </Button>
-        {genState.error && (
-          <p className="text-sm text-red-600">{genState.error}</p>
-        )}
-      </form>
+        <div className="md:basis-full">
+          <FormMessage error={genState.error} />
+        </div>
+      </ValidatedForm>
 
       {draft && (
         <DraftForm
@@ -111,16 +115,14 @@ function DraftForm({
   return (
     <>
       {
-        <form
+        <ValidatedForm
           action={sendAction}
+          fieldErrors={sendState.fieldErrors}
           className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
         >
           <input type="hidden" name="employeeId" value={draft.employeeId} />
           <input type="hidden" name="type" value={draft.type} />
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="l-subject" className="text-sm font-medium">
-              Subject
-            </label>
+          <FormField label="Subject" name="subject">
             <Input
               id="l-subject"
               name="subject"
@@ -128,7 +130,7 @@ function DraftForm({
               onChange={(event) => setSubject(event.target.value)}
               required
             />
-          </div>
+          </FormField>
           <div className="flex flex-col gap-1.5">
             <span className="text-sm font-medium">
               Body — edit before sending
@@ -139,6 +141,7 @@ function DraftForm({
               subject={subject}
               label="Letter body"
             />
+            <FieldError name="bodyHtml" />
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" disabled={sendPending}>
@@ -149,11 +152,15 @@ function DraftForm({
                 Letter sent and archived.
               </p>
             )}
-            {sendState.error && (
-              <p className="text-sm text-amber-600">{sendState.error}</p>
-            )}
+            {/* Saved but not emailed is a warning; a refusal is an error. */}
+            {sendState.error &&
+              (sendState.ok ? (
+                <p className="text-sm text-amber-600">{sendState.error}</p>
+              ) : (
+                <FormMessage error={sendState.error} />
+              ))}
           </div>
-        </form>
+        </ValidatedForm>
       }
     </>
   );

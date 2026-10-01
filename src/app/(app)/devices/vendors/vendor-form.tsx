@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { VENDOR_KINDS, VENDOR_KIND_LABELS } from "@/lib/devices/vendors";
 import type { VendorKind } from "@/generated/prisma/enums";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField, FormMessage } from "@/components/form/form-field";
 import { createVendor, updateVendor, type VendorFormState } from "./actions";
 
 const selectClass =
@@ -43,15 +45,6 @@ export const EMPTY_VENDOR: VendorValues = {
   notes: "",
 };
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium">{label}</span>
-      {children}
-    </label>
-  );
-}
-
 export function VendorForm({ values, back }: { values: VendorValues; back?: string }) {
   const editing = Boolean(values.id);
   const blank: ContactValues = { name: "", role: "", email: "", phone: "", altPhone: "", isPrimary: false };
@@ -75,15 +68,15 @@ export function VendorForm({ values, back }: { values: VendorValues; back?: stri
     {},
   );
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <ValidatedForm action={formAction} fieldErrors={state.fieldErrors} className="flex flex-col gap-4">
       {values.id && <input type="hidden" name="id" value={values.id} />}
       {back && <input type="hidden" name="back" value={back} />}
       <input type="hidden" name="contacts" value={JSON.stringify(contacts)} />
       <div className="grid gap-4 md:grid-cols-2">
-        <Field label="Vendor name">
+        <FormField name="name" label="Vendor name">
           <Input name="name" required defaultValue={values.name} placeholder="Apple Care T Nagar" />
-        </Field>
-        <Field label="What they do">
+        </FormField>
+        <FormField name="kind" label="What they do">
           <select name="kind" defaultValue={values.kind} className={selectClass}>
             {VENDOR_KINDS.map((kind) => (
               <option key={kind} value={kind}>
@@ -91,16 +84,16 @@ export function VendorForm({ values, back }: { values: VendorValues; back?: stri
               </option>
             ))}
           </select>
-        </Field>
-        <Field label="Company email">
+        </FormField>
+        <FormField name="email" label="Company email">
           <Input type="email" name="email" defaultValue={values.email} autoComplete="off" />
-        </Field>
-        <Field label="Company phone">
+        </FormField>
+        <FormField name="phone" label="Company phone">
           <Input type="tel" name="phone" required defaultValue={values.phone} placeholder="+91 98400 12345" />
-        </Field>
-        <Field label="Company alternative phone">
+        </FormField>
+        <FormField name="altPhone" label="Company alternative phone">
           <Input type="tel" name="altPhone" defaultValue={values.altPhone} />
-        </Field>
+        </FormField>
       </div>
 
       <fieldset className="flex flex-col gap-3">
@@ -110,39 +103,54 @@ export function VendorForm({ values, back }: { values: VendorValues; back?: stri
             key={index}
             className="grid gap-2 rounded-xl border border-zinc-200 p-3 md:grid-cols-[1fr_1fr_1fr] dark:border-zinc-800"
           >
-            <Input
-              aria-label="Contact name"
-              placeholder="Name"
-              value={contact.name}
-              onChange={(event) => change(index, { name: event.target.value })}
-            />
-            <Input
-              aria-label="Contact role"
-              placeholder="Role (Sales, Service, Accounts…)"
-              value={contact.role}
-              onChange={(event) => change(index, { role: event.target.value })}
-            />
-            <Input
-              aria-label="Contact email"
-              type="email"
-              placeholder="Email"
-              value={contact.email}
-              onChange={(event) => change(index, { email: event.target.value })}
-            />
-            <Input
-              aria-label="Contact phone"
-              type="tel"
-              placeholder="Phone"
-              value={contact.phone}
-              onChange={(event) => change(index, { phone: event.target.value })}
-            />
-            <Input
-              aria-label="Contact alternative phone"
-              type="tel"
-              placeholder="Alternative phone"
-              value={contact.altPhone}
-              onChange={(event) => change(index, { altPhone: event.target.value })}
-            />
+            <FormField name={`contacts.${index}.name`}>
+              <Input
+                name={`contacts.${index}.name`}
+                aria-label="Contact name"
+                placeholder="Name"
+                value={contact.name}
+                onChange={(event) => change(index, { name: event.target.value })}
+              />
+            </FormField>
+            <FormField name={`contacts.${index}.role`}>
+              <Input
+                name={`contacts.${index}.role`}
+                aria-label="Contact role"
+                placeholder="Role (Sales, Service, Accounts…)"
+                value={contact.role}
+                onChange={(event) => change(index, { role: event.target.value })}
+              />
+            </FormField>
+            <FormField name={`contacts.${index}.email`}>
+              <Input
+                name={`contacts.${index}.email`}
+                aria-label="Contact email"
+                type="email"
+                placeholder="Email"
+                value={contact.email}
+                onChange={(event) => change(index, { email: event.target.value })}
+              />
+            </FormField>
+            <FormField name={`contacts.${index}.phone`}>
+              <Input
+                name={`contacts.${index}.phone`}
+                aria-label="Contact phone"
+                type="tel"
+                placeholder="Phone"
+                value={contact.phone}
+                onChange={(event) => change(index, { phone: event.target.value })}
+              />
+            </FormField>
+            <FormField name={`contacts.${index}.altPhone`}>
+              <Input
+                name={`contacts.${index}.altPhone`}
+                aria-label="Contact alternative phone"
+                type="tel"
+                placeholder="Alternative phone"
+                value={contact.altPhone}
+                onChange={(event) => change(index, { altPhone: event.target.value })}
+              />
+            </FormField>
             <div className="flex items-center justify-between gap-2">
               <label className="flex min-h-9 items-center gap-2 text-sm">
                 <input
@@ -171,19 +179,18 @@ export function VendorForm({ values, back }: { values: VendorValues; back?: stri
           </Button>
         </div>
       </fieldset>
-      <Field label="Address">
+      <FormField name="address" label="Address">
         <Textarea name="address" rows={2} defaultValue={values.address} />
-      </Field>
-      <Field label="Notes">
+      </FormField>
+      <FormField name="notes" label="Notes">
         <Textarea name="notes" rows={2} defaultValue={values.notes} placeholder="Turnaround time, warranty terms, account number…" />
-      </Field>
+      </FormField>
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : editing ? "Save changes" : "Add vendor"}
         </Button>
-        {state.ok && <p className="text-sm text-emerald-600">{state.ok}</p>}
-        {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+        <FormMessage error={state.error} ok={state.ok} />
       </div>
-    </form>
+    </ValidatedForm>
   );
 }

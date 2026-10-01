@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
   vendor: { findUnique: vi.fn() },
-  appSetting: { findUnique: vi.fn() },
+  appSetting: { findUnique: vi.fn(), upsert: vi.fn() },
   devicePurchaseRequest: {
     createMany: vi.fn(),
     findUniqueOrThrow: vi.fn(),
@@ -20,7 +20,13 @@ vi.mock("@/lib/email", () => ({ sendEmail }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/rbac", () => ({ requireRole: vi.fn(async () => ({ id: "hr", role: "HR_ADMIN" })) }));
 
-const { retryPurchaseRequest, sendPurchaseRequest } = await import("./actions");
+const {
+  previewPurchaseRequest,
+  retryPurchaseRequest,
+  saveLaptopOsMap,
+  savePurchaseEmailSettings,
+  sendPurchaseRequest,
+} = await import("./actions");
 
 const form = (values: Record<string, string>) => {
   const data = new FormData();
@@ -92,6 +98,13 @@ describe("sendPurchaseRequest", () => {
     );
   });
 
+  it("puts order problems under the field they're about", async () => {
+    const state = await sendPurchaseRequest(form({ ...order, confirmed: "yes", itemName: "", quantity: "0" }));
+    expect(state.fieldErrors?.itemName?.[0]).toMatch(/Say which device/);
+    expect(state.fieldErrors?.quantity?.[0]).toMatch(/at least 1/);
+    expect(db.devicePurchaseRequest.createMany).not.toHaveBeenCalled();
+  });
+
   it("doesn't send twice for the same request key", async () => {
     db.devicePurchaseRequest.createMany.mockResolvedValue({ count: 0 });
     const state = await sendPurchaseRequest(form({ ...order, confirmed: "yes" }));
@@ -105,5 +118,32 @@ describe("retryPurchaseRequest", () => {
     const state = await retryPurchaseRequest(form({ id: "r1" }));
     expect(state.error).toMatch(/Confirm the email/);
     expect(db.devicePurchaseRequest.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("previewPurchaseRequest", () => {
+  it("flags a vendor that can't be ordered from on the vendor field", async () => {
+    db.vendor.findUnique.mockResolvedValue(null);
+    const state = await previewPurchaseRequest(form(order));
+    expect(state.fieldErrors?.vendorId?.[0]).toMatch(/active vendor/);
+    expect(state.preview).toBeUndefined();
+  });
+});
+
+describe("savePurchaseEmailSettings", () => {
+  it("puts a bad address under reply-to or CC", async () => {
+    const replyTo = await savePurchaseEmailSettings({}, form({ replyTo: "a@x.com b@x.com", cc: "" }));
+    expect(replyTo.fieldErrors?.replyTo).toEqual(["Enter exactly one address."]);
+    const cc = await savePurchaseEmailSettings({}, form({ replyTo: "a@x.com", cc: "nope" }));
+    expect(cc.fieldErrors?.cc?.[0]).toMatch(/isn't a valid email/);
+    expect(db.appSetting.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("saveLaptopOsMap", () => {
+  it("asks for the OS when a new designation is typed without one", async () => {
+    const state = await saveLaptopOsMap({}, form({ newDesignation: "Designer", newOs: "" }));
+    expect(state.fieldErrors?.newOs?.[0]).toMatch(/Pick the laptop OS/);
+    expect(db.appSetting.upsert).not.toHaveBeenCalled();
   });
 });

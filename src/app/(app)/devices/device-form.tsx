@@ -13,6 +13,8 @@ import {
 } from "@/lib/devices/devices";
 import type { DeviceOs, DeviceOwnership, DeviceType } from "@/generated/prisma/enums";
 import { DEVICE_OSES, DEVICE_OS_LABELS } from "@/lib/devices/os";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField, FormMessage } from "@/components/form/form-field";
 import { createDevice, updateDevice, type DeviceFormState } from "./actions";
 
 const selectClass =
@@ -53,24 +55,6 @@ export const EMPTY_DEVICE: DeviceValues = {
   notes: "",
 };
 
-function Field({
-  label,
-  children,
-  hint,
-}: {
-  label: string;
-  children: React.ReactNode;
-  hint?: string;
-}) {
-  return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium">{label}</span>
-      {children}
-      {hint && <span className="text-xs text-zinc-500">{hint}</span>}
-    </label>
-  );
-}
-
 /** Add (with optional first holder) or edit a device. HR only. */
 export type VendorOption = { id: string; name: string };
 
@@ -102,11 +86,11 @@ export function DeviceForm({
   const rented = ownership === "RENTED";
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <ValidatedForm action={formAction} fieldErrors={state.fieldErrors} className="flex flex-col gap-4">
       {values.id && <input type="hidden" name="id" value={values.id} />}
       {requestId && <input type="hidden" name="requestId" value={requestId} />}
       <div className="grid gap-4 md:grid-cols-2">
-        <Field label="Type" hint={editing ? "The type is part of the asset tag, so it can't change." : undefined}>
+        <FormField name="type" label="Type" hint={editing ? "The type is part of the asset tag, so it can't change." : undefined}>
           <select name="type" defaultValue={values.type} className={selectClass} disabled={editing}>
             {DEVICE_TYPES.map((type) => (
               <option key={type} value={type}>
@@ -115,17 +99,17 @@ export function DeviceForm({
             ))}
           </select>
           {editing && <input type="hidden" name="type" value={values.type} />}
-        </Field>
-        <Field label="Brand">
+        </FormField>
+        <FormField name="brand" label="Brand">
           <Input name="brand" required defaultValue={values.brand} placeholder="Apple, Dell, Logitech…" />
-        </Field>
-        <Field label="Model">
+        </FormField>
+        <FormField name="model" label="Model">
           <Input name="model" required defaultValue={values.model} placeholder="MacBook Air M3 13-inch" />
-        </Field>
-        <Field label="Serial number">
+        </FormField>
+        <FormField name="serialNumber" label="Serial number">
           <Input name="serialNumber" defaultValue={values.serialNumber} />
-        </Field>
-        <Field label="Operating system" hint="For laptops: Mac or Windows.">
+        </FormField>
+        <FormField name="os" label="Operating system" hint="For laptops: Mac or Windows.">
           <select name="os" defaultValue={values.os} className={selectClass}>
             <option value="">Not set</option>
             {DEVICE_OSES.map((os) => (
@@ -134,8 +118,8 @@ export function DeviceForm({
               </option>
             ))}
           </select>
-        </Field>
-        <Field label="Owned or rented">
+        </FormField>
+        <FormField name="ownership" label="Owned or rented">
           <select
             name="ownership"
             value={ownership}
@@ -148,33 +132,33 @@ export function DeviceForm({
               </option>
             ))}
           </select>
-        </Field>
+        </FormField>
         {rented ? (
           <>
-            <Field label="Monthly rent (₹)">
-              <Input name="monthlyRent" inputMode="decimal" required defaultValue={values.monthlyRent} />
-            </Field>
-            <Field label="Vendor's reference" hint="Their own label for it, e.g. Laptop2.">
+            <FormField name="monthlyRent" label="Monthly rent (₹)">
+              <Input name="monthlyRent" inputMode="decimal" pattern="\d+(\.\d{1,2})?" title="Enter an amount like 2500 or 2500.50" required defaultValue={values.monthlyRent} />
+            </FormField>
+            <FormField name="vendorRef" label="Vendor's reference" hint="Their own label for it, e.g. Laptop2.">
               <Input name="vendorRef" defaultValue={values.vendorRef} />
-            </Field>
-            <Field label="Rented since (optional)">
+            </FormField>
+            <FormField name="purchaseDate" label="Rented since (optional)">
               <Input type="date" name="purchaseDate" defaultValue={values.purchaseDate} />
-            </Field>
+            </FormField>
           </>
         ) : (
           <>
-            <Field label="Purchase date">
+            <FormField name="purchaseDate" label="Purchase date">
               <Input type="date" name="purchaseDate" defaultValue={values.purchaseDate} />
-            </Field>
-            <Field label="Purchase price (₹)">
-              <Input name="purchasePrice" inputMode="decimal" defaultValue={values.purchasePrice} />
-            </Field>
-            <Field label="Vendor's reference (optional)">
+            </FormField>
+            <FormField name="purchasePrice" label="Purchase price (₹)">
+              <Input name="purchasePrice" inputMode="decimal" pattern="\d+(\.\d{1,2})?" title="Enter an amount like 45000 or 45000.50" defaultValue={values.purchasePrice} />
+            </FormField>
+            <FormField name="vendorRef" label="Vendor's reference (optional)">
               <Input name="vendorRef" defaultValue={values.vendorRef} />
-            </Field>
+            </FormField>
           </>
         )}
-        <Field label={rented ? "Rented from" : "Bought from"}>
+        <FormField name="vendorId" label={rented ? "Rented from" : "Bought from"}>
           <select name="vendorId" defaultValue={values.vendorId} required={rented} className={selectClass}>
             <option value="">Not recorded</option>
             {vendors.map((vendor) => (
@@ -186,21 +170,21 @@ export function DeviceForm({
           <a href={addVendorHref} className="text-xs text-zinc-500 underline-offset-4 hover:underline">
             Vendor not listed? Add one
           </a>
-        </Field>
-        <Field label="Warranty ends">
+        </FormField>
+        <FormField name="warrantyEndsOn" label="Warranty ends">
           <Input type="date" name="warrantyEndsOn" defaultValue={values.warrantyEndsOn} />
-        </Field>
+        </FormField>
       </div>
-      <Field label="Specs">
+      <FormField name="specs" label="Specs">
         <Textarea name="specs" rows={2} defaultValue={values.specs} placeholder="16 GB RAM, 512 GB SSD" />
-      </Field>
-      <Field label="Notes">
+      </FormField>
+      <FormField name="notes" label="Notes">
         <Textarea name="notes" rows={2} defaultValue={values.notes} />
-      </Field>
+      </FormField>
 
       {!editing && employees && (
         <div className="grid gap-4 rounded-xl border border-dashed border-zinc-200 p-4 md:grid-cols-2 dark:border-zinc-800">
-          <Field label="Assign to (optional)" hint="Leave empty to keep it in stock.">
+          <FormField name="employeeId" htmlFor="employeeId" label="Assign to (optional)" hint="Leave empty to keep it in stock.">
             <EmployeeSelect
               id="employeeId"
               name="employeeId"
@@ -208,11 +192,11 @@ export function DeviceForm({
               selectedId={holder}
               onSelect={setHolder}
             />
-          </Field>
+          </FormField>
           {holder && (
-            <Field label="Condition when handed over">
+            <FormField name="conditionOut" label="Condition when handed over">
               <Input name="conditionOut" placeholder="New, sealed box" />
-            </Field>
+            </FormField>
           )}
         </div>
       )}
@@ -221,9 +205,8 @@ export function DeviceForm({
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : editing ? "Save changes" : "Add device"}
         </Button>
-        {state.ok && <p className="text-sm text-emerald-600">{state.ok}</p>}
-        {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+        <FormMessage error={state.error} ok={state.ok} />
       </div>
-    </form>
+    </ValidatedForm>
   );
 }

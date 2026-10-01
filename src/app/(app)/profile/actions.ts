@@ -4,10 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { fieldError, invalid, type FormState } from "@/lib/form-state";
 import { requireSelfOrRole, requireUser } from "@/lib/rbac";
 import { contactSchema, saveContact } from "@/lib/hcm-ops";
 
-export type ProfileFormState = { error?: string; ok?: boolean };
+export type ProfileFormState = FormState;
 
 const nameSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
@@ -20,9 +21,7 @@ export async function updateAccountName(
   const user = await requireUser();
 
   const parsed = nameSchema.safeParse({ name: formData.get("name") });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid name" };
-  }
+  if (!parsed.success) return invalid(parsed.error);
 
   await db.user.update({
     where: { id: user.id },
@@ -59,9 +58,7 @@ export async function changePassword(
     newPassword: formData.get("newPassword"),
     confirmPassword: formData.get("confirmPassword"),
   });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
+  if (!parsed.success) return invalid(parsed.error);
 
   const account = await db.user.findUnique({
     where: { id: user.id },
@@ -72,13 +69,14 @@ export async function changePassword(
   // accounts are setting a password for the first time.
   if (account?.passwordHash) {
     if (!parsed.data.currentPassword) {
-      return { error: "Current password is required" };
+      return fieldError("currentPassword", "Current password is required");
     }
     const valid = await bcrypt.compare(
       parsed.data.currentPassword,
       account.passwordHash,
     );
-    if (!valid) return { error: "Current password is incorrect" };
+    if (!valid)
+      return fieldError("currentPassword", "Current password is incorrect");
   }
 
   await db.user.update({
@@ -88,7 +86,7 @@ export async function changePassword(
   return { ok: true };
 }
 
-export type SelfUpdateState = { error?: string; ok?: boolean };
+export type SelfUpdateState = FormState;
 
 export async function updateOwnContact(
   employeeId: string,
@@ -101,14 +99,13 @@ export async function updateOwnContact(
     phone: formData.get("phone"),
     personalEmail: formData.get("personalEmail"),
     emergencyContact: formData.get("emergencyContact") ?? undefined,
+    fatherName: formData.get("fatherName") ?? undefined,
     address: formData.get("address") ?? undefined,
     city: formData.get("city") ?? undefined,
     state: formData.get("state") ?? undefined,
     pincode: formData.get("pincode") ?? undefined,
   });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
+  if (!parsed.success) return invalid(parsed.error);
 
   await saveContact(employeeId, parsed.data);
   revalidatePath("/profile");

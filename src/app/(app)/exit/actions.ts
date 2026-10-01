@@ -3,17 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { invalid, type FormState } from "@/lib/form-state";
 import { requireRole } from "@/lib/rbac";
 import { sendEmail } from "@/lib/email";
 import { exitClearanceEmail } from "@/lib/emails";
 import { ID_CARD_STATUS_VALUES } from "@/lib/id-card-status";
 
 const exitSchema = z.object({
-  employeeId: z.string().min(1),
+  employeeId: z.string().min(1, "Pick the employee who's leaving"),
   dateOfExit: z.string().min(1, "Exit date is required"),
 });
 
-export type ExitFormState = { error?: string; ok?: boolean };
+export type ExitFormState = FormState;
 
 export async function markExit(
   _prev: ExitFormState,
@@ -22,10 +23,10 @@ export async function markExit(
   const user = await requireRole("HR_ADMIN");
 
   const parsed = exitSchema.safeParse({
-    employeeId: formData.get("employeeId"),
-    dateOfExit: formData.get("dateOfExit"),
+    employeeId: formData.get("employeeId") ?? "",
+    dateOfExit: formData.get("dateOfExit") ?? "",
   });
-  if (!parsed.success) return { error: "Employee and exit date are required" };
+  if (!parsed.success) return invalid(parsed.error);
 
   const employee = await db.employee.findUnique({
     where: { id: parsed.data.employeeId },

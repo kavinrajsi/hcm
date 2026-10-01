@@ -3,6 +3,8 @@
 import { useActionState, useTransition } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField, FormMessage } from "@/components/form/form-field";
 import {
   Sheet,
   SheetContent,
@@ -127,21 +129,31 @@ function NotesLog({
         Notes
       </h3>
       {/* Remount after a note lands so the textarea clears. */}
-      <form
+      <ValidatedForm
         key={notes.length}
         action={formAction}
+        fieldErrors={state.fieldErrors}
         className="mt-2 flex flex-col gap-2"
       >
         <input type="hidden" name="id" value={candidateId} />
-        <Textarea name="text" rows={2} placeholder="Add a note…" required />
+        <FormField name="text">
+          <Textarea
+            name="text"
+            rows={2}
+            placeholder="Add a note…"
+            aria-label="Note"
+            maxLength={5000}
+            required
+          />
+        </FormField>
         <div className="flex items-center gap-3">
           <Button type="submit" size="sm" disabled={pending}>
             <AddIcon className="size-4" />
             {pending ? "Adding…" : "Add note"}
           </Button>
-          {state.error && <p className="text-red-600">{state.error}</p>}
+          <FormMessage error={state.error} />
         </div>
-      </form>
+      </ValidatedForm>
 
       {notes.length === 0 ? (
         <p className="mt-4 text-zinc-500">No notes yet.</p>
@@ -291,16 +303,21 @@ export function CandidateDialog({
             </Row>
           </dl>
 
-          <form
+          <ValidatedForm
             action={formAction}
+            fieldErrors={state.fieldErrors}
             className="mt-6 flex flex-col gap-3 text-sm"
           >
             <input type="hidden" name="id" value={candidate.id} />
-            <label className="flex flex-col gap-1">
-              <span className="flex items-center gap-1.5">
-                <FlagIcon className="size-4 text-zinc-500" />
-                Status
-              </span>
+            <FormField
+              name="status"
+              label={
+                <span className="flex items-center gap-1.5 font-normal">
+                  <FlagIcon className="size-4 text-zinc-500" />
+                  Status
+                </span>
+              }
+            >
               <select
                 name="status"
                 defaultValue={candidate.status}
@@ -312,18 +329,18 @@ export function CandidateDialog({
                   </option>
                 ))}
               </select>
-            </label>
+            </FormField>
             <div className="flex items-center gap-3">
               <Button type="submit" disabled={pending}>
                 <CheckIcon className="size-4" />
                 {pending ? "Saving…" : "Save"}
               </Button>
-              {state.error && <p className="text-red-600">{state.error}</p>}
-              {state.ok && (
+              <FormMessage error={state.error} />
+              {state.ok && !state.error && (
                 <p className="text-emerald-600 dark:text-emerald-400">Saved.</p>
               )}
             </div>
-          </form>
+          </ValidatedForm>
 
           <NotesLog candidateId={candidate.id} notes={candidate.notes} />
 

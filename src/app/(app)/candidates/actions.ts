@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
+import { fieldError, invalid, type FormState } from "@/lib/form-state";
 import { uploadResume } from "@/lib/blob";
 import { addNoteToCandidate, moveCandidate } from "@/lib/hcm-ops";
 import { CANDIDATE_STATUSES, type CandidateStatus } from "./statuses";
@@ -24,11 +25,7 @@ const updateSchema = z.object({
   status: z.enum(CANDIDATE_STATUSES),
 });
 
-export type CandidateFormState = {
-  error?: string;
-  fieldErrors?: Record<string, string[]>;
-  ok?: boolean;
-};
+export type CandidateFormState = FormState;
 
 export async function updateCandidate(
   _prev: CandidateFormState,
@@ -39,9 +36,7 @@ export async function updateCandidate(
     id: formData.get("id"),
     status: formData.get("status"),
   });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
+  if (!parsed.success) return invalid(parsed.error);
 
   await moveCandidate(BigInt(parsed.data.id), parsed.data.status, user.id);
   revalidatePath("/candidates");
@@ -108,9 +103,7 @@ export async function addCandidateNote(
     id: formData.get("id"),
     text: formData.get("text"),
   });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid note" };
-  }
+  if (!parsed.success) return invalid(parsed.error);
   await addNoteToCandidate(BigInt(parsed.data.id), parsed.data.text);
   revalidatePath("/candidates");
   return { ok: true };
@@ -175,21 +168,16 @@ export async function createCandidate(
     raw[key] = formData.get(key) ?? "";
   }
   const parsed = createSchema.safeParse(raw);
-  if (!parsed.success) {
-    return {
-      error: "Please fix the highlighted fields.",
-      fieldErrors: z.flattenError(parsed.error).fieldErrors,
-    };
-  }
+  if (!parsed.success) return invalid(parsed.error);
 
   const resume = formData.get("resume");
   let fileUrl: string | undefined;
   if (resume instanceof File && resume.size > 0) {
     if (!RESUME_EXTENSIONS.test(resume.name)) {
-      return { fieldErrors: { resume: ["Resume must be PDF, DOC or DOCX"] } };
+      return fieldError("resume", "Resume must be PDF, DOC or DOCX");
     }
     if (resume.size > MAX_RESUME_BYTES) {
-      return { fieldErrors: { resume: ["Resume must be under 4 MB"] } };
+      return fieldError("resume", "Resume must be under 4 MB");
     }
     fileUrl = await uploadResume(parsed.data.firstName, resume);
   }

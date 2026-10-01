@@ -100,4 +100,53 @@ describe("updateEmployee", () => {
     expect(db.employee.update).not.toHaveBeenCalled();
     expect(db.onboardingRecord.updateMany).not.toHaveBeenCalled();
   });
+
+  it("puts every bad input on its own key, with a form-wide nudge", async () => {
+    const result = await save(krupaForm({ workEmail: "nope" }));
+    expect(result.state?.fieldErrors?.workEmail?.[0]).toBe("Invalid work email");
+    expect(result.state?.error).toBe("Fix the highlighted fields.");
+    expect(db.employee.update).not.toHaveBeenCalled();
+  });
+
+  it("puts a previous company's missing name on its row's key", async () => {
+    const form = krupaForm();
+    form.set("prevCount", "1");
+    form.set("prev.0.id", "row-1");
+    form.set("prev.0.companyName", "");
+    const result = await save(form);
+    expect(result.state?.fieldErrors?.["prev.0.companyName"]?.[0]).toMatch(
+      /Company name is required/,
+    );
+  });
+
+  it("flags a duplicate work email on the work email field", async () => {
+    db.employee.findFirst.mockResolvedValue({
+      empId: "OTHER",
+      workEmail: "krupa@madarth.com",
+      panHash: null,
+      aadhaarHash: null,
+      bankAccountHash: null,
+    });
+    const result = await save(krupaForm());
+    expect(result.state?.fieldErrors?.workEmail?.[0]).toBe(
+      "Work email already exists",
+    );
+    expect(db.employee.update).not.toHaveBeenCalled();
+  });
+
+  it("flags a type end before joining on typeEndDate", async () => {
+    const result = await save(krupaForm({ typeEndDate: "2026-01-01" }));
+    expect(result.state?.fieldErrors?.typeEndDate?.[0]).toMatch(
+      /on or after the joining date/,
+    );
+  });
+
+  it("saves the father's name, and clears it when blanked", async () => {
+    await save(krupaForm({ fatherName: "  Ramesh K  " }));
+    expect(db.employee.update.mock.calls[0][0].data.fatherName).toBe(
+      "Ramesh K",
+    );
+    await save(krupaForm({ fatherName: "" }));
+    expect(db.employee.update.mock.calls[1][0].data.fatherName).toBeNull();
+  });
 });

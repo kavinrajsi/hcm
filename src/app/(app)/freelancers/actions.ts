@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { invalid, type FormState } from "@/lib/form-state";
 import { requireRole } from "@/lib/rbac";
 import {
   cell,
@@ -12,7 +13,7 @@ import {
   type ImportState,
 } from "@/lib/csv-import";
 
-export type FreelancerFormState = { error?: string; ok?: boolean };
+export type FreelancerFormState = FormState;
 
 const optional = z
   .string()
@@ -26,16 +27,18 @@ const freelancerSchema = z.object({
   phone: optional,
   skillset: z.string().trim().min(1, "Skillset is required"),
   rate: optional,
-  availability: z.enum(["AVAILABLE", "BUSY", "UNAVAILABLE", "UNKNOWN"]),
+  availability: z.enum(["AVAILABLE", "BUSY", "UNAVAILABLE", "UNKNOWN"], {
+    error: "Pick an availability",
+  }),
   notes: optional,
 });
 
 function parse(formData: FormData) {
   return freelancerSchema.safeParse({
-    name: formData.get("name"),
+    name: formData.get("name") ?? "",
     email: formData.get("email") ?? undefined,
     phone: formData.get("phone") ?? undefined,
-    skillset: formData.get("skillset"),
+    skillset: formData.get("skillset") ?? "",
     rate: formData.get("rate") ?? undefined,
     availability: formData.get("availability") ?? "UNKNOWN",
     notes: formData.get("notes") ?? undefined,
@@ -48,9 +51,7 @@ export async function addFreelancer(
 ): Promise<FreelancerFormState> {
   await requireRole("HR_ADMIN", "MANAGER");
   const parsed = parse(formData);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid record" };
-  }
+  if (!parsed.success) return invalid(parsed.error);
   await db.freelancer.create({ data: parsed.data });
   revalidatePath("/freelancers");
   return { ok: true };
@@ -63,9 +64,7 @@ export async function updateFreelancer(
 ): Promise<FreelancerFormState> {
   await requireRole("HR_ADMIN", "MANAGER");
   const parsed = parse(formData);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid record" };
-  }
+  if (!parsed.success) return invalid(parsed.error);
   await db.freelancer.update({ where: { id }, data: parsed.data });
   revalidatePath("/freelancers");
   return { ok: true };

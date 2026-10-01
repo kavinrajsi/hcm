@@ -46,7 +46,7 @@ export function RequestList({ rows, showEmployee }: { rows: RequestRow[]; showEm
     setConfirmRetry(null);
     startTransition(async () => {
       const state = await retryPurchaseRequest(data);
-      setMessage(state.ok ?? state.error ?? null);
+      setMessage(typeof state.ok === "string" ? state.ok : (state.error ?? null));
     });
   }
 

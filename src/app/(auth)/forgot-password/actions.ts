@@ -2,10 +2,11 @@
 
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { invalid, type FormState } from "@/lib/form-state";
 import { mailPasswordLink } from "@/lib/logins";
 import { createPasswordLink, RESET_TTL_MS } from "@/lib/password-links";
 
-export type ForgotFormState = { error?: string; ok?: boolean };
+export type ForgotFormState = FormState;
 
 const emailSchema = z.object({
   email: z.string().trim().pipe(z.email("Enter a valid email")),
@@ -16,9 +17,7 @@ export async function requestPasswordReset(
   formData: FormData,
 ): Promise<ForgotFormState> {
   const parsed = emailSchema.safeParse({ email: formData.get("email") });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid email" };
-  }
+  if (!parsed.success) return invalid(parsed.error);
   const email = parsed.data.email.toLowerCase();
 
   const user = await db.user.findUnique({ where: { email } });

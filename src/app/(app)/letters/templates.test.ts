@@ -88,8 +88,23 @@ describe("letter templates", () => {
       {},
       form({ type: "OFFER", subject: "Offer", body: "<p></p>" }),
     );
-    expect(result.error).toBe("Body is required");
+    expect(result.fieldErrors?.body?.[0]).toBe("Body is required");
     expect(db.letterTemplate.upsert).not.toHaveBeenCalled();
+  });
+
+  it("puts a blank subject under the subject field", async () => {
+    const result = await saveLetterTemplate(
+      {},
+      form({ type: "OFFER", subject: " ", body: "<p>Hi</p>" }),
+    );
+    expect(result.fieldErrors?.subject?.[0]).toBe("Subject is required");
+    expect(db.letterTemplate.upsert).not.toHaveBeenCalled();
+  });
+
+  it("asks for an employee on the employee field before drafting", async () => {
+    const result = await generateLetter({}, form({ employeeId: "", type: "OFFER" }));
+    expect(result.fieldErrors?.employeeId?.[0]).toBe("Pick an employee");
+    expect(result.draft).toBeUndefined();
   });
 
   it("requires HR to save or reset", async () => {

@@ -33,11 +33,14 @@ import {
   type ImportState,
 } from "@/lib/csv-import";
 import type { Prisma } from "@/generated/prisma/client";
+import {
+  FIX_FIELDS,
+  fieldError,
+  invalid,
+  type FormState,
+} from "@/lib/form-state";
 
-export type EmployeeFormState = {
-  error?: string;
-  fieldErrors?: Record<string, string[]>;
-};
+export type EmployeeFormState = FormState;
 
 const optionalTrimmed = z
   .string()
@@ -62,6 +65,13 @@ const employeeSchema = z.object({
   ),
   workEmail: z.string().trim().pipe(z.email("Invalid work email")),
   emergencyContact: optionalTrimmed,
+  // Plaintext; blank clears it.
+  fatherName: z
+    .string()
+    .trim()
+    .max(100, "At most 100 characters")
+    .optional()
+    .transform((value) => value || null),
   address: optionalTrimmed,
   city: optionalTrimmed,
   state: optionalTrimmed,
@@ -128,15 +138,27 @@ function parseEmployeeForm(formData: FormData) {
     formData.get("isFresher") === "on"
       ? { rows: [] }
       : parsePreviousEmployments(formData);
-  if (!parsed.success || previous.fieldErrors) {
-    return {
-      fieldErrors: {
-        ...(parsed.success ? {} : z.flattenError(parsed.error).fieldErrors),
-        ...previous.fieldErrors,
-      } as Record<string, string[]>,
-    };
+  const fieldErrors: Record<string, string[]> = {
+    ...(parsed.success ? {} : invalid(parsed.error).fieldErrors),
+    ...previous.fieldErrors,
+    ...oversizeFiles(formData),
+  };
+  if (!parsed.success || Object.keys(fieldErrors).length > 0) {
+    return { fieldErrors };
   }
   return { data: parsed.data, previousRows: previous.rows };
+}
+
+/** Uploads over the size limit, under their input names. */
+function oversizeFiles(formData: FormData): Record<string, string[]> {
+  const errors: Record<string, string[]> = {};
+  for (const [field] of FILE_FIELDS) {
+    const file = formData.get(field);
+    if (file instanceof File && file.size > MAX_FILE_BYTES) {
+      errors[field] = ["Exceeds the 10 MB limit"];
+    }
+  }
+  return errors;
 }
 
 async function uploadFiles(
@@ -200,7 +222,7 @@ function piiInput(data: z.infer<typeof employeeSchema>) {
 async function findDuplicate(
   data: z.infer<typeof employeeSchema>,
   excludeId?: string,
-): Promise<string | undefined> {
+): Promise<FormState | undefined> {
   const orConditions: Prisma.EmployeeWhereInput[] = [
     { empId: data.empId },
     { workEmail: data.workEmail },
@@ -225,19 +247,24 @@ async function findDuplicate(
     },
   });
   if (!existing) return undefined;
-  if (existing.empId === data.empId) return "Employee ID already exists";
-  if (existing.workEmail === data.workEmail) return "Work email already exists";
+  if (existing.empId === data.empId)
+    return fieldError("empId", "Employee ID already exists");
+  if (existing.workEmail === data.workEmail)
+    return fieldError("workEmail", "Work email already exists");
   if (data.pan && existing.panHash === blindIndex(data.pan))
-    return "An employee with this PAN already exists";
+    return fieldError("pan", "An employee with this PAN already exists");
   if (data.aadhaar && existing.aadhaarHash === blindIndex(data.aadhaar))
-    return "An employee with this Aadhaar already exists";
-  return "An employee with this bank account already exists";
+    return fieldError("aadhaar", "An employee with this Aadhaar already exists");
+  return fieldError(
+    "bankAccount",
+    "An employee with this bank account already exists",
+  );
 }
 
 /** Field error when a time-bound type ends before the joining date. */
 function typeEndError(empType: string, endDate: Date, joinDate: Date) {
   return hasTypeEnd(empType) && endDate < joinDate
-    ? { fieldErrors: { typeEndDate: ["Must be on or after the joining date"] } }
+    ? fieldError("typeEndDate", "Must be on or after the joining date")
     : null;
 }
 
@@ -259,11 +286,12 @@ export async function createEmployee(
   const user = await requireRole("HR_ADMIN");
 
   const parsed = parseEmployeeForm(formData);
-  if (parsed.fieldErrors) return { fieldErrors: parsed.fieldErrors };
+  if (parsed.fieldErrors)
+    return { fieldErrors: parsed.fieldErrors, error: FIX_FIELDS };
   const { data, previousRows } = parsed;
 
   const duplicate = await findDuplicate(data);
-  if (duplicate) return { error: duplicate };
+  if (duplicate) return duplicate;
 
   // Converting a candidate (Candidates → Convert to employee).
   const rawCandidateId = formData.get("candidateId");
@@ -309,6 +337,7 @@ export async function createEmployee(
       gender: data.gender,
       bloodGroup: data.bloodGroup,
       tshirtSize: data.tshirtSize,
+      fatherName: data.fatherName,
       workEmail: data.workEmail.toLowerCase(),
       city: data.city,
       state: data.state,
@@ -498,6 +527,7 @@ export async function importEmployees(
           gender: data.gender,
           bloodGroup: data.bloodGroup,
           tshirtSize: data.tshirtSize,
+          fatherName: data.fatherName,
           workEmail,
           city: data.city,
           state: data.state,
@@ -599,11 +629,12 @@ export async function updateEmployee(
   await requireRole("HR_ADMIN");
 
   const parsed = parseEmployeeForm(formData);
-  if (parsed.fieldErrors) return { fieldErrors: parsed.fieldErrors };
+  if (parsed.fieldErrors)
+    return { fieldErrors: parsed.fieldErrors, error: FIX_FIELDS };
   const { data, previousRows } = parsed;
 
   const duplicate = await findDuplicate(data, employeeId);
-  if (duplicate) return { error: duplicate };
+  if (duplicate) return duplicate;
 
   // Sensitive fields: only overwrite when a new value was entered —
   // the form never round-trips decrypted values.
@@ -647,6 +678,7 @@ export async function updateEmployee(
       gender: data.gender,
       bloodGroup: data.bloodGroup,
       tshirtSize: data.tshirtSize,
+      fatherName: data.fatherName,
       workEmail: data.workEmail.toLowerCase(),
       city: data.city,
       state: data.state,

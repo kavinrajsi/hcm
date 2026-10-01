@@ -235,3 +235,11 @@
   .print-area, .print-area * { visibility: visible; }
   .print-area { position: absolute; inset: 0 auto auto 0; width: 210mm; }
 }
+
+/* Inline form errors: plain selects/inputs/textareas outside the UI kit
+   get the same red border when marked aria-invalid (see FormField). */
+select[aria-invalid="true"],
+input[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: var(--destructive);
+}

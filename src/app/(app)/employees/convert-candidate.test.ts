@@ -91,6 +91,28 @@ describe("Convert candidate → employee", () => {
     );
   });
 
+  it("saves the father's name on create (null when left blank)", async () => {
+    await submit(newJoiner({ fatherName: "Ravi Rao" }));
+    expect(db.employee.create.mock.calls[0][0].data.fatherName).toBe(
+      "Ravi Rao",
+    );
+    await submit(newJoiner({ empId: "E101" }));
+    expect(db.employee.create.mock.calls[1][0].data.fatherName).toBeNull();
+  });
+
+  it("flags an oversize photo on the photo field before uploading", async () => {
+    const form = newJoiner();
+    form.set(
+      "photo",
+      new File([new Uint8Array(10 * 1024 * 1024 + 1)], "me.jpg", {
+        type: "image/jpeg",
+      }),
+    );
+    const result = await submit(form);
+    expect(result.state?.fieldErrors?.photo?.[0]).toMatch(/10 MB/);
+    expect(db.employee.create).not.toHaveBeenCalled();
+  });
+
   it("adds a 'Converted to employee' note and keeps existing notes", async () => {
     await submit(newJoiner({ candidateId: "1277" }));
     const update = db.candidate.update.mock.calls[0][0];

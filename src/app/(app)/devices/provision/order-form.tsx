@@ -16,6 +16,8 @@ import {
 import { DEVICE_TYPES, DEVICE_TYPE_LABELS } from "@/lib/devices/devices";
 import type { DeviceOs, DeviceType } from "@/generated/prisma/enums";
 import { DEVICE_OSES, DEVICE_OS_LABELS } from "@/lib/devices/os";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField, FormMessage } from "@/components/form/form-field";
 import {
   previewPurchaseRequest,
   sendPurchaseRequest,
@@ -66,6 +68,7 @@ export function OrderForm({
   const [notes, setNotes] = useState("");
   const [preview, setPreview] = useState<EmailPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>();
   const [result, setResult] = useState<SendState | null>(null);
   const [requestKey, setRequestKey] = useState(newKey);
   const [confirming, setConfirming] = useState(false);
@@ -104,6 +107,7 @@ export function OrderForm({
     startTransition(async () => {
       const state = await previewPurchaseRequest(fields());
       setError(state.error ?? null);
+      setFieldErrors(state.fieldErrors);
       setPreview(state.preview ?? null);
     });
   }
@@ -117,6 +121,9 @@ export function OrderForm({
     startTransition(async () => {
       const state = await sendPurchaseRequest(data);
       setResult(state);
+      // A field problem means editing the order, so go back to the form.
+      if (state.fieldErrors) setPreview(null);
+      setFieldErrors(state.fieldErrors);
       if (state.ok) {
         setPreview(null);
         setItemName("");
@@ -140,11 +147,20 @@ export function OrderForm({
 
   const editing = !preview;
   return (
-    <div className="flex flex-col gap-4">
+    <ValidatedForm
+      className="flex flex-col gap-4"
+      fieldErrors={fieldErrors}
+      onSubmit={(event) => {
+        // Nothing posts: the preview is fetched, then sent after confirming.
+        event.preventDefault();
+        if (editing) showPreview();
+      }}
+    >
       <div className="grid gap-4 md:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Vendor</span>
+        <FormField name="vendorId" label="Vendor">
           <select
+            name="vendorId"
+            required
             value={vendorId}
             disabled={!editing}
             onChange={(event) => {
@@ -165,11 +181,11 @@ export function OrderForm({
               </option>
             ))}
           </select>
-        </label>
+        </FormField>
         {vendor && (
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Send to</span>
+          <FormField name="recipient" label="Send to">
             <select
+              name="recipient"
               value={recipient}
               disabled={!editing}
               onChange={(event) => setRecipient(event.target.value)}
@@ -181,12 +197,16 @@ export function OrderForm({
                 </option>
               ))}
             </select>
-          </label>
+          </FormField>
         )}
         {vendor && (
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Device</span>
+          <FormField
+            name="pick"
+            label="Device"
+            hint={vendor.catalog.length > 0 ? `Devices bought from ${vendor.name} before.` : undefined}
+          >
             <select
+              name="pick"
               value={pick}
               disabled={!editing}
               onChange={(event) => choose(event.target.value)}
@@ -201,10 +221,7 @@ export function OrderForm({
                 {vendor.catalog.length ? "Something else (type it)" : "Type the device name"}
               </option>
             </select>
-            {vendor.catalog.length > 0 && (
-              <span className="text-xs text-zinc-500">Devices bought from {vendor.name} before.</span>
-            )}
-          </label>
+          </FormField>
         )}
       </div>
 
@@ -217,9 +234,9 @@ export function OrderForm({
                 : "grid gap-4 md:grid-cols-[9rem_1fr_5rem_10rem]"
             }
           >
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">Type</span>
+            <FormField name="type" label="Type">
               <select
+                name="type"
                 value={type}
                 disabled={!editing || pick !== OTHER}
                 onChange={(event) => setType(event.target.value as DeviceType)}
@@ -231,11 +248,11 @@ export function OrderForm({
                   </option>
                 ))}
               </select>
-            </label>
+            </FormField>
             {type === "LAPTOP" && (
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="font-medium">OS</span>
+              <FormField name="os" label="OS">
                 <select
+                  name="os"
                   value={os}
                   disabled={!editing}
                   onChange={(event) => setOs(event.target.value as DeviceOs | "")}
@@ -249,48 +266,52 @@ export function OrderForm({
                     </option>
                   ))}
                 </select>
-              </label>
+              </FormField>
             )}
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">Device name</span>
+            <FormField name="itemName" label="Device name">
               <Input
+                name="itemName"
+                required
+                minLength={2}
+                maxLength={200}
                 value={itemName}
                 disabled={!editing || pick !== OTHER}
                 onChange={(event) => setItemName(event.target.value)}
                 placeholder="Dell Latitude 5440, 16 GB / 512 GB"
               />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">Quantity</span>
+            </FormField>
+            <FormField name="quantity" label="Quantity">
               <Input
+                name="quantity"
                 type="number"
+                required
                 min={1}
                 max={100}
                 value={quantity}
                 disabled={!editing}
                 onChange={(event) => setQuantity(event.target.value)}
               />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">Needed by</span>
+            </FormField>
+            <FormField name="neededBy" label="Needed by">
               <Input
+                name="neededBy"
                 type="date"
                 value={neededBy}
                 disabled={!editing}
                 onChange={(event) => setNeededBy(event.target.value)}
               />
-            </label>
+            </FormField>
           </div>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Note to the vendor (optional)</span>
+          <FormField name="notes" label="Note to the vendor (optional)">
             <Textarea
+              name="notes"
               rows={2}
               value={notes}
               disabled={!editing}
               onChange={(event) => setNotes(event.target.value)}
               placeholder="Specs, warranty, delivery address…"
             />
-          </label>
+          </FormField>
         </>
       )}
 
@@ -300,13 +321,11 @@ export function OrderForm({
           {DEVICE_OS_LABELS[os]}.
         </p>
       )}
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {result?.ok && <p className="text-sm text-emerald-600">{result.ok}</p>}
-      {result?.error && <p className="text-sm text-red-600">{result.error}</p>}
+      <FormMessage error={result?.error ?? error ?? undefined} ok={result?.ok} />
 
       {editing ? (
         <div>
-          <Button type="button" disabled={!vendor || pending} onClick={showPreview}>
+          <Button type="submit" disabled={!vendor || pending}>
             {pending ? "Preparing…" : "Preview email"}
           </Button>
         </div>
@@ -364,6 +383,6 @@ export function OrderForm({
           </Dialog>
         </div>
       )}
-    </div>
+    </ValidatedForm>
   );
 }

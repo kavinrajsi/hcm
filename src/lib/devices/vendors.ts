@@ -122,10 +122,14 @@ export type ContactInput = z.infer<typeof contactSchema>;
 /**
  * Contacts posted as JSON from the vendor form. Blank rows are dropped;
  * exactly one is primary when there are any (the first, if none is marked).
+ * Problems come back per field, keyed by the row's position in the posted
+ * list (blank rows included), e.g. "contacts.1.email".
  */
 export function parseContacts(
   json: unknown,
-): { ok: true; contacts: (ContactInput & { position: number })[] } | { ok: false; error: string } {
+):
+  | { ok: true; contacts: (ContactInput & { position: number })[] }
+  | { ok: false; error: string; fieldErrors?: Record<string, string[]> } {
   let raw: unknown = [];
   if (typeof json === "string" && json.trim()) {
     try {
@@ -135,21 +139,33 @@ export function parseContacts(
     }
   }
   if (!Array.isArray(raw)) return { ok: false, error: "Couldn't read the contacts" };
-  const rows = raw.filter(
-    (row) =>
-      row &&
-      typeof row === "object" &&
-      ["name", "role", "email", "phone", "altPhone"].some(
-        (key) => typeof (row as Record<string, unknown>)[key] === "string" && ((row as Record<string, string>)[key]).trim(),
-      ),
-  );
+  const rows = raw
+    .map((row: unknown, index) => ({ row, index }))
+    .filter(
+      ({ row }) =>
+        row &&
+        typeof row === "object" &&
+        ["name", "role", "email", "phone", "altPhone"].some(
+          (key) => typeof (row as Record<string, unknown>)[key] === "string" && ((row as Record<string, string>)[key]).trim(),
+        ),
+    );
   if (rows.length > 20) return { ok: false, error: "Up to 20 contacts per vendor" };
   const contacts: (ContactInput & { position: number })[] = [];
-  for (const row of rows) {
+  const fieldErrors: Record<string, string[]> = {};
+  let firstError: string | undefined;
+  for (const { row, index } of rows) {
     const parsed = contactSchema.safeParse(row);
-    if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the contacts" };
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        firstError ??= issue.message;
+        const key = ["contacts", index, ...issue.path].map(String).join(".");
+        (fieldErrors[key] ??= []).push(issue.message);
+      }
+      continue;
+    }
     contacts.push({ ...parsed.data, position: contacts.length });
   }
+  if (firstError) return { ok: false, error: firstError, fieldErrors };
   const primary = contacts.findIndex((contact) => contact.isPrimary);
   contacts.forEach((contact, index) => {
     contact.isPrimary = index === (primary === -1 ? 0 : primary);
