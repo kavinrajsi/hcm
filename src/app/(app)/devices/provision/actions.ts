@@ -153,6 +153,8 @@ async function deliver(requestId: string): Promise<SendState> {
   });
   try {
     const result = await sendEmail({
+      kind: "device-request",
+      employeeId: request.employeeId,
       from: PURCHASE_EMAIL_FROM,
       to: request.emailTo,
       cc: request.emailCc,

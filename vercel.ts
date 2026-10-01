@@ -9,6 +9,8 @@ export const config: VercelConfig = {
     // and internship ends, to hr@madarth.com.
     { path: "/api/cron/employment-end-reminders", schedule: "45 3 * * *" },
     // Daily 04:30 UTC (10:00 IST) — pull the Basecamp leave check-in.
+    // Daily 04:00 UTC — Email log keeps one year.
+    { path: "/api/cron/email-log-cleanup", schedule: "0 4 * * *" },
     { path: "/api/cron/leave-sync", schedule: "30 4 * * *" },
     // Daily 05:00 UTC (10:30 IST) — Basecamp people and profile pictures.
     { path: "/api/cron/basecamp-people", schedule: "0 5 * * *" },

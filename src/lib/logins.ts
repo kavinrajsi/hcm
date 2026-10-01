@@ -27,7 +27,7 @@ export async function mailPasswordLink({
     const email = invite
       ? inviteEmail({ name, email: to, link })
       : resetEmail({ link });
-    const result = await sendEmail({ to, ...email });
+    const result = await sendEmail({ to, ...email, kind: invite ? "invite" : "reset" });
     return !result.skipped;
   } catch (error) {
     console.error("[logins] email failed", error);

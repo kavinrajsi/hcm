@@ -32,11 +32,16 @@ export default async function EmailTemplatePage({ params }: { params: Promise<{ 
         title={email.name}
         description="Preview with sample data. Real emails use the employee's or vendor's details."
         actions={
-          email.editAt ? (
-            <Button variant="outline" nativeButton={false} render={<Link href={email.editAt.href} />}>
-              Edit in {email.editAt.label}
+          <>
+            <Button variant="outline" nativeButton={false} render={<Link href={`/email-log?kind=${email.key.startsWith("letter-") ? "letter" : email.key}`} />}>
+              Sent emails
             </Button>
-          ) : undefined
+            {email.editAt && (
+              <Button variant="outline" nativeButton={false} render={<Link href={email.editAt.href} />}>
+                Edit in {email.editAt.label}
+              </Button>
+            )}
+          </>
         }
       />
       <dl className="mt-6 grid grid-cols-[6rem_1fr] gap-x-4 gap-y-2 text-sm">

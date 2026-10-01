@@ -9,6 +9,8 @@
 //   ZEPTOMAIL_API_URL  optional, defaults to the Zoho endpoint below
 //   EMAIL_FROM         sender, e.g. "HCM <noreply@madarth.com>"
 
+import { logEmail, type EmailKind } from "@/lib/email-log";
+
 const DEFAULT_API_URL = "https://cpaas.zoho.com/v1.1/email";
 const DEFAULT_FROM = "HCM <noreply@madarth.com>";
 
@@ -34,7 +36,7 @@ function authHeader(token: string): string {
   return /^Zoho-enczapikey\s/i.test(token) ? token : `Zoho-enczapikey ${token}`;
 }
 
-export async function sendEmail(options: {
+export type SendEmailOptions = {
   to: string | string[];
   subject: string;
   html: string;
@@ -44,7 +46,42 @@ export async function sendEmail(options: {
   cc?: string[];
   /** Where replies go ("Name <address>" or a bare address). */
   replyTo?: string;
-}) {
+  /** Which email this is, for the Email log (template key). */
+  kind: EmailKind;
+  /** The employee it's about, if any (links the log row). */
+  employeeId?: string | null;
+  /** The signed-in user who caused it, if any. */
+  sentById?: string | null;
+  /** Set by Resend: the log row this one re-sends. */
+  resendOfId?: string;
+};
+
+type SendResult = { skipped: true } | { skipped: false; id?: string };
+
+/**
+ * Sends and records the attempt in the Email log (sent, failed or not
+ * sent). Logging never changes the outcome: a failed send still throws.
+ */
+export async function sendEmail(options: SendEmailOptions): Promise<SendResult> {
+  let result: SendResult;
+  try {
+    result = await deliver(options);
+  } catch (error) {
+    await logEmail(options, { status: "FAILED", error: error instanceof Error ? error.message : String(error) });
+    throw error;
+  }
+  await logEmail(
+    options,
+    result.skipped ? { status: "NOT_SENT", error: "Email isn't set up (ZEPTOMAIL_TOKEN)." } : { status: "SENT", providerId: result.id },
+  );
+  return result;
+}
+
+export function senderOf(options: Pick<SendEmailOptions, "from">): string {
+  return options.from || process.env.EMAIL_FROM || DEFAULT_FROM;
+}
+
+async function deliver(options: SendEmailOptions): Promise<SendResult> {
   const token = process.env.ZEPTOMAIL_TOKEN?.trim();
   if (!token) {
     console.warn(`[email] ZEPTOMAIL_TOKEN unset; skipped: ${options.subject}`);
@@ -54,7 +91,7 @@ export async function sendEmail(options: {
   const recipients = Array.isArray(options.to) ? options.to : [options.to];
   const replyTo = options.replyTo ? parseSender(options.replyTo) : null;
   const body = {
-    from: parseSender(options.from || process.env.EMAIL_FROM || DEFAULT_FROM),
+    from: parseSender(senderOf(options)),
     to: recipients.map((address) => ({ email_address: { address } })),
     // ZeptoMail: cc like `to`; reply_to is a flat { address, name } list.
     ...(options.cc?.length

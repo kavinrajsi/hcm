@@ -114,6 +114,7 @@ model User {
   oauthCodes             OAuthCode[]             @relation("OAuthCodes")
   oauthTokens            OAuthToken[]            @relation("OAuthTokens")
   mcpAuditLogs           McpAuditLog[]           @relation("McpAuditLogs")
+  emailsSent             EmailLog[]              @relation("EmailsSent")
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 }
@@ -227,6 +228,7 @@ model Employee {
   deviceAssignments   DeviceAssignment[]
   purchaseRequests    DevicePurchaseRequest[]
   employmentReminders EmploymentReminder[]
+  emailLogs           EmailLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1008,4 +1010,49 @@ model EmploymentReminder {
   sentAt     DateTime @default(now())
 
   @@unique([employeeId, kind, endsOn])
+}
+
+enum EmailStatus {
+  SENT
+  FAILED
+  NOT_SENT // email not configured (ZEPTOMAIL_TOKEN unset)
+}
+
+enum EmailDelivery {
+  DELIVERED
+  OPENED
+  BOUNCED
+}
+
+/// Every email HCM sends (Admin → Email log). `html` has password and
+/// invite links removed. Delivery comes from ZeptoMail webhooks. Rows
+/// older than a year are deleted daily.
+model EmailLog {
+  id              String         @id @default(cuid())
+  kind            String // template key, e.g. "type-change" (see email-catalog)
+  from            String
+  to              String[]
+  cc              String[]
+  replyTo         String?
+  subject         String
+  html            String
+  attachmentNames String[]
+  status          EmailStatus
+  error           String?
+  providerId      String? // ZeptoMail request_id
+  delivery        EmailDelivery?
+  deliveryAt      DateTime?
+  events          Json           @default("[]")
+  resendable      Boolean        @default(true)
+  employee        Employee?      @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  employeeId      String?
+  sentBy          User?          @relation("EmailsSent", fields: [sentById], references: [id], onDelete: SetNull)
+  sentById        String?
+  resendOfId      String?
+  createdAt       DateTime       @default(now())
+
+  @@index([createdAt])
+  @@index([kind])
+  @@index([status])
+  @@index([providerId])
 }

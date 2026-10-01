@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
     if (hrAdmins.length > 0) {
       try {
         const result = await sendEmail({
+          kind: "probation-digest",
           to: hrAdmins.map((admin) => admin.email),
           ...probationReminderEmail({
             rows: due.map((record) => ({

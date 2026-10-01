@@ -72,6 +72,8 @@ export async function notifyTypeChange(employeeId: string, from: string, to: str
           ? employee.empTypeEndsOn
           : null;
     const result = await sendEmail({
+      kind: "type-change",
+      employeeId,
       to: employee.workEmail,
       cc: [HR_EMAIL, FINANCE_EMAIL].filter((address) => address.toLowerCase() !== employee.workEmail.toLowerCase()),
       replyTo: HR_EMAIL,
@@ -187,7 +189,7 @@ export function endReminderEmail(rows: EndingRow[]): { subject: string; html: st
 export async function sendEndReminders({ dryRun = false } = {}): Promise<{ rows: EndingRow[]; emailed: boolean }> {
   const rows = await findEndingSoon();
   if (rows.length === 0 || dryRun) return { rows, emailed: false };
-  const result = await sendEmail({ to: HR_EMAIL, ...endReminderEmail(rows) });
+  const result = await sendEmail({ kind: "ending-soon", to: HR_EMAIL, ...endReminderEmail(rows) });
   if (result.skipped) return { rows, emailed: false };
   await db.employmentReminder.createMany({
     data: rows.map((row) => ({ employeeId: row.employeeId, kind: row.kind, endsOn: row.endsOn })),

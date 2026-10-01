@@ -72,7 +72,7 @@ export async function sendLetter(
   _prev: LetterFormState,
   formData: FormData,
 ): Promise<LetterFormState> {
-  await requireRole("HR_ADMIN");
+  const user = await requireRole("HR_ADMIN");
   const parsed = sendSchema.safeParse({
     employeeId: formData.get("employeeId"),
     type: formData.get("type"),
@@ -102,6 +102,9 @@ export async function sendLetter(
   let sendError: string | undefined;
   try {
     const result = await sendEmail({
+      kind: "letter",
+      employeeId: parsed.data.employeeId,
+      sentById: user.id,
       to,
       ...letterEmail({
         subject: parsed.data.subject,

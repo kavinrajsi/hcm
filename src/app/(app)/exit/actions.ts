@@ -105,6 +105,9 @@ export async function markExit(
   // The exit is saved; a failed email must not turn that into an error.
   try {
     await sendEmail({
+      kind: "exit-clearance",
+      employeeId: employee.id,
+      sentById: user.id,
       to: employee.workEmail,
       ...exitClearanceEmail({
         name: employee.name,
