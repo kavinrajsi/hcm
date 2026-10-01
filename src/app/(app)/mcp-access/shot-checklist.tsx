@@ -28,16 +28,23 @@ export function ShotChecklist({ shots }: { shots: Shot[] }) {
       <p className="mt-2 text-xs text-zinc-500">
         {done} of {shots.length} added.
       </p>
-      <ul className="mt-2 divide-y divide-zinc-100 rounded-xl border border-zinc-200 text-sm dark:divide-zinc-800 dark:border-zinc-800">
+      <ul className="mt-2 grid gap-3 sm:grid-cols-2">
         {shots.map((shot) => (
-          <li key={shot.file} className="flex items-start gap-3 px-4 py-2">
-            <span className={present[shot.file] ? "text-emerald-600" : "text-zinc-400"}>
-              {present[shot.file] ? "✓" : "○"}
-            </span>
-            <span className="min-w-0">
-              <code className="text-xs">{shot.file}</code>
-              <span className="block text-xs text-zinc-500">{shot.caption}</span>
-            </span>
+          <li key={shot.file} className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+            {present[shot.file] ? (
+              <a href={shot.src} target="_blank" rel="noreferrer" title="Open full size">
+                {/* eslint-disable-next-line @next/next/no-img-element -- plain files in public/ */}
+                <img src={shot.src} alt={shot.caption} loading="lazy" className="aspect-video w-full bg-zinc-50 object-contain dark:bg-zinc-900" />
+              </a>
+            ) : (
+              <div
+                title={shot.file}
+                className="flex aspect-video w-full items-center justify-center border-b border-dashed border-zinc-200 bg-zinc-50 text-xs text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900"
+              >
+                {shot.file in present ? "Screenshot not added yet" : "Checking…"}
+              </div>
+            )}
+            <p className="px-3 py-2 text-xs text-zinc-600 dark:text-zinc-400">{shot.caption}</p>
           </li>
         ))}
       </ul>

@@ -65,8 +65,9 @@ export function AdminSetup({ authUrl }: { authUrl: string | undefined }) {
       </ol>
       <h3 className="mt-6 text-sm font-semibold">Guide screenshots</h3>
       <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        Save each screenshot as a PNG with the name shown into <code>public/mcp-guide/</code> in the code, then deploy.
-        Missing ones are hidden from the guide.
+        Each step of the Connect an AI guide and the steps above. Added screenshots show here and in the guide;
+        missing ones are hidden from the guide. Hover an empty one to see its file name in
+        <code>public/mcp-guide/</code>.
       </p>
       <ShotChecklist shots={ALL_GUIDE_SHOTS.map((shot) => ({ ...shot, src: shotPath(shot.file) }))} />
     </section>
