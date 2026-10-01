@@ -3,7 +3,8 @@ import type { Prisma } from "@/generated/prisma/client";
 import type { DeviceStatus } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
-import { parseTableParams } from "@/lib/table-params";
+import { optionsByCount, parseTableParams, stringParam } from "@/lib/table-params";
+import { dayRange } from "@/lib/date-filter";
 import {
   DEVICE_STATUSES,
   DEVICE_STATUS_CLASSES,
@@ -13,10 +14,10 @@ import {
   isDeviceStatus,
   isDeviceType,
 } from "@/lib/devices/devices";
-import { TableFilters } from "@/components/data-table/filters";
+import { AddFilter } from "@/components/data-table/add-filter";
+import { CountChips } from "@/components/data-table/count-chips";
 import { TablePagination } from "@/components/data-table/pagination";
 import { ListCard } from "@/components/list-card";
-import { Segmented } from "@/components/segmented";
 import { Button } from "@/components/ui/button";
 import {
   DesktopTable,
@@ -41,13 +42,25 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
   const user = await requireRole("HR_ADMIN", "MANAGER");
   const raw = await searchParams;
   const params = parseTableParams(raw);
-  const status: DeviceStatus | "ALL" = isDeviceStatus(raw.status) ? raw.status : "ALL";
+  const status: DeviceStatus | undefined = isDeviceStatus(raw.status) ? raw.status : undefined;
+  const brand = stringParam(raw.brand);
+  const vendor = stringParam(raw.vendor);
+  const purchased = dayRange({
+    preset: stringParam(raw.purchased),
+    from: stringParam(raw.from),
+    to: stringParam(raw.to),
+  });
 
+  // Managers see only their direct reports' devices (filter options too).
+  const scope: Prisma.DeviceWhereInput =
+    user.role === "MANAGER" ? { holder: { manager: { userId: user.id } } } : {};
   const where: Prisma.DeviceWhereInput = {
-    // Managers see only their direct reports' devices.
-    ...(user.role === "MANAGER" ? { holder: { manager: { userId: user.id } } } : {}),
+    ...scope,
     ...(isDeviceType(params.type) ? { type: params.type } : {}),
-    ...(status !== "ALL" ? { status } : {}),
+    ...(status ? { status } : {}),
+    ...(brand ? { brand } : {}),
+    ...(vendor ? { vendor: { name: vendor } } : {}),
+    ...(purchased ? { purchaseDate: purchased } : {}),
     ...(params.q
       ? {
           OR: [
@@ -56,12 +69,13 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
             { model: { contains: params.q, mode: "insensitive" } },
             { serialNumber: { contains: params.q, mode: "insensitive" } },
             { holder: { name: { contains: params.q, mode: "insensitive" } } },
+            { holder: { empId: { contains: params.q, mode: "insensitive" } } },
           ],
         }
       : {}),
   };
 
-  const [devices, total, openTickets] = await Promise.all([
+  const [devices, total, openTickets, types, statuses, brands, vendors] = await Promise.all([
     db.device.findMany({
       where,
       orderBy: { assetTag: "asc" },
@@ -80,21 +94,20 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
     }),
     db.device.count({ where }),
     db.deviceTicket.count({
-      where: {
-        status: { in: ["OPEN", "SENT_FOR_SERVICE"] },
-        ...(user.role === "MANAGER" ? { device: { holder: { manager: { userId: user.id } } } } : {}),
-      },
+      where: { status: { in: ["OPEN", "SENT_FOR_SERVICE"] }, device: scope },
+    }),
+    db.device.groupBy({ by: ["type"], where: scope, _count: true }),
+    db.device.groupBy({ by: ["status"], where: scope, _count: true }),
+    db.device.groupBy({ by: ["brand"], where: scope, _count: true }),
+    db.vendor.findMany({
+      where: { devices: { some: scope } },
+      orderBy: { name: "asc" },
+      select: { name: true, _count: { select: { devices: { where: scope } } } },
     }),
   ]);
+  const typeCounts = new Map(types.map((group) => [group.type as string, group._count]));
+  const statusCounts = new Map(statuses.map((group) => [group.status as string, group._count]));
 
-  const statusHref = (value: string) => {
-    const next = new URLSearchParams();
-    for (const [key, item] of Object.entries(raw))
-      if (typeof item === "string" && key !== "status" && key !== "page") next.set(key, item);
-    if (value !== "ALL") next.set("status", value);
-    const query = next.toString();
-    return query ? `/devices?${query}` : "/devices";
-  };
   const holderText = (device: (typeof devices)[number]) =>
     device.holder ? `${device.holder.name} · ${device.holder.empId}` : "—";
 
@@ -118,22 +131,55 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
         }
       />
 
-      <div className="mt-4 flex flex-col gap-3">
-        <Segmented
-          label="Status"
-          items={(["ALL", ...DEVICE_STATUSES] as const).map((value) => ({
-            key: value,
-            href: statusHref(value),
-            label: value === "ALL" ? "All" : DEVICE_STATUS_LABELS[value],
-            active: status === value,
-          }))}
-        />
-        <TableFilters
-          typeOptions={DEVICE_TYPES.map((type) => ({ value: type, label: DEVICE_TYPE_LABELS[type] }))}
-          typeLabel="Type"
-          dateFilters={false}
-          searchPlaceholder="Search tag, model, serial or person…"
-        />
+      <CountChips
+        items={DEVICE_STATUSES.map((value) => ({
+          key: value,
+          label: DEVICE_STATUS_LABELS[value],
+          count: statusCounts.get(value) ?? 0,
+        }))}
+      />
+
+      <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:items-center">
+        <div className="min-w-0 md:flex-1">
+          <AddFilter
+            search={{ param: "q", hint: "Asset tag, model, serial, holder or emp ID" }}
+            fields={[
+              {
+                param: "type",
+                label: "Type",
+                options: DEVICE_TYPES.map((type) => ({
+                  value: type,
+                  label: DEVICE_TYPE_LABELS[type],
+                  count: typeCounts.get(type) ?? 0,
+                })),
+              },
+              {
+                param: "status",
+                label: "Status",
+                options: DEVICE_STATUSES.map((value) => ({
+                  value,
+                  label: DEVICE_STATUS_LABELS[value],
+                  count: statusCounts.get(value) ?? 0,
+                })),
+              },
+              {
+                param: "brand",
+                label: "Brand",
+                options: optionsByCount(brands, (group) => group.brand),
+              },
+              {
+                param: "vendor",
+                label: "Vendor",
+                options: vendors.map((row) => ({ value: row.name, count: row._count.devices })),
+              },
+            ]}
+            date={{
+              param: "purchased",
+              label: "Purchased",
+              presets: ["30d", "month", "year"],
+            }}
+          />
+        </div>
       </div>
 
       <div className="mt-4">
