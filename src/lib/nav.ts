@@ -77,6 +77,7 @@ export const NAV: NavGroup[] = [
       { title: "Users & roles", url: "/users", roles: HR },
       { title: "AI usage", url: "/ai-usage", roles: HR },
       { title: "MCP access", url: "/mcp-access", roles: HR },
+      { title: "Email templates", url: "/email-templates", roles: HR },
     ],
   },
 ];
