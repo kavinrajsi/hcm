@@ -5,6 +5,7 @@ import { AuthError } from "next-auth";
 import { safeCallbackPath } from "@/lib/safe-redirect";
 import { ValidatedForm } from "@/components/form/validated-form";
 import { FormField, FormMessage } from "@/components/form/form-field";
+import { PasswordInput } from "@/components/password-input";
 
 export const metadata = { title: "Sign in" };
 
@@ -60,14 +61,13 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             />
           </FormField>
           <FormField name="password">
-            <input
+            <PasswordInput
               name="password"
-              type="password"
               required
               aria-label="Password"
               placeholder="Password"
               autoComplete="current-password"
-              className={inputClass}
+              className={`${inputClass} h-auto md:h-auto`}
             />
           </FormField>
           <FormMessage

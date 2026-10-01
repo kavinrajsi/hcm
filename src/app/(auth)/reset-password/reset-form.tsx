@@ -1,9 +1,9 @@
 "use client";
 
+import { PasswordInput } from "@/components/password-input";
 import Link from "next/link";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ValidatedForm } from "@/components/form/validated-form";
 import { FormField, FormMessage } from "@/components/form/form-field";
 import { resetPassword, type ResetFormState } from "./actions";
@@ -34,20 +34,18 @@ export function ResetForm({ token }: { token: string }) {
     >
       <input type="hidden" name="token" value={token} />
       <FormField name="newPassword" label="New password" className="gap-1.5">
-        <Input
+        <PasswordInput
           id="reset-new"
           name="newPassword"
-          type="password"
           autoComplete="new-password"
           required
           minLength={8}
         />
       </FormField>
       <FormField name="confirmPassword" label="Confirm new password" className="gap-1.5">
-        <Input
+        <PasswordInput
           id="reset-confirm"
           name="confirmPassword"
-          type="password"
           autoComplete="new-password"
           required
           minLength={8}

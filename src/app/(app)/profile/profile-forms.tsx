@@ -1,5 +1,6 @@
 "use client";
 
+import { PasswordInput } from "@/components/password-input";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,30 +52,27 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
     >
       {hasPassword && (
         <FormField name="currentPassword" label="Current password" className="gap-1.5">
-          <Input
+          <PasswordInput
             id="profile-current"
             name="currentPassword"
-            type="password"
             autoComplete="current-password"
             required
           />
         </FormField>
       )}
       <FormField name="newPassword" label="New password" className="gap-1.5">
-        <Input
+        <PasswordInput
           id="profile-new"
           name="newPassword"
-          type="password"
           autoComplete="new-password"
           required
           minLength={8}
         />
       </FormField>
       <FormField name="confirmPassword" label="Confirm new password" className="gap-1.5">
-        <Input
+        <PasswordInput
           id="profile-confirm"
           name="confirmPassword"
-          type="password"
           autoComplete="new-password"
           required
           minLength={8}
