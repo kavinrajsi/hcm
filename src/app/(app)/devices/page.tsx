@@ -142,18 +142,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
         }`}
         actions={
           user.role === "HR_ADMIN" ? (
-            <>
-              <Button variant="outline" nativeButton={false} render={<Link href="/devices/vendors" />}>
-                Vendors
-              </Button>
-              <Button variant="outline" nativeButton={false} render={<Link href="/devices/requests" />}>
-                Requests
-              </Button>
-              <Button variant="outline" nativeButton={false} render={<Link href="/devices/labels" />}>
-                Print labels
-              </Button>
-              <Button nativeButton={false} render={<Link href="/devices/new" />}>Add device</Button>
-            </>
+            <Button nativeButton={false} render={<Link href="/devices/new" />}>Add device</Button>
           ) : undefined
         }
       />
