@@ -227,3 +227,11 @@
 .email-editor .selectedCell { background: color-mix(in oklab, #2563eb 12%, transparent); }
 .email-editor mark { border-radius: 2px; padding: 0 1px; }
 
+
+/* Device labels (/devices/labels): print only the label area, true size. */
+@media print {
+  @page { size: A4; margin: 15mm 0 0 0; }
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; inset: 0 auto auto 0; width: 210mm; }
+}

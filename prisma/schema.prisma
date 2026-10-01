@@ -105,6 +105,10 @@ model User {
   commentLabels          CommentLabel[]
   designerBeliefs        DesignerBelief[]
   assignmentQueries      AssignmentQuery[]
+  devicesAssigned        DeviceAssignment[]      @relation("DeviceAssignedBy")
+  devicesReturned        DeviceAssignment[]      @relation("DeviceReturnedBy")
+  deviceTickets          DeviceTicket[]          @relation("DeviceTicketReporter")
+  deviceTicketEvents     DeviceTicketEvent[]     @relation("DeviceTicketEvents")
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 }
@@ -212,6 +216,8 @@ model Employee {
   leaveEntries        LeaveEntry[]
   previousEmployments PreviousEmployment[]
   jobAssignments      JobAssignee[]
+  devices             Device[]              @relation("DeviceHolder")
+  deviceAssignments   DeviceAssignment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -675,4 +681,119 @@ model AssignmentQuery {
   createdAt      DateTime  @default(now())
 
   @@index([userId, createdAt(sort: Desc)])
+}
+
+// --- Devices (laptops, mice, iPads, USB hubs) ---
+// Company devices with a QR label. The QR encodes /d/<publicToken>, a
+// random token so asset tags can't be enumerated from outside.
+
+enum DeviceType {
+  LAPTOP
+  MOUSE
+  IPAD
+  USB_HUB
+  OTHER
+}
+
+enum DeviceStatus {
+  IN_STOCK
+  ASSIGNED
+  IN_SERVICE
+  RETIRED
+  LOST
+}
+
+enum DeviceTicketStatus {
+  OPEN
+  SENT_FOR_SERVICE
+  RESOLVED
+  CANCELLED
+}
+
+model Device {
+  id             String       @id @default(cuid())
+  assetTag       String       @unique // MAD-LAP-0007
+  publicToken    String       @unique
+  type           DeviceType
+  brand          String
+  model          String
+  serialNumber   String?      @unique
+  specs          String?
+  purchaseDate   DateTime?    @db.Date
+  purchasePrice  Decimal?     @db.Decimal(12, 2)
+  vendor         String?
+  warrantyEndsOn DateTime?    @db.Date
+  notes          String?
+  status         DeviceStatus @default(IN_STOCK)
+  // Current holder, kept in step with the open DeviceAssignment.
+  holder         Employee?    @relation("DeviceHolder", fields: [holderId], references: [id], onDelete: SetNull)
+  holderId       String?
+
+  assignments DeviceAssignment[]
+  tickets     DeviceTicket[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([holderId])
+}
+
+/// Who held a device and when. Open row = returnedAt null.
+model DeviceAssignment {
+  id           String    @id @default(cuid())
+  device       Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  deviceId     String
+  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId   String
+  assignedAt   DateTime  @default(now())
+  returnedAt   DateTime?
+  conditionOut String?
+  conditionIn  String?
+  assignedBy   User?     @relation("DeviceAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  assignedById String?
+  returnedBy   User?     @relation("DeviceReturnedBy", fields: [returnedById], references: [id], onDelete: SetNull)
+  returnedById String?
+
+  @@index([deviceId, assignedAt(sort: Desc)])
+  @@index([employeeId])
+}
+
+/// An issue reported on a device, and its trip to service if it went.
+model DeviceTicket {
+  id             String              @id @default(cuid())
+  device         Device              @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  deviceId       String
+  title          String
+  description    String
+  status         DeviceTicketStatus  @default(OPEN)
+  reportedBy     User?               @relation("DeviceTicketReporter", fields: [reportedById], references: [id], onDelete: SetNull)
+  reportedById   String?
+  serviceVendor  String?
+  sentAt         DateTime?
+  expectedBackOn DateTime?           @db.Date
+  returnedAt     DateTime?
+  cost           Decimal?            @db.Decimal(12, 2)
+  resolution     String?
+  events         DeviceTicketEvent[]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([deviceId, createdAt(sort: Desc)])
+  @@index([status])
+}
+
+/// One row per ticket status move (Open → Sent for service …).
+model DeviceTicketEvent {
+  id          String       @id @default(cuid())
+  ticket      DeviceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticketId    String
+  fromStatus  String? // null = ticket created
+  toStatus    String
+  note        String?
+  changedBy   User?        @relation("DeviceTicketEvents", fields: [changedById], references: [id], onDelete: SetNull)
+  changedById String?
+  changedAt   DateTime     @default(now())
+
+  @@index([ticketId, changedAt])
 }

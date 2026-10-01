@@ -40,6 +40,7 @@ export const NAV: NavGroup[] = [
       // Assignment Intelligence: who should take a design job.
       { title: "Assign", url: "/assign", roles: HR_OR_MANAGER },
       { title: "Freelancers", url: "/freelancers", roles: HR_OR_MANAGER },
+      { title: "Devices", url: "/devices", roles: HR_OR_MANAGER },
     ],
   },
   {

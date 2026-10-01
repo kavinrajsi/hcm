@@ -20,11 +20,20 @@ function createClient() {
   return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 }
 
-// Singleton across dev HMR reloads.
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+// Singleton across dev HMR reloads. After `prisma generate` the generated
+// client module (and its class) is new, so a cached client from the old one
+// would lack new models; rebuild it instead of reusing it.
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient;
+  prismaClass?: typeof PrismaClient;
+};
 
-export const db = globalForPrisma.prisma ?? createClient();
+const cached =
+  globalForPrisma.prismaClass === PrismaClient ? globalForPrisma.prisma : undefined;
+
+export const db = cached ?? createClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = db;
+  globalForPrisma.prismaClass = PrismaClient;
 }

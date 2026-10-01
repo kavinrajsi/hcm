@@ -93,11 +93,11 @@ export default async function LabelJobPage({
         actions={
           <>
             <Badge variant="outline">{job.evalSet ?? "not in sample"}</Badge>
-            <Button variant="outline" render={<Link href="/assign/labels" />}>
+            <Button variant="outline" nativeButton={false} render={<Link href="/assign/labels" />}>
               All jobs
             </Button>
             {next && (
-              <Button render={<Link href={`/assign/labels/${next.id}`} />}>
+              <Button nativeButton={false} render={<Link href={`/assign/labels/${next.id}`} />}>
                 Next unlabelled
               </Button>
             )}

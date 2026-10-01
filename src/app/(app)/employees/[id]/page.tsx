@@ -13,6 +13,7 @@ import { updateEmployee } from "../actions";
 import { EmployeeForm, type SensitiveMasks } from "../employee-form";
 import { IdCardHistory } from "./id-card-history";
 import { LeaveHistory } from "./leave-history";
+import { EmployeeDevices } from "../../devices/employee-devices";
 import {
   CreateLoginButton,
   RoleSelect,
@@ -293,6 +294,7 @@ export default async function EmployeePage({
           }}
         />
       </div>
+      <EmployeeDevices employeeId={employee.id} title="Devices" history />
     </PageShell>
   );
 }

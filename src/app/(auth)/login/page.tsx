@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/rbac";
 import { signIn } from "@/lib/auth";
 import { AuthError } from "next-auth";
+import { safeCallbackPath } from "@/lib/safe-redirect";
 
 export const metadata = { title: "Sign in" };
 
@@ -11,11 +12,14 @@ async function credentialsSignIn(formData: FormData) {
     await signIn("credentials", {
       email: formData.get("email"),
       password: formData.get("password"),
-      redirectTo: "/",
+      redirectTo: safeCallbackPath(formData.get("callbackUrl")),
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      redirect("/login?error=invalid");
+      const back = safeCallbackPath(formData.get("callbackUrl"));
+      redirect(
+        `/login?error=invalid${back !== "/" ? `&callbackUrl=${encodeURIComponent(back)}` : ""}`,
+      );
     }
     throw error;
   }
@@ -24,8 +28,10 @@ async function credentialsSignIn(formData: FormData) {
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   // Only an active account skips the login form; a disabled one keeps its
   // cookie but must not bounce between here and the app.
-  if (await currentUser()) redirect("/");
-  const { error } = await searchParams;
+  const { error, callbackUrl } = await searchParams;
+  // Where to go after signing in, e.g. back to a scanned device label.
+  const back = safeCallbackPath(callbackUrl);
+  if (await currentUser()) redirect(back);
 
   const inputClass =
     "w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900";
@@ -39,6 +45,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         </p>
 
         <form action={credentialsSignIn} className="mt-8 flex flex-col gap-3">
+          <input type="hidden" name="callbackUrl" value={back} />
           <input
             name="email"
             type="email"

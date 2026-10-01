@@ -30,6 +30,7 @@ import { LEAVE_TYPE_LABELS } from "@/lib/leave";
 import { NameForm, PasswordForm } from "./profile-forms";
 import { formatDateTime, formatDay, formatInstantDay } from "@/lib/format-date";
 import { EmployeeAvatar } from "@/components/employee-avatar";
+import { EmployeeDevices } from "../devices/employee-devices";
 
 export const metadata = { title: "My Profile" };
 
@@ -176,7 +177,9 @@ export default async function ProfilePage() {
         </h1>
       </div>
 
-      <h2 className="mt-6 text-lg font-medium">Log work (Quantum Sheet)</h2>
+      <EmployeeDevices employeeId={employee.id} title="My devices" />
+
+      <h2 className="mt-10 text-lg font-medium">Log work (Quantum Sheet)</h2>
       <div className="mt-3">
         <QuantumEntryForm employeeId={employee.id} />
       </div>
