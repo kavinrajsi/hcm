@@ -14,6 +14,7 @@ import { EmployeeForm, type SensitiveMasks } from "../employee-form";
 import { IdCardHistory } from "./id-card-history";
 import { LeaveHistory } from "./leave-history";
 import { EmployeeDevices } from "../../devices/employee-devices";
+import { BasecampAccess } from "./basecamp-access";
 import {
   CreateLoginButton,
   RoleSelect,
@@ -294,6 +295,12 @@ export default async function EmployeePage({
           }}
         />
       </div>
+      <section className="mt-10">
+        <h2 className="text-lg font-medium">Basecamp</h2>
+        <div className="mt-3">
+          <BasecampAccess employeeId={employee.id} linked={Boolean(employee.basecampPersonId)} />
+        </div>
+      </section>
       <EmployeeDevices employeeId={employee.id} title="Devices" history provision />
     </PageShell>
   );

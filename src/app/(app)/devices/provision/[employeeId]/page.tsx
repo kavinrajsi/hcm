@@ -7,6 +7,7 @@ import { SALES_KINDS } from "@/lib/devices/vendors";
 import { vendorCatalog, vendorRecipients } from "@/lib/devices/purchase";
 import { DEVICE_OS_LABELS, osSuffix, recommendedOs } from "@/lib/devices/os";
 import { laptopOsMap } from "@/lib/devices/os-settings";
+import { ONBOARD_MESSAGES } from "@/lib/basecamp-onboard";
 import { formatDay } from "@/lib/format-date";
 import { PageHeader, PageShell } from "@/components/page";
 import { Button } from "@/components/ui/button";
@@ -25,11 +26,13 @@ export default async function ProvisionPage({
   searchParams,
 }: {
   params: Promise<{ employeeId: string }>;
-  searchParams: Promise<{ new?: string }>;
+  searchParams: Promise<{ new?: string; basecamp?: string }>;
 }) {
   await requireRole("HR_ADMIN");
   const { employeeId } = await params;
-  const isNew = (await searchParams).new === "1";
+  const query = await searchParams;
+  const isNew = query.new === "1";
+  const basecampStatus = query.basecamp as keyof typeof ONBOARD_MESSAGES | undefined;
   const employee = await db.employee.findUnique({
     where: { id: employeeId },
     select: { id: true, name: true, empId: true, designation: true, dateOfJoining: true },
@@ -93,6 +96,25 @@ export default async function ProvisionPage({
       {isNew && (
         <p className="mt-4 rounded-md bg-muted px-3 py-2 text-sm">
           {employee.name} has been added. Give them a standby device, or ask a vendor for one.
+        </p>
+      )}
+      {basecampStatus && basecampStatus in ONBOARD_MESSAGES && (
+        <p
+          className={
+            basecampStatus === "failed" || basecampStatus === "skipped"
+              ? "mt-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+              : "mt-2 rounded-md bg-muted px-3 py-2 text-sm"
+          }
+        >
+          Basecamp: {ONBOARD_MESSAGES[basecampStatus]}
+          {(basecampStatus === "failed" || basecampStatus === "skipped") && (
+            <>
+              {" "}
+              <Link href={`/employees/${employee.id}`} className="underline">
+                Try again from their page
+              </Link>
+            </>
+          )}
         </p>
       )}
 

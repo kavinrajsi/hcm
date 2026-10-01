@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
+import { addEmployeeToBasecamp, type BasecampOnboardResult } from "@/lib/basecamp-onboard";
 import { blindIndex, encryptField, normalizeIdentifier } from "@/lib/crypto";
 import { deleteDocument, uploadDocument } from "@/lib/blob";
 import { encryptPii } from "@/lib/employee-pii";
@@ -381,8 +382,20 @@ export async function createEmployee(
   revalidatePath("/onboarding");
   revalidatePath("/id-cards");
   revalidatePath("/users");
+
+  // Basecamp: into All-General Stuffs (invite if new). Never blocks the save.
+  const basecamp = await Promise.race<BasecampOnboardResult>([
+    addEmployeeToBasecamp(employee.id).catch((error) => ({
+      status: "failed" as const,
+      reason: error instanceof Error ? error.message : "Basecamp request failed",
+    })),
+    new Promise((resolve) =>
+      setTimeout(() => resolve({ status: "failed", reason: "Basecamp took too long" }), 20_000),
+    ),
+  ]);
+
   // Next: give the new joiner a standby device or order one.
-  redirect(`/devices/provision/${employee.id}?new=1`);
+  redirect(`/devices/provision/${employee.id}?new=1&basecamp=${basecamp.status}`);
 }
 
 export async function importEmployees(
@@ -683,4 +696,22 @@ export async function updateEmployee(
   revalidatePath("/probation");
   revalidatePath("/onboarding");
   redirect(`/employees/${employeeId}`);
+}
+
+export type BasecampAddState = { ok?: string; error?: string };
+
+/** HR: (re)try adding an employee to All-General Stuffs on Basecamp. */
+export async function addToBasecamp(
+  _prev: BasecampAddState,
+  formData: FormData,
+): Promise<BasecampAddState> {
+  await requireRole("HR_ADMIN");
+  const employeeId = formData.get("employeeId");
+  if (typeof employeeId !== "string") return { error: "Missing employee" };
+  const { ONBOARD_MESSAGES } = await import("@/lib/basecamp-onboard");
+  const result = await addEmployeeToBasecamp(employeeId);
+  revalidatePath(`/employees/${employeeId}`);
+  return result.status === "failed" || result.status === "skipped"
+    ? { error: `${ONBOARD_MESSAGES[result.status]} ${result.reason}.` }
+    : { ok: ONBOARD_MESSAGES[result.status] };
 }

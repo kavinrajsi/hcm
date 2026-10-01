@@ -529,3 +529,58 @@ export async function listTodosUpdatedSince(
     .filter((todo) => todo.updated_at >= sinceIso)
     .map((todo) => ({ ...todo, completion: todo.completion ?? null }) as BasecampTodoFull);
 }
+
+// --- Project access (new joiners → All-General Stuffs) ---
+
+/** The project every new employee joins (All-General Stuffs). */
+export function generalProjectConfig(): { accountId: string; projectId: string } {
+  return {
+    accountId: process.env.BASECAMP_LEAVE_ACCOUNT_ID ?? "3251537",
+    projectId: process.env.BASECAMP_GENERAL_PROJECT_ID ?? "1710547",
+  };
+}
+
+/** People who can already see a project. */
+export async function listProjectPeople(
+  accessToken: string,
+  accountId: string,
+  projectId: string,
+): Promise<BasecampPerson[]> {
+  return fetchAllPages<BasecampPerson>(
+    accessToken,
+    `https://3.basecampapi.com/${accountId}/projects/${projectId}/people.json`,
+    "HCM Onboarding (internal)",
+  );
+}
+
+/**
+ * Grants existing people access to a project and/or invites new people
+ * (Basecamp emails them an invitation). Returns who was granted.
+ */
+export async function updateProjectAccess(
+  accessToken: string,
+  accountId: string,
+  projectId: string,
+  body: {
+    grant?: number[];
+    create?: { name: string; email_address: string; title?: string; company_name?: string }[];
+  },
+): Promise<{ granted: BasecampPerson[] }> {
+  const response = await fetch(
+    `https://3.basecampapi.com/${accountId}/projects/${projectId}/people/users.json`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "User-Agent": "HCM Onboarding (internal)",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    },
+  );
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`Basecamp access update failed: ${response.status} ${text.slice(0, 200)}`);
+  }
+  return (await response.json()) as { granted: BasecampPerson[] };
+}

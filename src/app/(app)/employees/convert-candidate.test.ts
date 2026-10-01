@@ -19,6 +19,10 @@ const redirect = vi.hoisted(() =>
   }),
 );
 
+vi.mock("@/lib/basecamp-onboard", () => ({
+  addEmployeeToBasecamp: vi.fn(async () => ({ status: "invited", personId: null })),
+  ONBOARD_MESSAGES: {},
+}));
 vi.mock("@/lib/db", () => ({ db }));
 vi.mock("@/lib/rbac", () => ({
   requireRole: vi.fn(async () => ({ id: "hr", role: "HR_ADMIN" })),
@@ -81,7 +85,7 @@ beforeEach(() => {
 describe("Convert candidate → employee", () => {
   it("links the employee to the candidate and redirects to it", async () => {
     const result = await submit(newJoiner({ candidateId: "1277" }));
-    expect(result.redirectedTo).toBe("/devices/provision/emp1?new=1");
+    expect(result.redirectedTo).toBe("/devices/provision/emp1?new=1&basecamp=invited");
     expect(db.employee.create.mock.calls[0][0].data.candidateId).toBe(
       BigInt(1277),
     );
@@ -120,13 +124,13 @@ describe("Convert candidate → employee", () => {
     db.candidate.update.mockRejectedValue(new Error("db hiccup"));
     vi.spyOn(console, "error").mockImplementation(() => {});
     const result = await submit(newJoiner({ candidateId: "1277" }));
-    expect(result.redirectedTo).toBe("/devices/provision/emp1?new=1");
+    expect(result.redirectedTo).toBe("/devices/provision/emp1?new=1&basecamp=invited");
     expect(provisionLogin).toHaveBeenCalled();
   });
 
   it("ignores a malformed candidateId and adds a plain employee", async () => {
     const result = await submit(newJoiner({ candidateId: "1277; drop" }));
-    expect(result.redirectedTo).toBe("/devices/provision/emp1?new=1");
+    expect(result.redirectedTo).toBe("/devices/provision/emp1?new=1&basecamp=invited");
     expect(
       db.employee.create.mock.calls[0][0].data.candidateId,
     ).toBeUndefined();
@@ -135,7 +139,7 @@ describe("Convert candidate → employee", () => {
 
   it("accepts the form's blank Gender option ('—' posts an empty value)", async () => {
     const result = await submit(newJoiner({ gender: "", candidateId: "1277" }));
-    expect(result.redirectedTo).toBe("/devices/provision/emp1?new=1");
+    expect(result.redirectedTo).toBe("/devices/provision/emp1?new=1&basecamp=invited");
     expect(db.employee.create.mock.calls[0][0].data.gender).toBeUndefined();
   });
 
