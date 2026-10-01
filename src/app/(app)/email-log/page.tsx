@@ -13,6 +13,7 @@ import { ListCard } from "@/components/list-card";
 import { DesktopTable, MobileList, PageHeader, PageShell } from "@/components/page";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmailStatusBadge } from "./status";
+import { WebhookUrl } from "./webhook-url";
 
 export const metadata = { title: "Email log" };
 
@@ -205,8 +206,9 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
             and enter the same secret.
           </li>
           <li>
-            Add a webhook with URL <code>https://connect.madarth.com/api/webhooks/zeptomail</code> and tick Soft bounce, Hard
-            bounce, Email opens and Email clicks.
+            Add a webhook with this URL (it includes the secret as <code>?key=</code>), leave Authorization headers empty,
+            and tick Soft bounce, Hard bounce, Email opens and Email clicks:
+            {process.env.ZEPTOMAIL_WEBHOOK_SECRET ? <WebhookUrl /> : null}
           </li>
           <li>
             In the Mail Agent&apos;s settings, turn on <strong>open tracking</strong> (and click tracking if you want clicks).

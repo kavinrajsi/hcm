@@ -53,3 +53,14 @@ describe("resendEmail", () => {
     expect(sendEmail).not.toHaveBeenCalled();
   });
 });
+
+describe("revealWebhookUrl", () => {
+  it("returns the URL with the key for HR", async () => {
+    const { revealWebhookUrl } = await import("./actions");
+    process.env.ZEPTOMAIL_WEBHOOK_SECRET = "abc";
+    process.env.AUTH_URL = "https://connect.madarth.com";
+    expect(await revealWebhookUrl()).toEqual({ url: "https://connect.madarth.com/api/webhooks/zeptomail?key=abc" });
+    delete process.env.ZEPTOMAIL_WEBHOOK_SECRET;
+    expect((await revealWebhookUrl()).error).toMatch(/isn't set/);
+  });
+});

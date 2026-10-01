@@ -43,3 +43,12 @@ export async function resendEmail(_prev: FormState, formData: FormData): Promise
   if (latest) redirect(`/email-log/${latest.id}`);
   return { error: failed ?? "Resent, but the log entry is missing." };
 }
+
+/** HR: the ZeptoMail webhook URL with its key, fetched only on "Show". */
+export async function revealWebhookUrl(): Promise<{ url?: string; error?: string }> {
+  await requireRole("HR_ADMIN");
+  const secret = process.env.ZEPTOMAIL_WEBHOOK_SECRET?.trim();
+  if (!secret) return { error: "ZEPTOMAIL_WEBHOOK_SECRET isn't set on the server yet." };
+  const base = (process.env.AUTH_URL || "https://connect.madarth.com").replace(/\/$/, "");
+  return { url: `${base}/api/webhooks/zeptomail?key=${encodeURIComponent(secret)}` };
+}
