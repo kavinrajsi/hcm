@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
   assignmentQuery: { create: vi.fn(), updateMany: vi.fn() },
-  appSetting: { findUnique: vi.fn(async () => null) },
+  appSetting: { findUnique: vi.fn(async () => null), upsert: vi.fn() },
+  job: { groupBy: vi.fn(), findMany: vi.fn(), updateMany: vi.fn() },
   designerBelief: { count: vi.fn(async () => 0) },
 }));
 const classifyDescription = vi.hoisted(() => vi.fn());
@@ -79,5 +80,31 @@ describe("recordChoice", () => {
     db.assignmentQuery.updateMany.mockResolvedValue({ count: 1 });
     const state = await actions.recordChoice({}, form({ queryId: "q1", personId: "p9" }));
     expect(state).toEqual({ ok: true });
+  });
+});
+
+describe("drawSample", () => {
+  it("marks 30 train jobs for both coordinators the first time", async () => {
+    const pool = Array.from({ length: 200 }, (_, i) => ({ id: `j${i}` }));
+    db.job.groupBy.mockResolvedValue([]);
+    db.job.findMany
+      .mockResolvedValueOnce(pool) // candidates
+      .mockResolvedValueOnce(pool.slice(0, 60)); // the train set after drawing
+    const state = await actions.drawSample({}, form({ size: "150" }));
+    expect(state.ok).toMatch(/50 holdout, 40 dev, 60 train drawn\. 30 of the train jobs/);
+    const saved = db.appSetting.upsert.mock.calls[0][0].create.value.jobIds;
+    expect(saved).toHaveLength(30);
+  });
+
+  it("keeps the shared set when more jobs are drawn later", async () => {
+    db.appSetting.findUnique.mockResolvedValueOnce({ value: { jobIds: ["j1"] } } as never);
+    db.job.groupBy.mockResolvedValue([
+      { evalSet: "holdout", _count: { _all: 50 } },
+      { evalSet: "dev", _count: { _all: 40 } },
+    ]);
+    db.job.findMany.mockResolvedValueOnce([{ id: "j500" }, { id: "j501" }]);
+    const state = await actions.drawSample({}, form({ size: "10" }));
+    expect(state.ok).toBe("0 holdout, 0 dev, 2 train drawn.");
+    expect(db.appSetting.upsert).not.toHaveBeenCalled();
   });
 });

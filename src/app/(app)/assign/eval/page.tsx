@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
 import { loadHistories } from "@/lib/assign/data";
+import { sharedJobIds } from "@/lib/assign/shared";
 import {
   categoryAgreement,
   categoryMetrics,
@@ -62,6 +63,19 @@ export default async function EvalPage({
       take: 500,
     }),
   ]);
+  // Progress on the shared jobs both coordinators label.
+  const sharedIds = await sharedJobIds();
+  const [sharedComments, sharedByUser] = sharedIds.length
+    ? await Promise.all([
+        db.jobComment.count({ where: { jobId: { in: sharedIds } } }),
+        db.commentLabel.groupBy({
+          by: ["userId"],
+          where: { comment: { jobId: { in: sharedIds } } },
+          _count: { _all: true },
+        }),
+      ])
+    : [0, []];
+
   const users = await db.user.findMany({
     where: { id: { in: labellers.map((row) => row.userId) } },
     select: { id: true, name: true, email: true },
@@ -143,6 +157,16 @@ export default async function EvalPage({
       </Section>
 
       <Section title="Do the coordinators agree with each other?">
+        {sharedIds.length > 0 && (
+          <p className="mb-3 text-sm text-zinc-500">
+            Shared set: {sharedIds.length} jobs, {sharedComments} comments.{" "}
+            {sharedByUser.length === 0
+              ? "Nobody has started it yet."
+              : sharedByUser
+                  .map((row) => `${userName(row.userId)} ${row._count._all} / ${sharedComments}`)
+                  .join(", ") + "."}
+          </p>
+        )}
         {agreementPair ? (
           <>
             <p className="text-sm">
@@ -173,8 +197,8 @@ export default async function EvalPage({
           </>
         ) : (
           <p className="text-sm text-zinc-500">
-            Needs two people to label the same comments. Both coordinators should read the same
-            30 threads separately.
+            Needs two people to label the same comments: both coordinators label the jobs marked
+            Both on the Label comments tab, separately.
           </p>
         )}
       </Section>

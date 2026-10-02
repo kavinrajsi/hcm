@@ -56,7 +56,10 @@ Every pick shows the jobs behind it with Basecamp links.
 `src/lib/assign/eval.ts` and the "How well it reads" page:
 
 1. **Labels vs labels** — Cohen's kappa per category between the two
-   coordinators on comments both have read.
+   coordinators on comments both have read. Drawing the sample picks 30
+   train jobs once (`src/lib/assign/shared.ts`, AppSetting
+   `assign.sharedJobs`); the labels page marks them "Both" and lists them
+   first, and "Next unlabelled" serves them before anything else.
 2. **Model vs labels** — precision / recall / F1 per category on the dev
    set; the holdout set is shown only to HR and only on request
    (`/assign/eval?holdout=1`).
@@ -72,5 +75,5 @@ Every pick shows the jobs behind it with Basecamp links.
 | `/assign` | HR, managers | Ask "who should take this?"; record the choice; HR syncs and classifies |
 | `/assign/labels` | HR, managers | Draw the sample (HR); list of sample jobs and your progress |
 | `/assign/labels/[jobId]` | HR, managers | Read one thread, tick categories, fix the job kind |
-| `/assign/beliefs` | HR, managers | Write beliefs down once |
+| `/assign/beliefs` | HR, managers | Write beliefs down once; HR names the floor manager, who sees no suggestions until his beliefs exist (`src/lib/assign/floor-manager.ts`) |
 | `/assign/eval` | HR, managers | The four measurements above |

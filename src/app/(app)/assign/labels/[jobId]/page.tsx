@@ -13,6 +13,7 @@ import { setJobKind } from "../../actions";
 import { ValidatedForm } from "@/components/form/validated-form";
 import { FormField } from "@/components/form/form-field";
 import { LabelForm, type CommentToLabel } from "./label-form";
+import { sharedJobIds } from "@/lib/assign/shared";
 
 export const metadata = { title: "Label comments" };
 
@@ -58,15 +59,21 @@ export default async function LabelJobPage({
   if (!job) notFound();
 
   // Next job in the same set that still has a comment you haven't read.
-  const next = await db.job.findFirst({
-    where: {
-      evalSet: job.evalSet,
-      id: { not: job.id },
-      comments: { some: { labels: { none: { userId: user.id } } } },
-    },
-    orderBy: { completedAt: "desc" },
-    select: { id: true },
-  });
+  // Shared jobs come first: until you've done them all, "next" is one of them.
+  const sharedIds = await sharedJobIds();
+  const isShared = sharedIds.includes(job.id);
+  const unlabelledByMe = { comments: { some: { labels: { none: { userId: user.id } } } } };
+  const next =
+    (await db.job.findFirst({
+      where: { id: { in: sharedIds, not: job.id }, ...unlabelledByMe },
+      orderBy: { completedAt: "desc" },
+      select: { id: true },
+    })) ??
+    (await db.job.findFirst({
+      where: { evalSet: job.evalSet, id: { not: job.id }, ...unlabelledByMe },
+      orderBy: { completedAt: "desc" },
+      select: { id: true },
+    }));
 
   const comments: CommentToLabel[] = job.comments.map((comment) => ({
     id: comment.id,
@@ -94,6 +101,7 @@ export default async function LabelJobPage({
         }
         actions={
           <>
+            {isShared && <Badge>Both</Badge>}
             <Badge variant="outline">{job.evalSet ?? "not in sample"}</Badge>
             <Button variant="outline" nativeButton={false} render={<Link href="/assign/labels" />}>
               All jobs
@@ -106,6 +114,13 @@ export default async function LabelJobPage({
           </>
         }
       />
+
+      {isShared && (
+        <p className="mt-4 rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800">
+          Both coordinators label this job, separately. Don&rsquo;t compare notes until you&rsquo;ve
+          both finished the shared set.
+        </p>
+      )}
 
       {job.description && (
         <p className="mt-4 rounded-md bg-muted px-3 py-2 text-sm whitespace-pre-wrap">

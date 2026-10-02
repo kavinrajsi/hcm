@@ -10,6 +10,7 @@ import { classifyDescription, classifyPending } from "@/lib/assign/classify";
 import { listDesigners, loadHistories } from "@/lib/assign/data";
 import { splitSample } from "@/lib/assign/eval";
 import { FLOOR_MANAGER_SETTING, suggestionsLockedFor } from "@/lib/assign/floor-manager";
+import { SHARED_SETTING, pickSharedJobs, sharedJobIds } from "@/lib/assign/shared";
 import { suggest, type SuggestionResult } from "@/lib/assign/suggest";
 import {
   BELIEF_LEVELS,
@@ -170,7 +171,7 @@ export async function drawSample(
   _prev: SampleState,
   formData: FormData,
 ): Promise<SampleState> {
-  await requireRole("HR_ADMIN");
+  const hr = await requireRole("HR_ADMIN");
   const size = Math.min(500, Math.max(10, Number(formData.get("size")) || 150));
   const [existing, candidates] = await Promise.all([
     db.job.groupBy({ by: ["evalSet"], where: { evalSet: { not: null } }, _count: { _all: true } }),
@@ -200,9 +201,25 @@ export async function drawSample(
       data: { evalSet: set },
     });
   }
+  // The shared jobs both coordinators label, picked once from train.
+  const existingShared = await sharedJobIds();
+  let sharedNote = "";
+  if (existingShared.length === 0) {
+    const train = await db.job.findMany({ where: { evalSet: "train" }, select: { id: true } });
+    const shared = pickSharedJobs(train.map((job) => job.id), []);
+    if (shared.length > 0) {
+      await db.appSetting.upsert({
+        where: { key: SHARED_SETTING },
+        create: { key: SHARED_SETTING, value: { jobIds: shared }, updatedById: hr.id },
+        update: { value: { jobIds: shared }, updatedById: hr.id },
+      });
+      sharedNote = ` ${shared.length} of the train jobs are marked for both coordinators.`;
+    }
+  }
   revalidatePath("/assign/labels");
+  revalidatePath("/assign/eval");
   return {
-    ok: sets.map(([set, jobs]) => `${jobs.length} ${set}`).join(", ") + " drawn.",
+    ok: sets.map(([set, jobs]) => `${jobs.length} ${set}`).join(", ") + " drawn." + sharedNote,
   };
 }
 

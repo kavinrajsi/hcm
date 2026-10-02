@@ -21,13 +21,15 @@ import {
 } from "@/components/ui/table";
 import { AssignTabs } from "../tabs";
 import { SampleForm } from "./sample-form";
+import { sharedJobIds } from "@/lib/assign/shared";
 
 export const metadata = { title: "Label comments" };
 
-const SETS = ["all", "train", "dev", "holdout"] as const;
+const SETS = ["all", "shared", "train", "dev", "holdout"] as const;
 type SetFilter = (typeof SETS)[number];
 const SET_LABELS: Record<SetFilter, string> = {
   all: "All",
+  shared: "Both label",
   train: "Train",
   dev: "Dev",
   holdout: "Holdout",
@@ -44,10 +46,17 @@ export default async function LabelsPage({
     ? (params.set as SetFilter)
     : "all";
 
+  const sharedIds = await sharedJobIds();
+  const shared = new Set(sharedIds);
   const [drawn, jobs] = await Promise.all([
     db.job.count({ where: { evalSet: { not: null } } }),
     db.job.findMany({
-      where: set === "all" ? { evalSet: { not: null } } : { evalSet: set },
+      where:
+        set === "all"
+          ? { evalSet: { not: null } }
+          : set === "shared"
+            ? { id: { in: sharedIds } }
+            : { evalSet: set },
       orderBy: [{ evalSet: "asc" }, { completedAt: "desc" }],
       select: {
         id: true,
@@ -66,12 +75,18 @@ export default async function LabelsPage({
     }),
   ]);
 
-  const rows = jobs.map((job) => ({
-    ...job,
-    total: job.comments.length,
-    mine: job.comments.filter((comment) => comment.labels.length > 0).length,
-  }));
-  const finished = rows.filter((row) => row.total > 0 && row.mine === row.total).length;
+  // Shared jobs first: both coordinators label them before anything else.
+  const rows = jobs
+    .map((job) => ({
+      ...job,
+      shared: shared.has(job.id),
+      total: job.comments.length,
+      mine: job.comments.filter((comment) => comment.labels.length > 0).length,
+    }))
+    .sort((a, b) => Number(b.shared) - Number(a.shared));
+  const isDone = (row: { total: number; mine: number }) => row.total > 0 && row.mine === row.total;
+  const finished = rows.filter(isDone).length;
+  const sharedRows = rows.filter((row) => row.shared);
 
   return (
     <PageShell width="md">
@@ -106,6 +121,16 @@ export default async function LabelsPage({
             </p>
           </div>
 
+          {sharedIds.length > 0 && (
+            <p className="mt-3 rounded-xl border border-zinc-200 px-4 py-3 text-sm dark:border-zinc-800">
+              <span className="font-medium">Both coordinators label the {sharedIds.length} jobs marked Both</span>
+              {" "}— separately, without comparing notes. That&rsquo;s how agreement is measured.
+              {set === "all" || set === "shared"
+                ? ` You've finished ${sharedRows.filter(isDone).length} of them.`
+                : ""}
+            </p>
+          )}
+
           <div className="mt-4">
             <DesktopTable>
               <Table>
@@ -128,7 +153,7 @@ export default async function LabelsPage({
                       </TableCell>
                       <TableCell>{isJobKind(row.kind) ? JOB_KIND_LABELS[row.kind] : "—"}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{row.evalSet}</Badge>
+                        <SetBadges set={row.evalSet} shared={row.shared} />
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         <Progress mine={row.mine} total={row.total} />
@@ -145,7 +170,7 @@ export default async function LabelsPage({
                   href={`/assign/labels/${row.id}`}
                   title={row.title}
                   subtitle={row.bucketName}
-                  badge={<Badge variant="outline">{row.evalSet}</Badge>}
+                  badge={<SetBadges set={row.evalSet} shared={row.shared} />}
                   meta={
                     <>
                       <span>{isJobKind(row.kind) ? JOB_KIND_LABELS[row.kind] : "—"}</span>
@@ -167,6 +192,15 @@ function Progress({ mine, total }: { mine: number; total: number }) {
   return (
     <span className={done ? "text-emerald-600 dark:text-emerald-400" : mine ? "text-amber-600" : "text-zinc-500"}>
       {mine} / {total}
+    </span>
+  );
+}
+
+function SetBadges({ set, shared }: { set: string | null; shared: boolean }) {
+  return (
+    <span className="inline-flex gap-1">
+      {shared && <Badge>Both</Badge>}
+      <Badge variant="outline">{set}</Badge>
     </span>
   );
 }
