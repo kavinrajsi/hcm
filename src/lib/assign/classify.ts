@@ -149,7 +149,13 @@ export async function classifyComments(
   examples: LabelledExample[] = [],
   trigger?: AiTrigger,
 ): Promise<{ id: string; labels: CommentCategory[] }[]> {
-  if (comments.length === 0) return [];
+  // A comment with no text is an attachment upload: a handoff. The model
+  // drops empty items from its answer, which left them unread forever.
+  const empty = comments
+    .filter((comment) => !comment.text.trim())
+    .map((comment) => ({ id: comment.id, labels: ["HANDOFF"] as CommentCategory[] }));
+  comments = comments.filter((comment) => comment.text.trim());
+  if (comments.length === 0) return empty;
   const usage = {
     feature: "assign-comments",
     trigger,
@@ -184,12 +190,15 @@ export async function classifyComments(
     ...gatewayCost(result.providerMetadata),
   });
   const ids = new Set(comments.map((comment) => comment.id));
-  return result.output.items
-    .filter((item) => ids.has(item.id))
-    .map((item) => {
-      const labels = normalizeCategories(item.labels);
-      return { id: item.id, labels: labels.length ? labels : ["OTHER"] };
-    });
+  return [
+    ...empty,
+    ...result.output.items
+      .filter((item) => ids.has(item.id))
+      .map((item) => {
+        const labels = normalizeCategories(item.labels);
+        return { id: item.id, labels: labels.length ? labels : ["OTHER" as const] };
+      }),
+  ];
 }
 
 // --- Pending work, paced for the Gateway free tier ---
