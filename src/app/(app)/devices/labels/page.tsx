@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import {
   DEVICE_STATUS_LABELS,
   DEVICE_TYPE_LABELS,
@@ -24,7 +24,7 @@ export default async function LabelsPage({
 }: {
   searchParams: Promise<{ ids?: string | string[]; layout?: string }>;
 }) {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
   const params = await searchParams;
   const ids = (Array.isArray(params.ids) ? params.ids : (params.ids ?? "").split(","))
     .flatMap((value) => value.split(","))

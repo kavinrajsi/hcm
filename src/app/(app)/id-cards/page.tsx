@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import {
   optionsByCount,
   parseTableParams,
@@ -41,7 +41,7 @@ const STATUS_OPTIONS = ID_CARD_STATUSES.map(([value, label]) => ({
 export default async function IdCardsPage({
   searchParams,
 }: PageProps<"/id-cards">) {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
   const raw = await searchParams;
   const params = parseTableParams(raw);
 

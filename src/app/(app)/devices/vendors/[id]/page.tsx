@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import {
   formatRupees,
   DEVICE_STATUS_LABELS,
@@ -18,7 +18,7 @@ import { setVendorActive } from "../actions";
 export const metadata = { title: "Vendor" };
 
 export default async function VendorPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
   const { id } = await params;
   const vendor = await db.vendor.findUnique({
     where: { id },

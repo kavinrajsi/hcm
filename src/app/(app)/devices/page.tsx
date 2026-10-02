@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Prisma } from "@/generated/prisma/client";
 import type { DeviceStatus } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { optionsByCount, parseTableParams, stringParam } from "@/lib/table-params";
 import { dayRange } from "@/lib/date-filter";
 import {
@@ -44,7 +44,7 @@ export const metadata = { title: "Devices" };
 type Search = Record<string, string | string[] | undefined>;
 
 export default async function DevicesPage({ searchParams }: { searchParams: Promise<Search> }) {
-  const user = await requireRole("HR_ADMIN", "MANAGER");
+  const user = await requirePageRole("HR_ADMIN", "MANAGER");
   const raw = await searchParams;
   const params = parseTableParams(raw);
   const status: DeviceStatus | undefined = isDeviceStatus(raw.status) ? raw.status : undefined;

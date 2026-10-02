@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { catalogEmail } from "@/lib/email-catalog";
 import { PageHeader, PageShell } from "@/components/page";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: { params: Promise<{ key: stri
 
 // HR: one email's details and a preview rendered with sample data.
 export default async function EmailTemplatePage({ params }: { params: Promise<{ key: string }> }) {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
   const email = await catalogEmail((await params).key);
   if (!email) notFound();
   const rendered = await email.render();

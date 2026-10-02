@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { JOB_KIND_LABELS, isJobKind } from "@/lib/assign/taxonomy";
 import { Badge } from "@/components/ui/badge";
 import { ListCard } from "@/components/list-card";
@@ -38,7 +38,7 @@ export default async function LabelsPage({
 }: {
   searchParams: Promise<{ set?: string }>;
 }) {
-  const user = await requireRole("HR_ADMIN", "MANAGER");
+  const user = await requirePageRole("HR_ADMIN", "MANAGER");
   const params = await searchParams;
   const set: SetFilter = (SETS as readonly string[]).includes(params.set ?? "")
     ? (params.set as SetFilter)

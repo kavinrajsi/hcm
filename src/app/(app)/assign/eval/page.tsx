@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { loadHistories } from "@/lib/assign/data";
 import {
   categoryAgreement,
@@ -38,7 +38,7 @@ export default async function EvalPage({
 }: {
   searchParams: Promise<{ holdout?: string }>;
 }) {
-  const user = await requireRole("HR_ADMIN", "MANAGER");
+  const user = await requirePageRole("HR_ADMIN", "MANAGER");
   const revealHoldout = user.role === "HR_ADMIN" && (await searchParams).holdout === "1";
 
   const [sample, labellers, labelled, beliefs, queries] = await Promise.all([

@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { forbidden, notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { db } from "@/lib/db";
-import { AuthorizationError, requireUser } from "@/lib/rbac";
+import { requireUser } from "@/lib/rbac";
 import { deviceAccess } from "@/lib/devices/access";
 import {
   DEVICE_STATUS_CLASSES,
@@ -75,7 +75,7 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
   });
   if (!device) notFound();
   const access = deviceAccess(user, device);
-  if (!access) throw new AuthorizationError();
+  if (!access) forbidden();
   const manage = access === "manage";
 
   // AUTH_URL wins (deviceScanUrl); the request host is the fallback.

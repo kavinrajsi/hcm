@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { redirect } from "next/navigation";
+import { forbidden, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/generated/prisma/enums";
@@ -70,4 +70,30 @@ export async function requireSelfOrRole(
   });
   if (employee?.userId === user.id) return user;
   throw new AuthorizationError();
+}
+
+/**
+ * Page and layout versions of the guards: a wrong role renders the 403 page
+ * (app/forbidden.tsx) instead of throwing, so it isn't logged as a server
+ * error. Server Actions keep requireRole, whose throw callers catch.
+ */
+export async function requirePageRole(...roles: Role[]): Promise<SessionUser> {
+  try {
+    return await requireRole(...roles);
+  } catch (error) {
+    if (error instanceof AuthorizationError) forbidden();
+    throw error;
+  }
+}
+
+export async function requirePageSelfOrRole(
+  employeeId: string,
+  ...roles: Role[]
+): Promise<SessionUser> {
+  try {
+    return await requireSelfOrRole(employeeId, ...roles);
+  } catch (error) {
+    if (error instanceof AuthorizationError) forbidden();
+    throw error;
+  }
 }

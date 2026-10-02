@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { DEVICE_STATUS_LABELS, DEVICE_TYPE_LABELS } from "@/lib/devices/devices";
 import { SALES_KINDS } from "@/lib/devices/vendors";
 import { vendorCatalog, vendorRecipients } from "@/lib/devices/purchase";
@@ -28,7 +28,7 @@ export default async function ProvisionPage({
   params: Promise<{ employeeId: string }>;
   searchParams: Promise<{ new?: string; basecamp?: string }>;
 }) {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
   const { employeeId } = await params;
   const query = await searchParams;
   const isNew = query.new === "1";

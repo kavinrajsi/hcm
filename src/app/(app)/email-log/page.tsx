@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { parseTableParams, stringParam } from "@/lib/table-params";
 import { instantRange } from "@/lib/date-filter";
 import { formatDateTime } from "@/lib/format-date";
@@ -29,7 +29,7 @@ const STATUS_FILTERS: Record<string, { label: string; where: Prisma.EmailLogWher
 };
 
 export default async function EmailLogPage({ searchParams }: { searchParams: Promise<Search> }) {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
   const raw = await searchParams;
   const params = parseTableParams(raw);
   const kind = isEmailKind(raw.kind) ? raw.kind : undefined;

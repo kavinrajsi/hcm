@@ -1,5 +1,5 @@
 import { gateway } from "ai";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import {
   AI_FEATURE_LABELS,
   AI_RANGES,
@@ -107,7 +107,7 @@ const trigger = (triggerKey: string | null) =>
 export default async function AiUsagePage({
   searchParams,
 }: PageProps<"/ai-usage">) {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
   const raw = (await searchParams).range;
   const range: AiRange = AI_RANGES.includes(raw as AiRange)
     ? (raw as AiRange)

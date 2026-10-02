@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import {
   basecampConfigured,
   getAccessToken,
@@ -43,7 +43,7 @@ function formatDuration(mins: number) {
 export default async function QuantumPage({
   searchParams,
 }: PageProps<"/quantum">) {
-  const user = await requireRole("HR_ADMIN", "MANAGER");
+  const user = await requirePageRole("HR_ADMIN", "MANAGER");
   const raw = await searchParams;
   const params = parseTableParams(raw);
   const employeeFilter = typeof raw.employee === "string" ? raw.employee : "";

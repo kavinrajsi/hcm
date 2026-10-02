@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { emailCatalog, type CatalogEmail } from "@/lib/email-catalog";
 import { PageHeader, PageShell } from "@/components/page";
 
@@ -10,7 +10,7 @@ const GROUPS: CatalogEmail["group"][] = ["Accounts", "Employees", "Reminders", "
 // HR: every email HCM sends, when it goes out and to whom. Each opens a
 // preview built by the real template with sample data.
 export default async function EmailTemplatesPage() {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
   const emails = await emailCatalog();
   const subjects = await Promise.all(emails.map((email) => email.render().then((rendered) => rendered.subject)));
   const subjectOf = new Map(emails.map((email, index) => [email.key, subjects[index]]));

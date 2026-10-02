@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import {
   Table,
   TableBody,
@@ -31,7 +31,7 @@ const TEMPLATE_TYPES = [
 export const metadata = { title: "Letters" };
 
 export default async function LettersPage() {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
 
   const [employees, letters, templates] = await Promise.all([
     db.employee.findMany({

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import {
   Table,
   TableBody,
@@ -24,7 +24,7 @@ export const metadata = { title: "Review Meetings" };
 // Schema stub (ReviewMeeting: employee, date, notes) exists so records
 // created elsewhere surface here once the module is specced.
 export default async function ReviewsPage() {
-  await requireRole("HR_ADMIN", "MANAGER");
+  await requirePageRole("HR_ADMIN", "MANAGER");
 
   const meetings = await db.reviewMeeting.findMany({
     orderBy: { date: "desc" },

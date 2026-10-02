@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { PageHeader, PageShell } from "@/components/page";
 import { EMPTY_VENDOR, VendorForm } from "../vendor-form";
 
@@ -9,7 +9,7 @@ export default async function NewVendorPage({
 }: {
   searchParams: Promise<{ back?: string }>;
 }) {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
   const { back } = await searchParams;
   return (
     <PageShell width="md">

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { PII_SELECT, readPii } from "@/lib/employee-pii";
 import {
   celebrationsForMonth,
@@ -42,7 +42,7 @@ const todayIst = () =>
 export default async function BirthdaysPage({
   searchParams,
 }: PageProps<"/birthdays">) {
-  const user = await requireRole("HR_ADMIN", "MANAGER");
+  const user = await requirePageRole("HR_ADMIN", "MANAGER");
   const raw = await searchParams;
   const today = todayIst();
 

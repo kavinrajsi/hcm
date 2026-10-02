@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { SALES_KINDS } from "@/lib/devices/vendors";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { PageHeader, PageShell } from "@/components/page";
 import { DeviceForm, EMPTY_DEVICE } from "../device-form";
 
@@ -17,7 +17,7 @@ export default async function NewDevicePage({
 }: {
   searchParams: Promise<{ request?: string }>;
 }) {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
   const requestId = (await searchParams).request;
   const request =
     typeof requestId === "string"

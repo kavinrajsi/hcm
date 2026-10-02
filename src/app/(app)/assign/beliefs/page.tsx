@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { listDesigners } from "@/lib/assign/data";
 import {
   BELIEF_LEVEL_LABELS,
@@ -17,7 +17,7 @@ import { floorManagerId } from "@/lib/assign/floor-manager";
 export const metadata = { title: "Beliefs" };
 
 export default async function BeliefsPage() {
-  const user = await requireRole("HR_ADMIN", "MANAGER");
+  const user = await requirePageRole("HR_ADMIN", "MANAGER");
   const isHr = user.role === "HR_ADMIN";
   const [designers, beliefs, managerId, accounts] = await Promise.all([
     listDesigners(),

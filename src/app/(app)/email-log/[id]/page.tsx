@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { formatDateTime } from "@/lib/format-date";
 import { EMAIL_KINDS, isEmailKind, type WebhookEvent } from "@/lib/email-log";
 import { PageHeader, PageShell } from "@/components/page";
@@ -12,7 +12,7 @@ export const metadata = { title: "Email · Email log" };
 
 // HR: one logged email — recipients, outcome, delivery events and content.
 export default async function EmailLogEntryPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
   const { id } = await params;
   const row = await db.emailLog.findUnique({
     where: { id },

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { PageShell } from "@/components/page";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { decryptField, maskValue } from "@/lib/crypto";
 import { readPii } from "@/lib/employee-pii";
 import {
@@ -37,7 +37,7 @@ export default async function EmployeePage({
   params,
   searchParams,
 }: PageProps<"/employees/[id]">) {
-  const me = await requireRole("HR_ADMIN");
+  const me = await requirePageRole("HR_ADMIN");
   const { id } = await params;
   const { leaveYear } = await searchParams;
 

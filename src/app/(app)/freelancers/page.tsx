@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { parseTableParams } from "@/lib/table-params";
 import { TableFilters } from "@/components/data-table/filters";
 import { TablePagination } from "@/components/data-table/pagination";
@@ -47,7 +47,7 @@ const badgeVariant = {
 export default async function FreelancersPage({
   searchParams,
 }: PageProps<"/freelancers">) {
-  await requireRole("HR_ADMIN", "MANAGER");
+  await requirePageRole("HR_ADMIN", "MANAGER");
   const raw = await searchParams;
   const params = parseTableParams(raw);
 

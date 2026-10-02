@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { SALES_KINDS } from "@/lib/devices/vendors";
 import { vendorCatalog, vendorRecipients } from "@/lib/devices/purchase";
 import { PageHeader, PageShell } from "@/components/page";
@@ -12,7 +12,7 @@ import { REQUEST_INCLUDE, toRequestRow } from "../provision/rows";
 export const metadata = { title: "Device requests" };
 
 export default async function RequestsPage() {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
   const [requests, vendors] = await Promise.all([
     db.devicePurchaseRequest.findMany({
       orderBy: { createdAt: "desc" },

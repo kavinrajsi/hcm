@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import {
   Table,
   TableBody,
@@ -53,7 +53,7 @@ function StatusBadge({ label, tone }: { label: string; tone: string }) {
 }
 
 export default async function UsersPage() {
-  const me = await requireRole("HR_ADMIN");
+  const me = await requirePageRole("HR_ADMIN");
 
   const [users, withoutLogin] = await Promise.all([
     db.user.findMany({

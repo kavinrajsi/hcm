@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { commentRole } from "@/lib/assign/classify";
 import { JOB_KINDS, JOB_KIND_LABELS, isJobKind } from "@/lib/assign/taxonomy";
 import { formatDateTime } from "@/lib/format-date";
@@ -24,7 +24,7 @@ export default async function LabelJobPage({
 }: {
   params: Promise<{ jobId: string }>;
 }) {
-  const user = await requireRole("HR_ADMIN", "MANAGER");
+  const user = await requirePageRole("HR_ADMIN", "MANAGER");
   const { jobId } = await params;
   const job = await db.job.findUnique({
     where: { id: jobId },

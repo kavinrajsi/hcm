@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { listConnections } from "@/lib/mcp/connections";
 import { formatDateTime } from "@/lib/format-date";
 import { PageHeader, PageShell } from "@/components/page";
@@ -13,7 +13,7 @@ export const metadata = { title: "MCP access" };
 
 // HR: who has connected an AI app to HCM, and every change made through one.
 export default async function McpAccessPage() {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
   const [connections, log, shots] = await Promise.all([
     listConnections(),
     db.mcpAuditLog.findMany({

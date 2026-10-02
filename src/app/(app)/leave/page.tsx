@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { basecampConfigured, getAccessToken } from "@/lib/basecamp";
 import { datePartsToRange, parseTableParams } from "@/lib/table-params";
 import {
@@ -169,7 +169,7 @@ function ReviewForm({
 }
 
 export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
-  const user = await requireRole("HR_ADMIN", "MANAGER");
+  const user = await requirePageRole("HR_ADMIN", "MANAGER");
   const raw = await searchParams;
   const params = parseTableParams(raw);
 

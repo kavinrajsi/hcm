@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { VENDOR_KIND_LABELS } from "@/lib/devices/vendors";
 import { ListCard } from "@/components/list-card";
 import { Segmented } from "@/components/segmented";
@@ -15,7 +15,7 @@ export default async function VendorsPage({
 }: {
   searchParams: Promise<{ show?: string }>;
 }) {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
   const showInactive = (await searchParams).show === "inactive";
   const vendors = await db.vendor.findMany({
     where: { active: !showInactive },

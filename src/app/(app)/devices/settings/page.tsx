@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { PURCHASE_EMAIL_SETTING, readPurchaseEmailSettings } from "@/lib/devices/purchase";
 import { PageHeader, PageShell } from "@/components/page";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { laptopOsMap } from "@/lib/devices/os-settings";
 export const metadata = { title: "Device email settings" };
 
 export default async function DeviceSettingsPage() {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
   const [row, osMap, designations] = await Promise.all([
     db.appSetting.findUnique({ where: { key: PURCHASE_EMAIL_SETTING } }),
     laptopOsMap(),

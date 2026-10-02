@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import {
   optionsByCount,
   parseTableParams,
@@ -50,7 +50,7 @@ const badgeVariant = {
 export default async function ProbationPage({
   searchParams,
 }: PageProps<"/probation">) {
-  await requireRole("HR_ADMIN", "MANAGER");
+  await requirePageRole("HR_ADMIN", "MANAGER");
   const raw = await searchParams;
   const params = parseTableParams(raw);
 

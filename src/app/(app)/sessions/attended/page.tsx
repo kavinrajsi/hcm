@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { datePartsToRange, parseTableParams } from "@/lib/table-params";
 import { TableFilters } from "@/components/data-table/filters";
 import { TablePagination } from "@/components/data-table/pagination";
@@ -32,7 +32,7 @@ export const metadata = { title: "Session Attended" };
 export default async function SessionAttendedPage({
   searchParams,
 }: PageProps<"/sessions/attended">) {
-  await requireRole("HR_ADMIN", "MANAGER");
+  await requirePageRole("HR_ADMIN", "MANAGER");
   const raw = await searchParams;
   const params = parseTableParams(raw);
 

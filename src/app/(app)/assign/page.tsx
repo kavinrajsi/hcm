@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import Link from "next/link";
 import { listCoordinators, listDesigners } from "@/lib/assign/data";
 import { suggestionsLockedFor } from "@/lib/assign/floor-manager";
@@ -14,7 +14,7 @@ export const metadata = { title: "Assign" };
 export const maxDuration = 300;
 
 export default async function AssignPage() {
-  const user = await requireRole("HR_ADMIN", "MANAGER");
+  const user = await requirePageRole("HR_ADMIN", "MANAGER");
   const [designers, coordinators, jobs, unread, comments, unreadComments, locked] =
     await Promise.all([
       listDesigners(),

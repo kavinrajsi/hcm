@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { createEmployee } from "../actions";
 import { EmployeeForm, type EmployeeDefaults } from "../employee-form";
 
@@ -34,7 +34,7 @@ async function fromCandidate(raw: string | string[] | undefined) {
 export default async function NewEmployeePage({
   searchParams,
 }: PageProps<"/employees/new">) {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
   const [managers, candidate] = await Promise.all([
     db.employee.findMany({
       where: { dateOfExit: null },

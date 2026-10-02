@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import { parseTableParams } from "@/lib/table-params";
 import { AddFilter } from "@/components/data-table/add-filter";
 import { CountChips } from "@/components/data-table/count-chips";
@@ -51,7 +51,7 @@ export const metadata = { title: "Candidates" };
 export default async function CandidatesPage({
   searchParams,
 }: PageProps<"/candidates">) {
-  await requireRole("HR_ADMIN");
+  await requirePageRole("HR_ADMIN");
   const raw = await searchParams;
   const params = parseTableParams(raw);
   const view = raw.view === "board" ? "board" : "list";

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/rbac";
+import { requirePageRole } from "@/lib/rbac";
 import {
   optionsByCount,
   parseTableParams,
@@ -35,7 +35,7 @@ import { EmployeeAvatar } from "@/components/employee-avatar";
 export const metadata = { title: "Exit / Offboarding" };
 
 export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
-  await requireRole("HR_ADMIN", "MANAGER");
+  await requirePageRole("HR_ADMIN", "MANAGER");
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
