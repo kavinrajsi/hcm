@@ -12,7 +12,7 @@ vi.mock("@/lib/db", () => ({ db }));
 
 const { WRITE_TOOLS, buildTools, employeeScope, toolNamesFor } =
   await import("./tools");
-const { MADMAX_MODELS, modelByKey } = await import("./models");
+const { DEFAULT_MODEL, MADMAX_MODELS, modelByKey } = await import("./models");
 
 type Role = "HR_ADMIN" | "MANAGER" | "EMPLOYEE";
 const context = (role: Role, employeeId: string | null = "emp-self") => ({
@@ -117,5 +117,9 @@ describe("models", () => {
     expect(modelByKey("openai/gpt-5")).toBeNull();
     expect(modelByKey(undefined)).toBeNull();
     expect(MADMAX_MODELS.every((model) => model.id.includes("/"))).toBe(true);
+  });
+
+  it("defaults to a model that works without paid Gateway credits", () => {
+    expect(modelByKey(DEFAULT_MODEL)?.note).toBeUndefined();
   });
 });

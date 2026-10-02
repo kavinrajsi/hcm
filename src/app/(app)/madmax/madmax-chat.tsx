@@ -443,7 +443,7 @@ export function MadmaxChat({
       >
         {MADMAX_MODELS.map((option) => (
           <option key={option.key} value={option.key}>
-            {option.label}
+            {option.note ? `${option.label} (${option.note})` : option.label}
           </option>
         ))}
       </select>
