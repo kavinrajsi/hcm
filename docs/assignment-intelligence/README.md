@@ -8,7 +8,7 @@ Completed Basecamp to-dos are pulled into three tables (`prisma/schema.prisma`):
 
 | Table | What |
 |---|---|
-| `Job` | One completed to-do: client (bucket), title, who raised it (creator = Client Coordinator), when it was closed, `kind` (what sort of design), `evalSet` (train / dev / holdout) |
+| `Job` | One completed to-do: client (bucket), title, who raised it (creator), when it was closed, `kind` (what sort of design), `evalSet` (train / dev / holdout) |
 | `JobAssignee` | Who did the work, linked to `Employee` by email when possible |
 | `JobComment` | The thread, with the model's `aiLabels` |
 | `CommentLabel` | A coordinator's reading of one comment, one row per labeller |
@@ -19,6 +19,12 @@ Sync: `src/lib/assign/jobs-sync.ts`. Runs from the Assign page (HR button,
 streamed through `/api/basecamp/jobs-sync`), the daily cron
 (`/api/cron/basecamp-jobs`, 11:00 IST) or `npx tsx scripts/sync-basecamp-jobs.ts`.
 Unchanged to-dos are skipped, so re-running is cheap.
+
+Client Coordinators on the Assign form are current employees with one of
+`COORDINATOR_DESIGNATIONS` (`src/lib/assign/data.ts`: CGP, IT Head, HCM,
+Delivery Manager, CFO, Founder, Co-Founder, Marketing Manager), matched to
+the jobs they raised by `Employee.basecampPersonId`. Someone with no
+Basecamp link is listed but can't be picked.
 
 ## The two judgement calls (model)
 

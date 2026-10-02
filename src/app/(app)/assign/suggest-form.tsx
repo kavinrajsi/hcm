@@ -10,6 +10,7 @@ import { ArrowOutwardIcon } from "@/components/icons";
 import { formatDay } from "@/lib/format-date";
 import { JOB_KINDS, JOB_KIND_LABELS } from "@/lib/assign/taxonomy";
 import type { DesignerEvidence, DesignerRef, JobEvidence } from "@/lib/assign/suggest";
+import type { CoordinatorOption } from "@/lib/assign/data";
 import {
   askSuggestion,
   classifyNow,
@@ -26,7 +27,7 @@ export function SuggestForm({
   coordinators,
   designers,
 }: {
-  coordinators: { personId: string; name: string; jobs: number }[];
+  coordinators: CoordinatorOption[];
   designers: DesignerRef[];
 }) {
   const [state, formAction, pending] = useActionState<AskState, FormData>(
@@ -59,8 +60,18 @@ export function SuggestForm({
             <select name="coordinatorId" className={selectClass} defaultValue="">
               <option value="">Any — compare across all coordinators</option>
               {coordinators.map((coordinator) => (
-                <option key={coordinator.personId} value={coordinator.personId}>
-                  {coordinator.name} ({coordinator.jobs} jobs)
+                <option
+                  key={`${coordinator.name}-${coordinator.personId}`}
+                  // Unlinked people can't be picked; a non-empty value keeps
+                  // the browser from treating them as "Any".
+                  value={coordinator.personId ?? `unlinked:${coordinator.name}`}
+                  disabled={!coordinator.personId}
+                >
+                  {`${coordinator.name} · ${coordinator.designation} (${
+                    coordinator.personId
+                      ? `${coordinator.jobs} ${coordinator.jobs === 1 ? "job" : "jobs"}`
+                      : "not linked to Basecamp"
+                  })`}
                 </option>
               ))}
             </select>

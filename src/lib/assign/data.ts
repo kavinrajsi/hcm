@@ -30,37 +30,63 @@ export async function listDesigners(): Promise<DesignerRef[]> {
   }));
 }
 
-/** Fewest jobs raised before someone counts as a Client Coordinator. */
-export const MIN_COORDINATOR_JOBS = 10;
+/**
+ * Who can be picked as the Client Coordinator: current employees with one
+ * of these designations. Matched case-insensitively.
+ */
+export const COORDINATOR_DESIGNATIONS = [
+  "CGP",
+  "IT Head",
+  "HCM",
+  "Delivery Manager",
+  "CFO",
+  "Founder",
+  "Co-Founder",
+  "Marketing Manager",
+];
+
+export type CoordinatorOption = {
+  /** Basecamp person id (what jobs record as their creator); null = not linked. */
+  personId: string | null;
+  name: string;
+  designation: string;
+  jobs: number;
+};
 
 /**
- * Client Coordinators = people who raise jobs, most active first. Anyone
- * who also works as a designer, or raised only a handful, is left out:
- * designers create their own to-dos too.
+ * Client Coordinators = current employees with a coordinator designation,
+ * most jobs raised first. Someone with no Basecamp link has no history to
+ * compare under, so the form shows them but can't pick them.
  */
-export async function listCoordinators(): Promise<
-  { personId: string; name: string; jobs: number }[]
-> {
-  const [groups, designers] = await Promise.all([
-    db.job.groupBy({
-      by: ["creatorPersonId", "creatorName"],
-      _count: { _all: true },
-      orderBy: { _count: { creatorPersonId: "desc" } },
-    }),
-    listDesigners(),
-  ]);
-  const designerIds = new Set(designers.map((designer) => designer.personId));
-  return groups
-    .filter(
-      (group) =>
-        !designerIds.has(group.creatorPersonId) &&
-        group._count._all >= MIN_COORDINATOR_JOBS,
-    )
-    .map((group) => ({
-      personId: group.creatorPersonId,
-      name: group.creatorName,
-      jobs: group._count._all,
-    }));
+export async function listCoordinators(): Promise<CoordinatorOption[]> {
+  const employees = await db.employee.findMany({
+    where: {
+      dateOfExit: null,
+      OR: COORDINATOR_DESIGNATIONS.map((designation) => ({
+        designation: { equals: designation, mode: "insensitive" as const },
+      })),
+    },
+    select: { name: true, designation: true, basecampPersonId: true },
+  });
+  const linked = employees
+    .map((employee) => employee.basecampPersonId)
+    .filter((id): id is string => !!id);
+  const counts = linked.length
+    ? await db.job.groupBy({
+        by: ["creatorPersonId"],
+        where: { creatorPersonId: { in: linked } },
+        _count: { _all: true },
+      })
+    : [];
+  const jobsBy = new Map(counts.map((row) => [row.creatorPersonId, row._count._all]));
+  return employees
+    .map((employee) => ({
+      personId: employee.basecampPersonId,
+      name: employee.name,
+      designation: employee.designation,
+      jobs: employee.basecampPersonId ? (jobsBy.get(employee.basecampPersonId) ?? 0) : 0,
+    }))
+    .sort((a, b) => b.jobs - a.jobs || a.name.localeCompare(b.name));
 }
 
 /** Every classified job, with its corrections counted, per designer. */
