@@ -9,6 +9,7 @@ import { fieldError, invalid, type FormState } from "@/lib/form-state";
 import { classifyDescription, classifyPending } from "@/lib/assign/classify";
 import { listDesigners, loadHistories } from "@/lib/assign/data";
 import { splitSample } from "@/lib/assign/eval";
+import { FLOOR_MANAGER_SETTING, suggestionsLockedFor } from "@/lib/assign/floor-manager";
 import { suggest, type SuggestionResult } from "@/lib/assign/suggest";
 import {
   BELIEF_LEVELS,
@@ -41,6 +42,8 @@ export async function askSuggestion(
   formData: FormData,
 ): Promise<AskState> {
   const user = await requireRole(...ASSIGN_ROLES);
+  if (await suggestionsLockedFor(user.id))
+    return { error: "Write your beliefs down on the Beliefs tab first, then ask." };
   const parsed = askSchema.safeParse({
     description: formData.get("description"),
     coordinatorId: formData.get("coordinatorId") ?? undefined,
@@ -234,6 +237,31 @@ export async function saveBeliefs(
   await db.designerBelief.createMany({ data: rows, skipDuplicates: true });
   revalidatePath("/assign/beliefs");
   revalidatePath("/assign/eval");
+  return { ok: true };
+}
+
+/** HR: whose account is the floor manager's (gated until beliefs exist). */
+export async function setFloorManager(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const hr = await requireRole("HR_ADMIN");
+  const userId = formData.get("userId");
+  if (typeof userId !== "string") return { error: "Missing account" };
+  if (userId) {
+    const account = await db.user.findFirst({
+      where: { id: userId, role: { in: [...ASSIGN_ROLES] }, disabledAt: null },
+      select: { id: true },
+    });
+    if (!account) return fieldError("userId", "Pick an HR or manager account.");
+  }
+  await db.appSetting.upsert({
+    where: { key: FLOOR_MANAGER_SETTING },
+    create: { key: FLOOR_MANAGER_SETTING, value: { userId: userId || null }, updatedById: hr.id },
+    update: { value: { userId: userId || null }, updatedById: hr.id },
+  });
+  revalidatePath("/assign");
+  revalidatePath("/assign/beliefs");
   return { ok: true };
 }
 

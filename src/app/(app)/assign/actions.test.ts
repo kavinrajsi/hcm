@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
   assignmentQuery: { create: vi.fn(), updateMany: vi.fn() },
+  appSetting: { findUnique: vi.fn(async () => null) },
+  designerBelief: { count: vi.fn(async () => 0) },
 }));
 const classifyDescription = vi.hoisted(() => vi.fn());
 
@@ -39,6 +41,30 @@ describe("askSuggestion", () => {
     expect(state.error).toBe("Fix the highlighted fields.");
     expect(classifyDescription).not.toHaveBeenCalled();
     expect(db.assignmentQuery.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses the floor manager until his beliefs are written", async () => {
+    db.appSetting.findUnique.mockResolvedValueOnce({ value: { userId: "m1" } } as never);
+    db.designerBelief.count.mockResolvedValueOnce(0);
+    const state = await actions.askSuggestion(
+      {},
+      form({ description: "Diwali carousel for the client" }),
+    );
+    expect(state.error).toMatch(/Beliefs tab/);
+    expect(classifyDescription).not.toHaveBeenCalled();
+    expect(db.assignmentQuery.create).not.toHaveBeenCalled();
+  });
+
+  it("answers the floor manager once his beliefs are written", async () => {
+    db.appSetting.findUnique.mockResolvedValueOnce({ value: { userId: "m1" } } as never);
+    db.designerBelief.count.mockResolvedValueOnce(4);
+    db.assignmentQuery.create.mockResolvedValue({ id: "q1" });
+    const state = await actions.askSuggestion(
+      {},
+      form({ description: "Diwali carousel for the client", kind: "social-post" }),
+    );
+    expect(state.error).toBeUndefined();
+    expect(state.queryId).toBe("q1");
   });
 });
 

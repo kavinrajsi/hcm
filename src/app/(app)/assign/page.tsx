@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
+import Link from "next/link";
 import { listCoordinators, listDesigners } from "@/lib/assign/data";
+import { suggestionsLockedFor } from "@/lib/assign/floor-manager";
 import { PageHeader, PageShell } from "@/components/page";
 import { AssignTabs } from "./tabs";
 import { JobsSyncButton } from "./jobs-sync";
@@ -13,7 +15,7 @@ export const maxDuration = 300;
 
 export default async function AssignPage() {
   const user = await requireRole("HR_ADMIN", "MANAGER");
-  const [designers, coordinators, jobs, unread, comments, unreadComments] =
+  const [designers, coordinators, jobs, unread, comments, unreadComments, locked] =
     await Promise.all([
       listDesigners(),
       listCoordinators(),
@@ -21,6 +23,7 @@ export default async function AssignPage() {
       db.job.count({ where: { kind: null } }),
       db.jobComment.count(),
       db.jobComment.count({ where: { aiLabelledAt: null } }),
+      suggestionsLockedFor(user.id),
     ]);
   const isHr = user.role === "HR_ADMIN";
 
@@ -52,6 +55,14 @@ export default async function AssignPage() {
         {jobs === 0 ? (
           <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500 dark:border-zinc-800">
             No jobs yet. {isHr ? "Sync jobs from Basecamp to start." : "Ask HR to sync jobs from Basecamp."}
+          </p>
+        ) : locked ? (
+          <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500 dark:border-zinc-800">
+            Before you see any suggestion, write down what you believe about each designer on the{" "}
+            <Link href="/assign/beliefs" className="underline">
+              Beliefs tab
+            </Link>
+            . That way the record is checked against your prediction, not your memory of it.
           </p>
         ) : (
           <SuggestForm coordinators={coordinators} designers={designers} />

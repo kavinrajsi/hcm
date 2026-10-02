@@ -11,17 +11,28 @@ import { formatDateTime } from "@/lib/format-date";
 import { PageHeader, PageShell } from "@/components/page";
 import { AssignTabs } from "../tabs";
 import { BeliefsForm } from "./beliefs-form";
+import { FloorManagerForm } from "./floor-manager-form";
+import { floorManagerId } from "@/lib/assign/floor-manager";
 
 export const metadata = { title: "Beliefs" };
 
 export default async function BeliefsPage() {
   const user = await requireRole("HR_ADMIN", "MANAGER");
-  const [designers, beliefs] = await Promise.all([
+  const isHr = user.role === "HR_ADMIN";
+  const [designers, beliefs, managerId, accounts] = await Promise.all([
     listDesigners(),
     db.designerBelief.findMany({
       where: { userId: user.id },
       orderBy: [{ personId: "asc" }, { kind: "asc" }],
     }),
+    floorManagerId(),
+    isHr
+      ? db.user.findMany({
+          where: { role: { in: ["HR_ADMIN", "MANAGER"] }, disabledAt: null },
+          orderBy: { email: "asc" },
+          select: { id: true, email: true, name: true },
+        })
+      : [],
   ]);
   const byPerson = new Map(designers.map((designer) => [designer.personId, designer]));
 
@@ -34,6 +45,21 @@ export default async function BeliefsPage() {
       <div className="mt-4">
         <AssignTabs current="beliefs" />
       </div>
+
+      {isHr && (
+        <div className="mt-6">
+          <FloorManagerForm
+            current={managerId}
+            accounts={accounts.map((account) => ({
+              id: account.id,
+              label: account.name ? `${account.name} (${account.email})` : account.email,
+            }))}
+          />
+          <p className="mt-1 text-xs text-zinc-500">
+            The floor manager sees no suggestions on the Ask tab until his beliefs are written here.
+          </p>
+        </div>
+      )}
 
       <div className="mt-6">
         {designers.length === 0 ? (
