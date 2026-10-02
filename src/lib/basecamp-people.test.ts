@@ -149,6 +149,18 @@ describe("syncBasecampPeople", () => {
     expect(db.employee.update).not.toHaveBeenCalled();
   });
 
+  it("keeps a hand-made link when the Basecamp email differs", async () => {
+    basecamp.listPeople.mockResolvedValue([
+      person({ id: 77, email_address: "arivu@madarth.com" }),
+    ]);
+    db.employee.findMany.mockResolvedValue([
+      employee({ workEmail: "arivukkarasi@madarth.com", basecampPersonId: "77" }),
+    ]);
+    const result = await syncBasecampPeople();
+    expect(result).toMatchObject({ matched: 1, unmatched: [] });
+    expect(basecamp.downloadAvatar).toHaveBeenCalled();
+  });
+
   it("reports unmatched people and keeps going after a failed download", async () => {
     basecamp.listPeople.mockResolvedValue([
       person(),

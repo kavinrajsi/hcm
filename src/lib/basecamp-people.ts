@@ -131,6 +131,13 @@ export async function syncBasecampPeople(
     })),
   );
   const byId = new Map(employees.map((employee) => [employee.id, employee]));
+  // An employee already linked to a Basecamp person (by hand, when the
+  // emails differ) stays matched to them.
+  const byBasecampId = new Map(
+    employees
+      .filter((employee) => employee.basecampPersonId)
+      .map((employee) => [employee.basecampPersonId!, employee.id]),
+  );
 
   const result: PeopleSyncResult = {
     people: 0,
@@ -144,7 +151,8 @@ export async function syncBasecampPeople(
   const claimed = new Set<string>();
   for (const person of people.filter(isPerson)) {
     result.people++;
-    const employeeId = matchPerson(person, index);
+    const employeeId =
+      byBasecampId.get(String(person.id)) ?? matchPerson(person, index);
     // One Basecamp person per employee (first match wins).
     if (!employeeId || claimed.has(employeeId)) {
       result.unmatched.push({
