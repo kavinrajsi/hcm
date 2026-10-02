@@ -3,6 +3,8 @@ import { requirePageRole } from "@/lib/rbac";
 import Link from "next/link";
 import { listCoordinators, listDesigners } from "@/lib/assign/data";
 import { suggestionsLockedFor } from "@/lib/assign/floor-manager";
+import { todoList } from "@/lib/assign/todo";
+import { TodoListForm } from "./todo-list-form";
 import { PageHeader, PageShell } from "@/components/page";
 import { AssignTabs } from "./tabs";
 import { JobsSyncButton } from "./jobs-sync";
@@ -15,7 +17,7 @@ export const maxDuration = 300;
 
 export default async function AssignPage() {
   const user = await requirePageRole("HR_ADMIN", "MANAGER");
-  const [designers, coordinators, jobs, unread, comments, unreadComments, locked] =
+  const [designers, coordinators, jobs, unread, comments, unreadComments, locked, list] =
     await Promise.all([
       listDesigners(),
       listCoordinators(),
@@ -24,6 +26,7 @@ export default async function AssignPage() {
       db.jobComment.count(),
       db.jobComment.count({ where: { aiLabelledAt: null } }),
       suggestionsLockedFor(user.id),
+      todoList(),
     ]);
   const isHr = user.role === "HR_ADMIN";
 
@@ -45,6 +48,11 @@ export default async function AssignPage() {
           : ""}
         .
       </p>
+      {isHr && (
+        <div className="mt-4">
+          <TodoListForm current={list?.url ?? null} />
+        </div>
+      )}
       {isHr && (unread > 0 || unreadComments > 0) && (
         <div className="mt-2">
           <ClassifyButton />

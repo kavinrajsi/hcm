@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Assign form actions: problems land under the input they're about.
 
 const db = vi.hoisted(() => ({
-  assignmentQuery: { create: vi.fn(), updateMany: vi.fn() },
+  assignmentQuery: { create: vi.fn(), updateMany: vi.fn(), findUnique: vi.fn() },
   appSetting: { findUnique: vi.fn(async () => null), upsert: vi.fn() },
   job: { groupBy: vi.fn(), findMany: vi.fn(), updateMany: vi.fn() },
   designerBelief: { count: vi.fn(async () => 0) },
@@ -24,6 +24,11 @@ vi.mock("@/lib/assign/data", () => ({
   loadHistories: vi.fn(async () => []),
 }));
 vi.mock("@/lib/assign/suggest", () => ({ suggest: vi.fn(() => ({})) }));
+const syncChoiceTodo = vi.hoisted(() => vi.fn(async () => ({ status: "skipped" })));
+vi.mock("@/lib/assign/todo", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/assign/todo")>()),
+  syncChoiceTodo,
+}));
 
 const actions = await import("./actions");
 
@@ -78,8 +83,37 @@ describe("recordChoice", () => {
 
   it("records the choice", async () => {
     db.assignmentQuery.updateMany.mockResolvedValue({ count: 1 });
+    db.assignmentQuery.findUnique.mockResolvedValue({ id: "q1", description: "Brief", basecampTodoId: null });
     const state = await actions.recordChoice({}, form({ queryId: "q1", personId: "p9" }));
     expect(state).toEqual({ ok: true });
+    expect(syncChoiceTodo).toHaveBeenCalledWith({
+      id: "q1",
+      description: "Brief",
+      basecampTodoId: null,
+      chosenPersonId: "p9",
+    });
+  });
+
+  it("links the [test] to-do, or says why there isn't one", async () => {
+    db.assignmentQuery.updateMany.mockResolvedValue({ count: 1 });
+    db.assignmentQuery.findUnique.mockResolvedValue({ id: "q1", description: "Brief", basecampTodoId: null });
+    syncChoiceTodo.mockResolvedValueOnce({ status: "written", url: "https://bc/todos/1" } as never);
+    expect(await actions.recordChoice({}, form({ queryId: "q1", personId: "p9" }))).toEqual({
+      ok: true,
+      todoUrl: "https://bc/todos/1",
+    });
+    syncChoiceTodo.mockResolvedValueOnce({ status: "failed", error: "403" } as never);
+    expect(await actions.recordChoice({}, form({ queryId: "q1", personId: "p9" }))).toEqual({
+      ok: true,
+      todoError: "403",
+    });
+  });
+
+  it("writes nothing to Basecamp for someone else's question", async () => {
+    db.assignmentQuery.updateMany.mockResolvedValue({ count: 0 });
+    const state = await actions.recordChoice({}, form({ queryId: "q1", personId: "p9" }));
+    expect(state.error).toMatch(/isn't yours/);
+    expect(syncChoiceTodo).not.toHaveBeenCalled();
   });
 });
 
@@ -106,5 +140,30 @@ describe("drawSample", () => {
     const state = await actions.drawSample({}, form({ size: "10" }));
     expect(state.ok).toBe("0 holdout, 0 dev, 2 train drawn.");
     expect(db.appSetting.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("setTodoList", () => {
+  it("keeps a valid to-do list link", async () => {
+    const state = await actions.setTodoList(
+      {},
+      form({ url: "https://3.basecamp.com/1/buckets/2/todolists/3/" }),
+    );
+    expect(state.ok).toMatch(/\[test\] to-do/);
+    expect(db.appSetting.upsert.mock.calls[0][0].create.value).toEqual({
+      url: "https://3.basecamp.com/1/buckets/2/todolists/3",
+    });
+  });
+
+  it("refuses anything that isn't a to-do list link", async () => {
+    const state = await actions.setTodoList({}, form({ url: "https://3.basecamp.com/1/projects/2" }));
+    expect(state.fieldErrors?.url?.[0]).toMatch(/to-do list link/);
+    expect(db.appSetting.upsert).not.toHaveBeenCalled();
+  });
+
+  it("turns it off when emptied", async () => {
+    const state = await actions.setTodoList({}, form({ url: "" }));
+    expect(state.ok).toBe("Turned off.");
+    expect(db.appSetting.upsert.mock.calls[0][0].update.value).toEqual({ url: null });
   });
 });

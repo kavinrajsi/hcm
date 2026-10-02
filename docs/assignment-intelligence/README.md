@@ -57,6 +57,17 @@ For a new job of kind K, optionally under coordinator C:
 
 Every pick shows the jobs behind it with Basecamp links.
 
+## Basecamp to-do for a pick
+
+When HR has pasted a to-do list link on the Assign page (AppSetting
+`assign.todoList`), recording a pick creates a to-do there, titled
+`[test] <first line of the brief>` and assigned to the picked designer with
+`notify: false` (`src/lib/assign/todo.ts`; the prefix lives in
+`testTodoTitle` in `src/lib/basecamp.ts`, the only place HCM writes a
+to-do). A changed pick reassigns the same to-do. It's written with the
+Basecamp connection of the most recently connected HR admin. A Basecamp
+failure never loses the pick; the form says what went wrong.
+
 ## Measuring it
 
 `src/lib/assign/eval.ts` and the "How well it reads" page:

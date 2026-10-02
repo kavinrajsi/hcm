@@ -584,3 +584,91 @@ export async function updateProjectAccess(
   }
   return (await response.json()) as { granted: BasecampPerson[] };
 }
+
+// --- To-dos written by HCM (Assign) ---
+
+/**
+ * Every to-do HCM creates or edits is marked as a test while Assignment
+ * Intelligence is being evaluated. Applied here, in the only place HCM
+ * writes a to-do, and never twice.
+ */
+export const TODO_TEST_PREFIX = "[test]";
+
+export function testTodoTitle(title: string): string {
+  const trimmed = title.trim();
+  return trimmed.toLowerCase().startsWith(TODO_TEST_PREFIX)
+    ? trimmed
+    : `${TODO_TEST_PREFIX} ${trimmed}`;
+}
+
+export type TodoInput = {
+  content: string;
+  description?: string;
+  assigneeIds: number[];
+};
+
+export type WrittenTodo = {
+  id: number;
+  app_url: string;
+  content: string;
+  assignees: { id: number; name: string }[];
+};
+
+async function writeTodo(
+  accessToken: string,
+  url: string,
+  method: "POST" | "PUT",
+  todo: TodoInput,
+): Promise<WrittenTodo> {
+  const response = await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "User-Agent": "HCM Assign (internal)",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      content: testTodoTitle(todo.content),
+      description: todo.description ?? "",
+      assignee_ids: todo.assigneeIds,
+      // Test to-dos don't ping the assignee.
+      notify: false,
+    }),
+  });
+  if (!response.ok) {
+    const detail = (await response.text().catch(() => "")).slice(0, 200);
+    throw new Error(`Basecamp to-do ${method === "POST" ? "create" : "update"} failed: ${response.status}${detail ? ` ${detail}` : ""}`);
+  }
+  return (await response.json()) as WrittenTodo;
+}
+
+/** Creates a to-do in a to-do list; the title gets the [test] prefix. */
+export function createTodo(
+  accessToken: string,
+  list: { accountId: string; bucketId: string; todolistId: string },
+  todo: TodoInput,
+): Promise<WrittenTodo> {
+  return writeTodo(
+    accessToken,
+    `https://3.basecampapi.com/${list.accountId}/buckets/${list.bucketId}/todolists/${list.todolistId}/todos.json`,
+    "POST",
+    todo,
+  );
+}
+
+/**
+ * Replaces a to-do's fields. Basecamp clears any field left out, so the
+ * caller passes content, description and assignees every time.
+ */
+export function updateTodo(
+  accessToken: string,
+  where: { accountId: string; bucketId: string; todoId: string },
+  todo: TodoInput,
+): Promise<WrittenTodo> {
+  return writeTodo(
+    accessToken,
+    `https://3.basecampapi.com/${where.accountId}/buckets/${where.bucketId}/todos/${where.todoId}.json`,
+    "PUT",
+    todo,
+  );
+}

@@ -286,7 +286,26 @@ function ChoiceForm({
     {},
   );
   if (state.ok)
-    return <p className="text-sm text-emerald-600">Noted. Thanks — this is what the system gets compared against.</p>;
+    return (
+      <div className="flex flex-col gap-1 text-sm">
+        <p className="text-emerald-600">Noted. Thanks — this is what the system gets compared against.</p>
+        {state.todoUrl && (
+          <a
+            href={state.todoUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 hover:underline"
+          >
+            [test] to-do created in Basecamp <ArrowOutwardIcon className="size-3.5" />
+          </a>
+        )}
+        {state.todoError && (
+          <p role="alert" className="text-amber-600">
+            The pick is saved, but the Basecamp to-do wasn&rsquo;t: {state.todoError}
+          </p>
+        )}
+      </div>
+    );
   return (
     <ValidatedForm
       action={formAction}

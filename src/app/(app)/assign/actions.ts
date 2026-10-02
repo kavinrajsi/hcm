@@ -11,6 +11,7 @@ import { listDesigners, loadHistories } from "@/lib/assign/data";
 import { splitSample } from "@/lib/assign/eval";
 import { FLOOR_MANAGER_SETTING, suggestionsLockedFor } from "@/lib/assign/floor-manager";
 import { SHARED_SETTING, pickSharedJobs, sharedJobIds } from "@/lib/assign/shared";
+import { TODO_LIST_SETTING, parseTodolistUrl, syncChoiceTodo } from "@/lib/assign/todo";
 import { suggest, type SuggestionResult } from "@/lib/assign/suggest";
 import {
   BELIEF_LEVELS,
@@ -88,9 +89,18 @@ export async function askSuggestion(
   return { queryId: query.id, kindBy, result };
 }
 
-export type ChoiceState = FormState;
+export type ChoiceState = FormState & {
+  /** The "[test]" to-do written in Basecamp for this pick. */
+  todoUrl?: string;
+  /** The pick is saved but the Basecamp to-do wasn't. */
+  todoError?: string;
+};
 
-/** What the floor manager actually decided, against the query it answered. */
+/**
+ * What the floor manager actually decided, against the query it answered.
+ * When HR has set a to-do list, also writes a "[test] …" to-do there,
+ * assigned to the pick.
+ */
 export async function recordChoice(
   _prev: ChoiceState,
   formData: FormData,
@@ -105,7 +115,41 @@ export async function recordChoice(
     where: { id: queryId, userId: user.id },
     data: { chosenPersonId: personId, chosenAt: new Date() },
   });
-  return count ? { ok: true } : { error: "That question isn't yours." };
+  if (!count) return { error: "That question isn't yours." };
+
+  const query = await db.assignmentQuery.findUnique({
+    where: { id: queryId },
+    select: { id: true, description: true, basecampTodoId: true },
+  });
+  if (!query) return { ok: true };
+  const todo = await syncChoiceTodo({ ...query, chosenPersonId: personId });
+  if (todo.status === "written") return { ok: true, todoUrl: todo.url };
+  if (todo.status === "failed") return { ok: true, todoError: todo.error };
+  return { ok: true };
+}
+
+/** HR: the Basecamp to-do list picks are written to; empty turns it off. */
+export async function setTodoList(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const hr = await requireRole("HR_ADMIN");
+  const raw = formData.get("url");
+  const input = typeof raw === "string" ? raw.trim() : "";
+  const list = input ? parseTodolistUrl(input) : null;
+  if (input && !list)
+    return fieldError(
+      "url",
+      "Paste a to-do list link like https://3.basecamp.com/123/buckets/456/todolists/789",
+    );
+  const value = { url: list?.url ?? null };
+  await db.appSetting.upsert({
+    where: { key: TODO_LIST_SETTING },
+    create: { key: TODO_LIST_SETTING, value, updatedById: hr.id },
+    update: { value, updatedById: hr.id },
+  });
+  revalidatePath("/assign");
+  return { ok: list ? "Saved. New picks create a [test] to-do there." : "Turned off." };
 }
 
 // --- Labelling ---

@@ -679,17 +679,20 @@ model DesignerBelief {
 // One "Who should take this?" question and what the system answered, plus
 // who the floor manager actually picked — for comparing the two later.
 model AssignmentQuery {
-  id             String    @id @default(cuid())
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId         String
-  description    String
-  coordinatorId  String? // Basecamp person id
-  kind           String
-  kindBy         String // "ai" | "manual"
-  result         Json // SuggestionResult snapshot
-  chosenPersonId String?
-  chosenAt       DateTime?
-  createdAt      DateTime  @default(now())
+  id              String    @id @default(cuid())
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  description     String
+  coordinatorId   String? // Basecamp person id
+  kind            String
+  kindBy          String // "ai" | "manual"
+  result          Json // SuggestionResult snapshot
+  chosenPersonId  String?
+  chosenAt        DateTime?
+  // The "[test] …" to-do created in Basecamp for the pick, if any.
+  basecampTodoId  String?
+  basecampTodoUrl String?
+  createdAt       DateTime  @default(now())
 
   @@index([userId, createdAt(sort: Desc)])
 }
