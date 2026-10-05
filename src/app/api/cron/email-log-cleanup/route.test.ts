@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const db = vi.hoisted(() => ({ emailLog: { deleteMany: vi.fn() } }));
+const db = vi.hoisted(() => ({
+  emailLog: { deleteMany: vi.fn() },
+  authAttempt: { deleteMany: vi.fn() },
+  webAuthnChallenge: { deleteMany: vi.fn() },
+}));
 vi.mock("@/lib/db", () => ({ db }));
 
 const { GET } = await import("./route");
@@ -25,5 +29,13 @@ describe("email log cleanup", () => {
     const before: Date = db.emailLog.deleteMany.mock.calls[0][0].where.createdAt.lt;
     const days = (Date.now() - before.getTime()) / 86_400_000;
     expect(Math.round(days)).toBe(365);
+  });
+
+  it("prunes sign-in throttle rows older than a day", async () => {
+    await GET(
+      new NextRequest("https://h/api/cron/email-log-cleanup", { headers: { authorization: "Bearer cron-secret" } }),
+    );
+    const before: Date = db.authAttempt.deleteMany.mock.calls[0][0].where.createdAt.lt;
+    expect(Math.round((Date.now() - before.getTime()) / 3_600_000)).toBe(24);
   });
 });

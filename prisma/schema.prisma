@@ -115,6 +115,7 @@ model User {
   oauthTokens            OAuthToken[]            @relation("OAuthTokens")
   mcpAuditLogs           McpAuditLog[]           @relation("McpAuditLogs")
   emailsSent             EmailLog[]              @relation("EmailsSent")
+  passkeys               Passkey[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 }
@@ -1059,4 +1060,45 @@ model EmailLog {
   @@index([kind])
   @@index([status])
   @@index([providerId])
+}
+
+/// A failed sign-in or a password-reset request, keyed by "<kind>:<email|ip>".
+/// Counted over a sliding window to throttle guessing; pruned daily.
+model AuthAttempt {
+  id        String   @id @default(cuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+  @@index([createdAt])
+}
+
+/// A WebAuthn credential (Touch ID, Windows Hello, phone…) a user added on
+/// My Profile. Sign-in with it skips the password.
+model Passkey {
+  id           String    @id @default(cuid())
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  credentialId String    @unique // base64url
+  publicKey    Bytes
+  counter      Int
+  transports   String[]
+  deviceType   String // "singleDevice" | "multiDevice"
+  backedUp     Boolean
+  name         String
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+
+  @@index([userId])
+}
+
+/// One-time WebAuthn challenge (5 minutes). userId is set while adding a
+/// passkey, null while signing in with one. Pruned daily.
+model WebAuthnChallenge {
+  id        String   @id @default(cuid())
+  challenge String   @unique
+  userId    String?
+  expiresAt DateTime
+
+  @@index([expiresAt])
 }

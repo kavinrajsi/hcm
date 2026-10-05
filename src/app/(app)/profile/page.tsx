@@ -32,6 +32,7 @@ import { formatDateTime, formatDay, formatInstantDay } from "@/lib/format-date";
 import { EmployeeAvatar } from "@/components/employee-avatar";
 import { EmployeeDevices } from "../devices/employee-devices";
 import { ConnectedApps } from "./connected-apps";
+import { Passkeys } from "./passkeys";
 
 export const metadata = { title: "My Profile" };
 
@@ -129,6 +130,7 @@ export default async function ProfilePage() {
           email on your employee record.
         </p>
         <AccountSection account={account} />
+        <Passkeys userId={user.id} />
         <ConnectedApps userId={user.id} />
       </PageShell>
     );
@@ -373,6 +375,7 @@ export default async function ProfilePage() {
         </div>
       </dl>
       <AccountSection account={account} />
+      <Passkeys userId={user.id} />
       <ConnectedApps userId={user.id} />
     </PageShell>
   );

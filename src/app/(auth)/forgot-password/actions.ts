@@ -1,10 +1,17 @@
 "use server";
 
+import { headers } from "next/headers";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { invalid, type FormState } from "@/lib/form-state";
 import { mailPasswordLink } from "@/lib/logins";
 import { createPasswordLink, RESET_TTL_MS } from "@/lib/password-links";
+import {
+  clientIp,
+  isThrottled,
+  recordAttempt,
+  resetLimits,
+} from "@/lib/auth-throttle";
 
 export type ForgotFormState = FormState;
 
@@ -20,8 +27,13 @@ export async function requestPasswordReset(
   if (!parsed.success) return invalid(parsed.error);
   const email = parsed.data.email.toLowerCase();
 
+  // Same response whether the account exists, or the request is throttled —
+  // no enumeration. Counted before the lookup so unknown emails count too.
+  const limits = resetLimits(email, clientIp(await headers()));
+  if (await isThrottled(limits)) return { ok: true };
+  await recordAttempt(limits);
+
   const user = await db.user.findUnique({ where: { email } });
-  // Same response whether or not the account exists — no enumeration.
   if (!user) return { ok: true };
 
   const resetUrl = await createPasswordLink(user.id, { ttlMs: RESET_TTL_MS });
@@ -32,9 +44,17 @@ export async function requestPasswordReset(
     invite: false,
   });
   if (!emailed) {
-    // Local/dev without ZEPTOMAIL_TOKEN (or a send error): surface the link
-    // in server logs.
-    console.log(`[password-reset] link for ${email}: ${resetUrl}`);
+    // Never log the link itself: it's a working credential, and even local
+    // dev points at the production database. Only local dev without a mail
+    // token prints it, so the flow can be tried without email.
+    if (
+      process.env.NODE_ENV === "development" &&
+      !process.env.ZEPTOMAIL_TOKEN
+    ) {
+      console.log(`[password-reset] link for ${email}: ${resetUrl}`);
+    } else {
+      console.error(`[password-reset] email failed for user ${user.id}`);
+    }
   }
 
   return { ok: true };

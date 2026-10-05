@@ -7,6 +7,8 @@ import { db } from "@/lib/db";
 import { fieldError, invalid, type FormState } from "@/lib/form-state";
 import { requireSelfOrRole, requireUser } from "@/lib/rbac";
 import { contactSchema, saveContact } from "@/lib/hcm-ops";
+import { registerPasskey, registrationOptions, type RegisterResult } from "@/lib/passkeys";
+import type { RegistrationResponseJSON } from "@simplewebauthn/types";
 
 export type ProfileFormState = FormState;
 
@@ -110,4 +112,34 @@ export async function updateOwnContact(
   await saveContact(employeeId, parsed.data);
   revalidatePath("/profile");
   return { ok: true };
+}
+
+/** Step 1 of adding a passkey: options for the browser, for the signed-in user. */
+export async function beginPasskeyRegistration() {
+  const user = await requireUser();
+  const account = await db.user.findUniqueOrThrow({
+    where: { id: user.id },
+    select: { id: true, email: true, name: true },
+  });
+  return registrationOptions(account);
+}
+
+/** Step 2: verify the browser's new passkey and save it to this user. */
+export async function finishPasskeyRegistration(
+  response: RegistrationResponseJSON,
+  name: string,
+): Promise<RegisterResult> {
+  const user = await requireUser();
+  const result = await registerPasskey(user.id, response, String(name ?? ""));
+  if (result.ok) revalidatePath("/profile");
+  return result;
+}
+
+/** Removes one of the signed-in user's own passkeys. */
+export async function removePasskey(formData: FormData) {
+  const user = await requireUser();
+  const id = formData.get("id");
+  if (typeof id !== "string") return;
+  await db.passkey.deleteMany({ where: { id, userId: user.id } });
+  revalidatePath("/profile");
 }

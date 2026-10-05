@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/rbac";
-import { signIn } from "@/lib/auth";
+import { signIn, TooManyAttempts } from "@/lib/auth";
 import { AuthError } from "next-auth";
 import { safeCallbackPath } from "@/lib/safe-redirect";
 import { ValidatedForm } from "@/components/form/validated-form";
 import { FormField, FormMessage } from "@/components/form/form-field";
 import { PasswordInput } from "@/components/password-input";
+import { PasskeySignIn } from "./passkey-sign-in";
 
 export const metadata = { title: "Sign in" };
 
@@ -20,8 +21,9 @@ async function credentialsSignIn(formData: FormData) {
   } catch (error) {
     if (error instanceof AuthError) {
       const back = safeCallbackPath(formData.get("callbackUrl"));
+      const reason = error instanceof TooManyAttempts ? "throttled" : "invalid";
       redirect(
-        `/login?error=invalid${back !== "/" ? `&callbackUrl=${encodeURIComponent(back)}` : ""}`,
+        `/login?error=${reason}${back !== "/" ? `&callbackUrl=${encodeURIComponent(back)}` : ""}`,
       );
     }
     throw error;
@@ -71,7 +73,15 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             />
           </FormField>
           <FormMessage
-            error={error === "invalid" ? "Invalid email or password." : undefined}
+            error={
+              error === "throttled"
+                ? "Too many failed attempts. Wait 15 minutes, or reset your password."
+                : error === "passkey"
+                  ? "That passkey didn't work. Try again or use your password."
+                  : error === "invalid"
+                    ? "Invalid email or password."
+                    : undefined
+            }
           />
           <p className="text-right text-xs">
             <a
@@ -88,6 +98,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             Sign in
           </button>
         </ValidatedForm>
+        <PasskeySignIn callbackUrl={back} />
       </div>
     </main>
   );
