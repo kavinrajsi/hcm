@@ -21,6 +21,7 @@ import {
   contactSchema,
   createQuantumEntry,
   extendProbationRecord,
+  ProbationStateError,
   moveCandidate,
   saveContact,
   setLeaveDecision,
@@ -674,7 +675,12 @@ export function buildTools(context: MadmaxContext): ToolSet {
         "Confirm an employee's probation (makes them Permanent). Use probationId from listProbationDue.",
       inputSchema: z.object({ probationId: z.string().min(1) }),
       execute: async ({ probationId }) => {
-        await confirmProbationRecord(probationId);
+        try {
+          await confirmProbationRecord(probationId);
+        } catch (error) {
+          if (error instanceof ProbationStateError) return { probationId, error: error.message };
+          throw error;
+        }
         return { probationId, status: "CONFIRMED" };
       },
     }),
@@ -688,11 +694,16 @@ export function buildTools(context: MadmaxContext): ToolSet {
         notes: z.string().max(2000).optional(),
       }),
       execute: async ({ probationId, extendedTo, notes }) => {
-        await extendProbationRecord(
-          probationId,
-          new Date(`${extendedTo}T00:00:00Z`),
-          notes,
-        );
+        try {
+          await extendProbationRecord(
+            probationId,
+            new Date(`${extendedTo}T00:00:00Z`),
+            notes,
+          );
+        } catch (error) {
+          if (error instanceof ProbationStateError) return { probationId, error: error.message };
+          throw error;
+        }
         return { probationId, extendedTo: formatDay(extendedTo) };
       },
     }),

@@ -2,16 +2,25 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { confirmProbationRecord, extendProbationRecord } from "@/lib/hcm-ops";
+import {
+  confirmProbationRecord,
+  extendProbationRecord,
+  ProbationStateError,
+} from "@/lib/hcm-ops";
 import { requireRole } from "@/lib/rbac";
-import { invalid, type FormState } from "@/lib/form-state";
+import { fieldError, invalid, type FormState } from "@/lib/form-state";
 
 export async function confirmProbation(formData: FormData) {
   await requireRole("HR_ADMIN");
   const id = formData.get("id");
   if (typeof id !== "string") throw new Error("Missing id");
 
-  await confirmProbationRecord(id);
+  try {
+    await confirmProbationRecord(id);
+  } catch (error) {
+    // Already decided elsewhere: the refreshed list shows the real state.
+    if (!(error instanceof ProbationStateError)) throw error;
+  }
 
   revalidatePath("/probation");
   revalidatePath("/employees");
@@ -39,11 +48,16 @@ export async function extendProbation(
   });
   if (!parsed.success) return invalid(parsed.error);
 
-  await extendProbationRecord(
-    parsed.data.id,
-    new Date(parsed.data.extendedTo),
-    parsed.data.notes,
-  );
+  try {
+    await extendProbationRecord(
+      parsed.data.id,
+      new Date(`${parsed.data.extendedTo}T00:00:00Z`),
+      parsed.data.notes,
+    );
+  } catch (error) {
+    if (error instanceof ProbationStateError) return fieldError("extendedTo", error.message);
+    throw error;
+  }
 
   revalidatePath("/probation");
   return { ok: true };

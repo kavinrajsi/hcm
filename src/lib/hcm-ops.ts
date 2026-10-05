@@ -110,12 +110,35 @@ export async function setLeaveDecision(
   });
 }
 
+/** A probation decision that no longer applies (already decided, or the person left). */
+export class ProbationStateError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ProbationStateError";
+  }
+}
+
+// Only open probations of people still employed can be confirmed or
+// extended. Checked in the update's own where, so a double click or a
+// stale page can't confirm twice or reopen a confirmed / exited record.
+const openProbation = (id: string) => ({
+  id,
+  status: { in: ["PENDING" as const, "EXTENDED" as const] },
+  employee: { dateOfExit: null },
+});
+
 /** Confirmation promotes the employee to permanent (and emails them). */
 export async function confirmProbationRecord(id: string) {
   const change = await db.$transaction(async (transaction) => {
-    const record = await transaction.probationRecord.update({
-      where: { id },
+    const { count } = await transaction.probationRecord.updateMany({
+      where: openProbation(id),
       data: { status: "CONFIRMED", confirmedAt: new Date() },
+    });
+    if (count === 0)
+      throw new ProbationStateError("This probation is already confirmed, or the employee has left.");
+    const record = await transaction.probationRecord.findUniqueOrThrow({
+      where: { id },
+      select: { employeeId: true },
     });
     const before = await transaction.employee.findUnique({
       where: { id: record.employeeId },
@@ -131,14 +154,25 @@ export async function confirmProbationRecord(id: string) {
     await notifyTypeChange(change.employeeId, change.from, "PERMANENT");
 }
 
-/** The new due date is the extension date, so it re-enters the due list. */
+/**
+ * The new due date is the extension date, so it re-enters the due list.
+ * It must be later than the current due date.
+ */
 export async function extendProbationRecord(
   id: string,
   extendedTo: Date,
   notes?: string,
 ) {
-  await db.probationRecord.update({
+  const record = await db.probationRecord.findUnique({
     where: { id },
+    select: { dueDate: true },
+  });
+  if (!record) throw new ProbationStateError("Probation record not found.");
+  if (extendedTo.getTime() <= record.dueDate.getTime())
+    throw new ProbationStateError("Extend to a date after the current due date.");
+
+  const { count } = await db.probationRecord.updateMany({
+    where: openProbation(id),
     data: {
       status: "EXTENDED",
       extendedTo,
@@ -146,4 +180,6 @@ export async function extendProbationRecord(
       notes: notes || undefined,
     },
   });
+  if (count === 0)
+    throw new ProbationStateError("This probation is already confirmed, or the employee has left.");
 }
