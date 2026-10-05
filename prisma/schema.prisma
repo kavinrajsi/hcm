@@ -117,6 +117,13 @@ model User {
   emailsSent             EmailLog[]              @relation("EmailsSent")
   passkeys               Passkey[]
   loginSessions          LoginSession[]
+  coursesCreated         Course[]                @relation("CourseAuthor")
+  courseAssignments      CourseAssignment[]      @relation("CourseAssignee")
+  courseAssignmentsMade  CourseAssignment[]      @relation("CourseAssigner")
+  courseEnrollments      CourseEnrollment[]
+  lessonProgress         LessonProgress[]
+  announcementsPosted    Announcement[]
+  announcementReads      AnnouncementRead[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 }
@@ -1123,4 +1130,195 @@ model LoginSession {
 
   @@index([userId, lastSeenAt])
   @@index([lastSeenAt])
+}
+
+// ---------------------------------------------------------------------------
+// Learning: courses built from sections of lessons (PDF, uploaded video,
+// YouTube or Vimeo), with FAQs, live classes and announcements. Authors are
+// HR admins and managers. Files are private Vercel Blob objects read through
+// /api/learning/files (access check, then a short-lived signed URL).
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum LessonKind {
+  PDF
+  VIDEO
+  YOUTUBE
+  VIMEO
+}
+
+enum AssignmentTarget {
+  ALL
+  DEPARTMENT
+  USER
+}
+
+enum Urgency {
+  HIGH
+  MEDIUM
+  LOW
+  NONE
+}
+
+model Course {
+  id            String             @id @default(cuid())
+  title         String
+  description   String             @default("") // "About the course" overview
+  instructor    String?
+  coverKey      String? // private blob pathname
+  status        CourseStatus       @default(DRAFT)
+  openToAll     Boolean            @default(false) // listed in Explore for everyone
+  createdBy     User               @relation("CourseAuthor", fields: [createdById], references: [id])
+  createdById   String
+  sections      CourseSection[]
+  lessons       Lesson[]
+  faqs          CourseFaq[]
+  assignments   CourseAssignment[]
+  enrollments   CourseEnrollment[]
+  liveClasses   LiveClass[]
+  announcements Announcement[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([status])
+  @@index([createdById])
+}
+
+model CourseSection {
+  id       String   @id @default(cuid())
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId String
+  title    String
+  position Int
+  lessons  Lesson[]
+
+  @@index([courseId, position])
+}
+
+model Lesson {
+  id           String           @id @default(cuid())
+  course       Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId     String
+  section      CourseSection    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  sectionId    String
+  title        String
+  kind         LessonKind
+  fileKey      String? // PDF / VIDEO: private blob pathname
+  url          String? // YOUTUBE / VIMEO: the page URL as pasted
+  notes        String? // sanitized HTML
+  durationMins Int?
+  position     Int
+  progress     LessonProgress[]
+  createdAt    DateTime         @default(now())
+
+  @@index([courseId])
+  @@index([sectionId, position])
+  @@index([fileKey])
+}
+
+model CourseFaq {
+  id        String   @id @default(cuid())
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId  String
+  question  String
+  answer    String
+  position  Int
+  createdAt DateTime @default(now())
+
+  @@index([courseId, position])
+}
+
+/// Who a course is assigned to. Kept as a rule (everyone / a department /
+/// one person) so people who join a department later get it too.
+model CourseAssignment {
+  id           String           @id @default(cuid())
+  course       Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId     String
+  target       AssignmentTarget
+  department   String?
+  user         User?            @relation("CourseAssignee", fields: [userId], references: [id], onDelete: Cascade)
+  userId       String?
+  dueDate      DateTime?        @db.Date
+  assignedBy   User             @relation("CourseAssigner", fields: [assignedById], references: [id])
+  assignedById String
+  createdAt    DateTime         @default(now())
+
+  @@index([courseId])
+  @@index([userId])
+  @@index([department])
+}
+
+model CourseEnrollment {
+  id           String    @id @default(cuid())
+  course       Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId     String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  lastLessonId String?
+  startedAt    DateTime  @default(now())
+  lastActiveAt DateTime  @default(now())
+  completedAt  DateTime?
+
+  @@unique([courseId, userId])
+  @@index([userId, lastActiveAt])
+}
+
+model LessonProgress {
+  id          String   @id @default(cuid())
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  lessonId    String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  courseId    String // denormalised for per-course counts
+  completedAt DateTime @default(now())
+
+  @@unique([lessonId, userId])
+  @@index([userId, courseId])
+}
+
+model LiveClass {
+  id           String   @id @default(cuid())
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId     String
+  title        String
+  startsAt     DateTime
+  endsAt       DateTime
+  trainer      String?
+  meetingUrl   String?
+  recordingUrl String?
+  createdAt    DateTime @default(now())
+
+  @@index([courseId, startsAt])
+  @@index([startsAt])
+}
+
+model Announcement {
+  id          String             @id @default(cuid())
+  title       String
+  body        String // sanitized HTML
+  urgency     Urgency            @default(NONE)
+  course      Course?            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId    String? // null = for everyone
+  createdBy   User               @relation(fields: [createdById], references: [id])
+  createdById String
+  reads       AnnouncementRead[]
+  createdAt   DateTime           @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([courseId])
+}
+
+model AnnouncementRead {
+  id             String       @id @default(cuid())
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  announcementId String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  readAt         DateTime     @default(now())
+
+  @@unique([announcementId, userId])
+  @@index([userId])
 }

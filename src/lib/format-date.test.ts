@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDateTime, formatDay, formatInstantDay } from "./format-date";
+import { formatDateTime, formatDay, formatInstantDay, parseIstLocal, toIstLocalInput, istDayKey, istDayStart, formatTime } from "./format-date";
 
 describe("Indian date format", () => {
   it("formats calendar dates as DD/MM/YYYY", () => {
@@ -26,5 +26,25 @@ describe("Indian date format", () => {
     expect(formatDateTime(new Date("2026-09-28T09:30:00Z"))).toBe(
       "28/09/2026, 3:00 pm",
     );
+  });
+});
+
+describe("Indian-time inputs", () => {
+  it("reads a datetime-local value as IST, not server time", () => {
+    expect(parseIstLocal("2026-10-05T18:00")?.toISOString()).toBe("2026-10-05T12:30:00.000Z");
+    expect(toIstLocalInput(new Date("2026-10-05T12:30:00Z"))).toBe("2026-10-05T18:00");
+  });
+
+  it("rejects impossible dates and junk", () => {
+    expect(parseIstLocal("2026-02-31T10:00")).toBeNull();
+    expect(parseIstLocal("2026-10-05T25:00")).toBeNull();
+    expect(parseIstLocal("tomorrow")).toBeNull();
+  });
+
+  it("buckets a timestamp into its IST day and back", () => {
+    // 20:00 UTC on the 5th is 01:30 on the 6th in India.
+    expect(istDayKey(new Date("2026-10-05T20:00:00Z"))).toBe("2026-10-06");
+    expect(istDayStart("2026-10-06").toISOString()).toBe("2026-10-05T18:30:00.000Z");
+    expect(formatTime(new Date("2026-10-05T12:30:00Z"))).toBe("6:00 pm");
   });
 });
