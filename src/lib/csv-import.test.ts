@@ -4,6 +4,7 @@ import {
   collectRows,
   parseCsvBoolean,
   parseCsvDate,
+  parseCsvIstDateTime,
   parseCsvFile,
 } from "./csv-import";
 
@@ -87,5 +88,22 @@ describe("parseCsvBoolean", () => {
     expect(parseCsvBoolean("false")).toBe(false);
     expect(parseCsvBoolean("")).toBe(false);
     expect(parseCsvBoolean(undefined)).toBe(false);
+  });
+});
+
+describe("parseCsvIstDateTime", () => {
+  it("reads local date-times and bare dates as Indian time", () => {
+    expect(parseCsvIstDateTime("2026-10-05 18:00", "date").toISOString()).toBe("2026-10-05T12:30:00.000Z");
+    expect(parseCsvIstDateTime("2026-10-05T18:00:00", "date").toISOString()).toBe("2026-10-05T12:30:00.000Z");
+    expect(parseCsvIstDateTime("2026-10-05", "date").toISOString()).toBe("2026-10-04T18:30:00.000Z");
+  });
+
+  it("keeps an explicit time zone", () => {
+    expect(parseCsvIstDateTime("2026-10-05T18:00:00Z", "date").toISOString()).toBe("2026-10-05T18:00:00.000Z");
+  });
+
+  it("rejects impossible or missing values", () => {
+    expect(() => parseCsvIstDateTime("2026-02-31 10:00", "date")).toThrow("Invalid date");
+    expect(() => parseCsvIstDateTime(undefined, "date")).toThrow("date is required");
   });
 });

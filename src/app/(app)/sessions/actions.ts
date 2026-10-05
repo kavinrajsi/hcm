@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { invalid, type FormState } from "@/lib/form-state";
+import { fieldError, invalid, type FormState } from "@/lib/form-state";
+import { parseIstLocal } from "@/lib/format-date";
 import { requireRole, requireUser } from "@/lib/rbac";
 import {
   cell,
@@ -11,6 +12,7 @@ import {
   importSummary,
   parseCsvBoolean,
   parseCsvDate,
+  parseCsvIstDateTime,
   parseCsvFile,
   type ImportState,
 } from "@/lib/csv-import";
@@ -42,10 +44,12 @@ export async function createSession(
     notes: formData.get("notes") ?? undefined,
   });
   if (!parsed.success) return invalid(parsed.error);
+  // The datetime-local value is Indian time; new Date() would read it in
+  // the server's zone (UTC on Vercel) and show the session 5½ hours late.
+  const date = parseIstLocal(parsed.data.date);
+  if (!date) return fieldError("date", "Pick a date and time");
 
-  await db.trainingSession.create({
-    data: { ...parsed.data, date: new Date(parsed.data.date) },
-  });
+  await db.trainingSession.create({ data: { ...parsed.data, date } });
   revalidatePath("/sessions");
   return { ok: true };
 }
@@ -70,7 +74,7 @@ export async function importSessions(
     if (!result.success) {
       throw new Error(result.error.issues[0]?.message ?? "Invalid row");
     }
-    return { ...result.data, date: parseCsvDate(result.data.date, "date") };
+    return { ...result.data, date: parseCsvIstDateTime(result.data.date, "date") };
   });
 
   await db.trainingSession.createMany({ data: valid });

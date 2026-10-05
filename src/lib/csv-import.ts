@@ -1,4 +1,5 @@
 import Papa from "papaparse";
+import { parseIstLocal } from "@/lib/format-date";
 
 export type ImportFailure = { row: number; message: string };
 
@@ -92,6 +93,22 @@ export function parseCsvDate(value: string | undefined, label: string): Date {
   if (!value) throw new Error(`${label} is required`);
   const date = new Date(value);
   if (isNaN(date.getTime())) throw new Error(`Invalid ${label}: ${value}`);
+  return date;
+}
+
+/**
+ * A CSV date-time in Indian time: "2026-10-05 18:00" (or with T), or a
+ * bare date (midnight IST). A value with an explicit zone (Z, +05:30) is
+ * taken as given. Plain `new Date()` would read local times in the
+ * server's zone (UTC on Vercel), 5½ hours off.
+ */
+export function parseCsvIstDateTime(value: string | undefined, label: string): Date {
+  if (!value) throw new Error(`${label} is required`);
+  const trimmed = value.trim();
+  const local = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}))?(?::\d{2})?$/.exec(trimmed);
+  if (!local) return parseCsvDate(trimmed, label);
+  const date = parseIstLocal(`${local[1]}T${local[2] ?? "00:00"}`);
+  if (!date) throw new Error(`Invalid ${label}: ${value}`);
   return date;
 }
 

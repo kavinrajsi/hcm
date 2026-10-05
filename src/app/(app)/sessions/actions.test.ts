@@ -36,7 +36,10 @@ describe("createSession", () => {
       }),
     );
     expect(state).toEqual({ ok: true });
-    expect(db.trainingSession.create).toHaveBeenCalled();
+    // 10:00 in India, not 10:00 UTC (which would show 5½ hours late).
+    expect(db.trainingSession.create.mock.calls[0][0].data.date.toISOString()).toBe(
+      "2026-10-01T04:30:00.000Z",
+    );
   });
 
   it("puts each problem under its field", async () => {
