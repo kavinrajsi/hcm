@@ -8,7 +8,7 @@ import { requireRole } from "@/lib/rbac";
 import { fieldError, invalid, type FormState } from "@/lib/form-state";
 import { sendEmail } from "@/lib/email";
 import { letterEmail } from "@/lib/emails";
-import { fillTemplate, getLetterTemplate } from "@/lib/letter-templates";
+import { fillTemplate, getLetterTemplate, unfilledPlaceholders } from "@/lib/letter-templates";
 import { isBlankHtml, toEmailHtml } from "@/lib/email-html";
 
 export type LetterFormState = FormState & {
@@ -61,6 +61,9 @@ export async function generateLetter(
   };
 }
 
+/** An identical letter within this window is treated as a double send. */
+const RESEND_GUARD_MS = 2 * 60_000;
+
 const sendSchema = z.object({
   employeeId: z.string().min(1),
   type: z.enum(["OFFER", "INTERN", "COMPENSATION"]),
@@ -83,6 +86,28 @@ export async function sendLetter(
   // Never trust the browser's HTML: keep only what email clients support.
   const bodyHtml = toEmailHtml(parsed.data.bodyHtml);
   if (isBlankHtml(bodyHtml)) return fieldError("bodyHtml", "Body is required");
+
+  // Don't send a letter with blanks still in it.
+  const subjectBlanks = unfilledPlaceholders(parsed.data.subject);
+  if (subjectBlanks.length)
+    return fieldError("subject", `Fill in ${subjectBlanks.join(", ")} before sending`);
+  const bodyBlanks = unfilledPlaceholders(bodyHtml);
+  if (bodyBlanks.length)
+    return fieldError("bodyHtml", `Fill in ${bodyBlanks.join(", ")} before sending`);
+
+  // A double click or re-submit sends the same letter again; refuse an
+  // identical one created in the last couple of minutes.
+  const duplicate = await db.letter.findFirst({
+    where: {
+      employeeId: parsed.data.employeeId,
+      type: parsed.data.type,
+      subject: parsed.data.subject,
+      bodyHtml,
+      createdAt: { gt: new Date(Date.now() - RESEND_GUARD_MS) },
+    },
+    select: { id: true },
+  });
+  if (duplicate) return { error: "This letter was just sent. Check the list below before sending it again." };
 
   const employee = await db.employee.findUnique({
     where: { id: parsed.data.employeeId },

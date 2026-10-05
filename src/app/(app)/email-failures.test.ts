@@ -14,7 +14,7 @@ const db = vi.hoisted(() => {
     },
     idCard: { update: vi.fn() },
     probationRecord: { update: vi.fn(), findMany: vi.fn() },
-    letter: { create: vi.fn() },
+    letter: { create: vi.fn(), findFirst: vi.fn(async () => null) },
     $transaction: vi.fn(async (arg: unknown) =>
       Array.isArray(arg)
         ? Promise.all(arg)
@@ -155,21 +155,18 @@ describe("probation reminder cron", () => {
     expect(sendEmail).not.toHaveBeenCalled();
   });
 
-  it("emails only active HR admins", async () => {
+  it("emails the HR inbox once about overdue probations", async () => {
     sendEmail.mockResolvedValue({ skipped: false });
     const response = await probationCron(request);
-    expect(await response.json()).toEqual({ due: 1, emailed: true });
-    expect(db.user.findMany.mock.calls[0][0].where).toEqual({
-      role: "HR_ADMIN",
-      disabledAt: null,
-    });
-    expect(sendEmail.mock.calls[0][0].to).toEqual(["hr@madarth.com"]);
+    expect(await response.json()).toEqual({ overdue: 1, emailed: true });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendEmail.mock.calls[0][0].to).toBe(process.env.HR_EMAIL || "hr@madarth.com");
   });
 
   it("reports emailed:false instead of crashing when sending fails", async () => {
     sendEmail.mockRejectedValue(new Error("down"));
     const response = await probationCron(request);
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ due: 1, emailed: false });
+    expect(await response.json()).toEqual({ overdue: 1, emailed: false });
   });
 });

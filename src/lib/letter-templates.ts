@@ -81,3 +81,16 @@ export async function getLetterTemplate(type: LetterTypeKey): Promise<{
     updatedBy: saved.updatedBy?.name || saved.updatedBy?.email || null,
   };
 }
+
+/**
+ * Blanks left in a letter that must be filled before sending: "[Enter …]"
+ * style notes and any unreplaced {{placeholder}}. Returns them as written.
+ */
+export function unfilledPlaceholders(text: string): string[] {
+  const plain = text.replace(/<[^>]+>/g, " ");
+  const found = [
+    ...plain.matchAll(/\[(?:enter|insert|add|fill in|type)\b[^\]]*\]/gi),
+    ...plain.matchAll(/\{\{\s*[\w.]+\s*\}\}/g),
+  ].map((match) => match[0]);
+  return [...new Set(found)];
+}
