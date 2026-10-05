@@ -110,16 +110,16 @@ export async function emailCatalog(): Promise<CatalogEmail[]> {
     },
     {
       key: "probation-digest",
-      name: "Probation confirmations due",
+      name: "Probation confirmations overdue",
       group: "Reminders",
-      trigger: "Daily at 9:00 IST, when any confirmation is due within 14 days or overdue.",
+      trigger: "Mondays at 9:00 IST, when any probation is past its due date and still open. Upcoming ones come once in “Ending within a week”.",
       from: DEFAULT_FROM,
-      to: "All active HR admins",
+      to: HR_EMAIL,
       render: async () =>
         probationReminderEmail({
           rows: [
-            { name: SAMPLE.name, empId: SAMPLE.empId, dueDate: inDays(5).toISOString(), status: "PENDING" },
-            { name: "Ravi Kumar", empId: "PBCH0101", dueDate: inDays(12).toISOString(), status: "EXTENDED" },
+            { name: SAMPLE.name, empId: SAMPLE.empId, dueDate: inDays(-5).toISOString(), status: "PENDING" },
+            { name: "Ravi Kumar", empId: "PBCH0101", dueDate: inDays(-12).toISOString(), status: "EXTENDED" },
           ],
         }),
     },

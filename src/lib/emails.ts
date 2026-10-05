@@ -96,11 +96,11 @@ export function probationReminderEmail({
     .join("");
   const count = rows.length;
   return {
-    subject: `${count} probation confirmation${count === 1 ? "" : "s"} due soon`,
+    subject: `${count} probation confirmation${count === 1 ? "" : "s"} overdue`,
     html: renderEmail({
-      preheader: `${count} employee${count === 1 ? "" : "s"} due for confirmation within 14 days.`,
-      heading: "Probation confirmations due",
-      body: `These employees are due for confirmation within the next 14 days (or are overdue):
+      preheader: `${count} employee${count === 1 ? " is" : "s are"} past their probation due date.`,
+      heading: "Probation confirmations overdue",
+      body: `These employees are past their probation due date and still need a decision — confirm, extend or exit:
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;font-size:14px">${list}</table>`,
       button: { label: "Open Probation", url: appUrl("/probation") },
     }),

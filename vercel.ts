@@ -3,8 +3,9 @@ import type { VercelConfig } from "@vercel/config/v1";
 export const config: VercelConfig = {
   framework: "nextjs",
   crons: [
-    // Daily 03:30 UTC (09:00 IST) — probation confirmations due soon.
-    { path: "/api/cron/probation-reminders", schedule: "30 3 * * *" },
+    // Mondays 03:30 UTC (09:00 IST) — overdue probation confirmations, to
+    // hr@madarth.com (upcoming ones come in the reminder below).
+    { path: "/api/cron/probation-reminders", schedule: "30 3 * * 1" },
     // Daily 03:45 UTC (09:15 IST) — once, a week ahead: probation, contract
     // and internship ends, to hr@madarth.com.
     { path: "/api/cron/employment-end-reminders", schedule: "45 3 * * *" },

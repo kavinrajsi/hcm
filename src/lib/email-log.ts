@@ -11,7 +11,7 @@ export const EMAIL_KINDS = {
   reset: "Password reset",
   "type-change": "Employment type changed",
   "exit-clearance": "Exit clearance",
-  "probation-digest": "Probation confirmations due",
+  "probation-digest": "Probation confirmations overdue",
   "ending-soon": "Ending within a week",
   letter: "Letter",
   "device-request": "Device request to vendor",

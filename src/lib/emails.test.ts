@@ -84,7 +84,7 @@ describe("probationReminderEmail", () => {
         { name: "B", empId: "E2", dueDate: "2026-10-09", status: "EXTENDED" },
       ],
     });
-    expect(email.subject).toBe("2 probation confirmations due soon");
+    expect(email.subject).toBe("2 probation confirmations overdue");
     expect(email.html).toContain("5 October 2026");
     expect(email.html).toContain("(extended)");
     expect(email.html).toContain("/probation");
@@ -97,7 +97,7 @@ describe("probationReminderEmail", () => {
           { name: "A", empId: "E1", dueDate: "2026-10-05", status: "PENDING" },
         ],
       }).subject,
-    ).toBe("1 probation confirmation due soon");
+    ).toBe("1 probation confirmation overdue");
   });
 });
 
