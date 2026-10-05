@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
+import { teamEmployeeWhere } from "@/lib/team-scope";
 import {
   optionsByCount,
   parseTableParams,
@@ -35,7 +36,7 @@ import { EmployeeAvatar } from "@/components/employee-avatar";
 export const metadata = { title: "Exit / Offboarding" };
 
 export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
-  await requirePageRole("HR_ADMIN", "MANAGER");
+  const user = await requirePageRole("HR_ADMIN", "MANAGER");
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
@@ -48,7 +49,9 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
     from: stringParam(raw.from),
     to: stringParam(raw.to),
   });
-  const scope: Prisma.EmployeeWhereInput = { dateOfExit: { not: null } };
+  // Managers see only their direct reports.
+  const team = teamEmployeeWhere(user);
+  const scope: Prisma.EmployeeWhereInput = { dateOfExit: { not: null }, AND: [team] };
   const where: Prisma.EmployeeWhereInput = {
     ...scope,
     ...(params.q
@@ -84,7 +87,7 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
       }),
       db.employee.count({ where }),
       db.employee.findMany({
-        where: { dateOfExit: null },
+        where: { dateOfExit: null, ...team },
         orderBy: { name: "asc" },
         select: { id: true, empId: true, name: true },
       }),

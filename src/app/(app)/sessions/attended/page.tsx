@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
+import { teamEmployeeWhere } from "@/lib/team-scope";
 import { datePartsToRange, parseTableParams } from "@/lib/table-params";
 import { TableFilters } from "@/components/data-table/filters";
 import { TablePagination } from "@/components/data-table/pagination";
@@ -32,11 +33,14 @@ export const metadata = { title: "Session Attended" };
 export default async function SessionAttendedPage({
   searchParams,
 }: PageProps<"/sessions/attended">) {
-  await requirePageRole("HR_ADMIN", "MANAGER");
+  const user = await requirePageRole("HR_ADMIN", "MANAGER");
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
+  // Managers see only their direct reports' attendance.
+  const team = teamEmployeeWhere(user);
   const where: Prisma.SessionAttendanceWhereInput = {
+    AND: [{ employee: team }],
     ...(params.q
       ? {
           OR: [
@@ -61,7 +65,7 @@ export default async function SessionAttendedPage({
     }),
     db.sessionAttendance.count({ where }),
     db.employee.findMany({
-      where: { dateOfExit: null },
+      where: { dateOfExit: null, ...team },
       orderBy: { name: "asc" },
       select: { id: true, empId: true, name: true },
     }),

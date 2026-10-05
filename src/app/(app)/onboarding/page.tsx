@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
+import { teamEmployeeWhere } from "@/lib/team-scope";
 import {
   optionsByCount,
   parseTableParams,
@@ -36,7 +37,7 @@ export const metadata = { title: "Onboarding" };
 export default async function OnboardingPage({
   searchParams,
 }: PageProps<"/onboarding">) {
-  await requirePageRole("HR_ADMIN", "MANAGER");
+  const user = await requirePageRole("HR_ADMIN", "MANAGER");
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
@@ -49,7 +50,10 @@ export default async function OnboardingPage({
     from: stringParam(raw.from),
     to: stringParam(raw.to),
   });
+  // Managers see only their direct reports.
+  const team = teamEmployeeWhere(user);
   const where: Prisma.OnboardingRecordWhereInput = {
+    AND: [{ employee: team }],
     ...(params.q
       ? {
           employee: {
@@ -78,8 +82,8 @@ export default async function OnboardingPage({
       },
     }),
     db.onboardingRecord.count({ where }),
-    db.onboardingRecord.groupBy({ by: ["empType"], _count: true }),
-    db.onboardingRecord.groupBy({ by: ["designation"], _count: true }),
+    db.onboardingRecord.groupBy({ by: ["empType"], where: { employee: team }, _count: true }),
+    db.onboardingRecord.groupBy({ by: ["designation"], where: { employee: team }, _count: true }),
   ]);
   const typeCounts = new Map(
     types.map((group) => [group.empType as string, group._count]),

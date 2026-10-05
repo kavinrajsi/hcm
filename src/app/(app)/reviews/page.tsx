@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
+import { teamEmployeeWhere } from "@/lib/team-scope";
 import {
   Table,
   TableBody,
@@ -24,9 +25,11 @@ export const metadata = { title: "Review Meetings" };
 // Schema stub (ReviewMeeting: employee, date, notes) exists so records
 // created elsewhere surface here once the module is specced.
 export default async function ReviewsPage() {
-  await requirePageRole("HR_ADMIN", "MANAGER");
+  const user = await requirePageRole("HR_ADMIN", "MANAGER");
 
+  // Managers see only their direct reports' meetings.
   const meetings = await db.reviewMeeting.findMany({
+    where: { employee: teamEmployeeWhere(user) },
     orderBy: { date: "desc" },
     take: 50,
     include: { employee: { select: { id: true, empId: true, name: true } } },

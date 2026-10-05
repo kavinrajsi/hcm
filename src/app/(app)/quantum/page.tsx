@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
+import { teamEmployeeWhere } from "@/lib/team-scope";
 import {
   basecampConfigured,
   getAccessToken,
@@ -48,7 +49,10 @@ export default async function QuantumPage({
   const params = parseTableParams(raw);
   const employeeFilter = typeof raw.employee === "string" ? raw.employee : "";
 
+  // Managers see only their direct reports' entries.
+  const team = teamEmployeeWhere(user);
   const where: Prisma.QuantumEntryWhereInput = {
+    AND: [{ employee: team }],
     ...(employeeFilter ? { employeeId: employeeFilter } : {}),
     ...(params.q
       ? {
@@ -73,7 +77,7 @@ export default async function QuantumPage({
     }),
     db.quantumEntry.count({ where }),
     db.employee.findMany({
-      where: { dateOfExit: null },
+      where: { dateOfExit: null, ...team },
       orderBy: { name: "asc" },
       select: { id: true, empId: true, name: true },
     }),

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
+import { teamEmployeeWhere } from "@/lib/team-scope";
 import {
   optionsByCount,
   parseTableParams,
@@ -50,7 +51,7 @@ const badgeVariant = {
 export default async function ProbationPage({
   searchParams,
 }: PageProps<"/probation">) {
-  await requirePageRole("HR_ADMIN", "MANAGER");
+  const user = await requirePageRole("HR_ADMIN", "MANAGER");
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
@@ -72,8 +73,11 @@ export default async function ProbationPage({
       { employee: { empType: "PROBATION" } },
     ],
   };
+  // Managers see only their direct reports.
+  const team = teamEmployeeWhere(user);
   const where: Prisma.ProbationRecordWhereInput = {
     ...current,
+    AND: [{ employee: team }],
     ...(params.q || department
       ? {
           employee: {
@@ -114,12 +118,12 @@ export default async function ProbationPage({
     db.probationRecord.count({ where }),
     db.probationRecord.groupBy({
       by: ["status"],
-      where: current,
+      where: { ...current, AND: [{ employee: team }] },
       _count: true,
     }),
     db.employee.groupBy({
       by: ["department"],
-      where: { probation: { is: current } },
+      where: { probation: { is: current }, ...team },
       _count: true,
     }),
   ]);
