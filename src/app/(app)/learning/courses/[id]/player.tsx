@@ -9,6 +9,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { markLessonComplete, recordVisit } from "../../actions";
+import { PdfViewer } from "../../_components/pdf-viewer";
+import { downloadFile } from "../../_components/fetch-file";
 
 // Client pieces of the course page: the lesson viewer, "Mark complete &
 // next", the section list and the About drawer.
@@ -54,14 +56,7 @@ export function LessonViewer({ courseId, lesson }: { courseId: string; lesson: V
     );
   }
   if (lesson.kind === "PDF" && lesson.fileUrl) {
-    return (
-      <iframe
-        key={lesson.id}
-        title={lesson.title}
-        src={lesson.fileUrl}
-        className="h-[70vh] w-full rounded-xl border border-zinc-200 bg-white dark:border-zinc-800"
-      />
-    );
+    return <PdfViewer key={lesson.id} src={lesson.fileUrl} title={lesson.title} />;
   }
   if (lesson.embedSrc) {
     return (
@@ -120,12 +115,9 @@ export function LessonActions({
     <div className="flex flex-col items-end gap-1">
       <div className="flex flex-wrap justify-end gap-2">
         {lesson.kind === "PDF" && lesson.fileUrl && (
-          <Button variant="outline" nativeButton={false} render={<a href={`${lesson.fileUrl}${lesson.fileUrl.includes("?") ? "&" : "?"}download=1`} />}>
-            <Download />
-            Download
-          </Button>
+          <DownloadButton url={lesson.fileUrl} name={`${lesson.title}.pdf`} />
         )}
-        {lesson.fileUrl && (
+        {lesson.kind === "VIDEO" && lesson.fileUrl && (
           <Button
             variant="outline"
             size="icon"
@@ -147,6 +139,28 @@ export function LessonActions({
       </div>
       {complete.message && <p className="text-sm text-emerald-600 dark:text-emerald-400">{complete.message}</p>}
     </div>
+  );
+}
+
+function DownloadButton({ url, name }: { url: string; name: string }) {
+  const [state, setState] = useState<"idle" | "busy" | "error">("idle");
+  return (
+    <Button
+      variant="outline"
+      disabled={state === "busy"}
+      onClick={async () => {
+        setState("busy");
+        try {
+          await downloadFile(url, name.replace(/[\\/:*?"<>|]+/g, "-"));
+          setState("idle");
+        } catch {
+          setState("error");
+        }
+      }}
+    >
+      <Download />
+      {state === "busy" ? "Downloading…" : state === "error" ? "Try again" : "Download"}
+    </Button>
   );
 }
 

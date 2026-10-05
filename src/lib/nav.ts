@@ -4,7 +4,15 @@ import type { Role } from "@/generated/prisma/enums";
 // `roles` mirrors each page's requireRole() guard; omitted = any signed-in
 // user. UI filtering is convenience only — the page guard is the boundary.
 
-export type NavItem = { title: string; url: string; roles?: Role[] };
+export type NavItem = {
+  title: string;
+  url: string;
+  roles?: Role[];
+  /** Match only this exact URL, not pages under it. */
+  exact?: boolean;
+  /** Other URL prefixes that count as this page (e.g. course pages → My learning). */
+  also?: string[];
+};
 export type NavGroup = { title: string; items: NavItem[] };
 
 const HR: Role[] = ["HR_ADMIN"];
@@ -65,8 +73,8 @@ export const NAV: NavGroup[] = [
   {
     title: "Learning",
     items: [
-      { title: "Dashboard", url: "/learning" },
-      { title: "My learning", url: "/learning/my" },
+      { title: "Dashboard", url: "/learning", exact: true },
+      { title: "My learning", url: "/learning/my", also: ["/learning/courses"] },
       { title: "Announcements", url: "/learning/announcements" },
       { title: "Calendar", url: "/learning/calendar" },
       { title: "Sessions", url: "/sessions" },
@@ -112,14 +120,17 @@ export function navFor(role: Role): NavGroup[] {
 
 /** Longest URL match first so /sessions/attended beats /sessions. */
 export function findCurrent(pathname: string) {
-  const all = NAV.flatMap((group) =>
-    group.items.map((item) => ({ group: group.title, item })),
+  const candidates = NAV.flatMap((group) =>
+    group.items.flatMap((item) =>
+      [item.url, ...(item.also ?? [])].map((prefix) => ({ group: group.title, item, prefix })),
+    ),
   );
-  return all
-    .sort((left, right) => right.item.url.length - left.item.url.length)
-    .find(({ item }) =>
-      item.url === "/" ? pathname === "/" : pathname.startsWith(item.url),
+  const match = candidates
+    .sort((left, right) => right.prefix.length - left.prefix.length)
+    .find(({ item, prefix }) =>
+      prefix === "/" || item.exact ? pathname === prefix : pathname.startsWith(prefix),
     );
+  return match && { group: match.group, item: match.item };
 }
 
 /** Mobile bottom-bar tabs (plus a trailing "More"), per role. */
