@@ -134,6 +134,22 @@ describe("updateEmployee", () => {
     expect(db.employee.update).not.toHaveBeenCalled();
   });
 
+  it("catches a duplicate work email written in different capitals", async () => {
+    db.employee.findFirst.mockResolvedValue({ empId: "OTHER", workEmail: "krupa@madarth.com" });
+    const result = await save(krupaForm({ workEmail: "Krupa@Madarth.com" }));
+    expect(db.employee.findFirst.mock.calls[0][0].where.OR).toContainEqual({ workEmail: "krupa@madarth.com" });
+    expect(result.state?.fieldErrors?.workEmail).toEqual(["Work email already exists"]);
+    expect(db.employee.update).not.toHaveBeenCalled();
+  });
+
+  it("shows a duplicate the database catches as a field error, not a crash", async () => {
+    db.employee.update.mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), { code: "P2002", meta: { target: ["workEmail"] } }),
+    );
+    const result = await save(krupaForm());
+    expect(result.state?.fieldErrors?.workEmail).toEqual(["Work email already exists"]);
+  });
+
   it("flags a type end before joining on typeEndDate", async () => {
     const result = await save(krupaForm({ typeEndDate: "2026-01-01" }));
     expect(result.state?.fieldErrors?.typeEndDate?.[0]).toMatch(

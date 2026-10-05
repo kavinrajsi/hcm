@@ -63,7 +63,8 @@ const employeeSchema = z.object({
   personalEmail: optionalTrimmed.pipe(
     z.email("Invalid personal email").optional(),
   ),
-  workEmail: z.string().trim().pipe(z.email("Invalid work email")),
+  // Stored lowercase, so compare lowercase: "Kavin@x.com" is a duplicate of "kavin@x.com".
+  workEmail: z.string().trim().toLowerCase().pipe(z.email("Invalid work email")),
   emergencyContact: optionalTrimmed,
   // Plaintext; blank clears it.
   fatherName: z
@@ -218,6 +219,22 @@ function piiInput(data: z.infer<typeof employeeSchema>) {
   };
 }
 
+/**
+ * A unique-constraint error from saving an employee (two saves racing past
+ * findDuplicate), as the message under the matching field. Null for other errors.
+ */
+function duplicateFieldError(error: unknown): FormState | null {
+  if (!(error && typeof error === "object" && "code" in error && error.code === "P2002")) return null;
+  const detail = JSON.stringify((error as { meta?: unknown }).meta ?? "");
+  if (detail.includes("empId")) return fieldError("empId", "Employee ID already exists");
+  if (detail.includes("workEmail")) return fieldError("workEmail", "Work email already exists");
+  if (detail.includes("panHash")) return fieldError("pan", "An employee with this PAN already exists");
+  if (detail.includes("aadhaarHash")) return fieldError("aadhaar", "An employee with this Aadhaar already exists");
+  if (detail.includes("bankAccountHash"))
+    return fieldError("bankAccount", "An employee with this bank account already exists");
+  return { error: "An employee with these details already exists." };
+}
+
 /** Friendly duplicate-check before insert; unique constraints still back it. */
 async function findDuplicate(
   data: z.infer<typeof employeeSchema>,
@@ -330,51 +347,64 @@ export async function createEmployee(
     };
   }
 
-  const employee = await db.employee.create({
-    data: {
-      empId: data.empId,
-      name: data.name,
-      gender: data.gender,
-      bloodGroup: data.bloodGroup,
-      tshirtSize: data.tshirtSize,
-      fatherName: data.fatherName,
-      workEmail: data.workEmail.toLowerCase(),
-      city: data.city,
-      state: data.state,
-      pincode: data.pincode,
-      department: data.department,
-      designation: data.designation,
-      dateOfJoining: joinDate,
-      empType: data.empType,
-      isFresher: data.isFresher,
-      linkedinId: data.isFresher ? undefined : data.linkedinId,
-      managerId: data.managerId,
-      candidateId,
-      ...sensitiveColumns(data),
-      ...encryptPii(piiInput(data)),
-      ...blobKeys,
-      ...(previousEmployments.length > 0
-        ? { previousEmployments: { create: previousEmployments } }
-        : {}),
-      // Onboarding completion auto-creates the linked lifecycle records.
-      onboarding: {
-        create: {
-          joinDate,
-          designation: data.designation,
-          empType: data.empType,
-        },
-      },
-      // First history entry: card starts at Photo Taken.
-      idCard: {
-        create: {
-          statusChanges: {
-            create: { toStatus: "PHOTO_TAKEN", changedById: user.id },
+  let employee: Awaited<ReturnType<typeof db.employee.create>>;
+  try {
+    employee = await db.employee.create({
+      data: {
+        empId: data.empId,
+        name: data.name,
+        gender: data.gender,
+        bloodGroup: data.bloodGroup,
+        tshirtSize: data.tshirtSize,
+        fatherName: data.fatherName,
+        workEmail: data.workEmail.toLowerCase(),
+        city: data.city,
+        state: data.state,
+        pincode: data.pincode,
+        department: data.department,
+        designation: data.designation,
+        dateOfJoining: joinDate,
+        empType: data.empType,
+        isFresher: data.isFresher,
+        linkedinId: data.isFresher ? undefined : data.linkedinId,
+        managerId: data.managerId,
+        candidateId,
+        ...sensitiveColumns(data),
+        ...encryptPii(piiInput(data)),
+        ...blobKeys,
+        ...(previousEmployments.length > 0
+          ? { previousEmployments: { create: previousEmployments } }
+          : {}),
+        // Onboarding completion auto-creates the linked lifecycle records.
+        onboarding: {
+          create: {
+            joinDate,
+            designation: data.designation,
+            empType: data.empType,
           },
         },
+        // First history entry: card starts at Photo Taken.
+        idCard: {
+          create: {
+            statusChanges: {
+              create: { toStatus: "PHOTO_TAKEN", changedById: user.id },
+            },
+          },
+        },
+        ...typeEndCreateData(data.empType, typeEnd),
       },
-      ...typeEndCreateData(data.empType, typeEnd),
-    },
-  });
+    });
+  } catch (error) {
+    const duplicate = duplicateFieldError(error);
+    if (!duplicate) throw error;
+    // Nothing references the files just uploaded for this employee.
+    await Promise.all(
+      Object.values(blobKeys)
+        .filter((key): key is string => typeof key === "string")
+        .map((key) => deleteDocument(key).catch(() => {})),
+    );
+    return duplicate;
+  }
 
   if (candidateId !== undefined) {
     // Leave a trail on the candidate (notes are shared with the website).
@@ -703,15 +733,19 @@ export async function updateEmployee(
       }),
     },
   });
-  if (previous.writes.length > 0) {
-    await db.$transaction([employeeUpdate, ...previous.writes]);
-    // Replaced or removed letters: unreferenced once the rows are saved.
-    await Promise.all(
-      previous.orphaned.map((key) => deleteDocument(key).catch(() => {})),
-    );
-  } else {
-    await employeeUpdate;
+  try {
+    if (previous.writes.length > 0) {
+      await db.$transaction([employeeUpdate, ...previous.writes]);
+    } else {
+      await employeeUpdate;
+    }
+  } catch (error) {
+    const duplicate = duplicateFieldError(error);
+    if (duplicate) return duplicate;
+    throw error;
   }
+  // Replaced or removed letters: unreferenced once the rows are saved.
+  await Promise.all(previous.orphaned.map((key) => deleteDocument(key).catch(() => {})));
 
   // Type changed: tell the employee, copying HR and Finance (best-effort).
   if (current.empType !== data.empType)
