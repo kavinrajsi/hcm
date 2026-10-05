@@ -259,7 +259,7 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/l
           )}
 
           {tab === "faq" && (
-            <div className="flex max-w-3xl flex-col gap-2">
+            <div className="flex flex-col gap-2">
               {course.faqs.length === 0 && <p className="text-sm text-zinc-500">No FAQs yet.</p>}
               {course.faqs.map((faq) => (
                 <details key={faq.id} className="group rounded-xl border border-zinc-200 dark:border-zinc-800">

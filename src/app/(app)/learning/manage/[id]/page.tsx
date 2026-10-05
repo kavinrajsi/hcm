@@ -278,7 +278,7 @@ export default async function EditCoursePage({ params, searchParams }: PageProps
 
         {tab === "classes" && (
           <div className="flex flex-col gap-6">
-            <div className="max-w-2xl rounded-lg border border-dashed border-zinc-300 p-4 dark:border-zinc-700">
+            <div className="rounded-lg border border-dashed border-zinc-300 p-4 dark:border-zinc-700">
               <LiveClassForm courseId={course.id} />
             </div>
             <ul className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 text-sm dark:divide-zinc-800 dark:border-zinc-800">
