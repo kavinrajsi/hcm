@@ -22,11 +22,18 @@ function redirectUri(origin: string): string {
   return `${origin}/api/basecamp/callback`;
 }
 
-export function authorizeUrl(origin: string): string {
+/**
+ * Basecamp's consent page. `state` is a one-time random value the connect
+ * route also keeps in a cookie; the callback only accepts a code that comes
+ * back with it, so a crafted callback link can't attach someone else's
+ * Basecamp account to an HR admin.
+ */
+export function authorizeUrl(origin: string, state: string): string {
   const params = new URLSearchParams({
     type: "web_server",
     client_id: process.env.BASECAMP_CLIENT_ID!,
     redirect_uri: redirectUri(origin),
+    state,
   });
   return `${LAUNCHPAD}/authorization/new?${params}`;
 }
