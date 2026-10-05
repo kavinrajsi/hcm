@@ -59,7 +59,7 @@ export type CourseDefaults = {
 export function CourseForm({ courseId, defaults }: { courseId?: string; defaults?: CourseDefaults }) {
   const { state, formAction, pending } = useForm(courseId ? updateCourse.bind(null, courseId) : createCourse);
   return (
-    <ValidatedForm action={formAction} fieldErrors={state.fieldErrors} className="flex max-w-2xl flex-col gap-4">
+    <ValidatedForm action={formAction} fieldErrors={state.fieldErrors} className="flex flex-col gap-4">
       <FormField name="title" label="Title">
         <Input name="title" required defaultValue={defaults?.title} maxLength={200} />
       </FormField>

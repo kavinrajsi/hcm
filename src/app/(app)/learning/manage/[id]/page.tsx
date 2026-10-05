@@ -217,7 +217,7 @@ export default async function EditCoursePage({ params, searchParams }: PageProps
         )}
 
         {tab === "faq" && (
-          <div className="flex max-w-2xl flex-col gap-6">
+          <div className="flex flex-col gap-6">
             <p className="text-sm text-zinc-500">
               FAQs show on the course&apos;s FAQ tab. Add them whenever questions come up, before or after publishing.
             </p>
