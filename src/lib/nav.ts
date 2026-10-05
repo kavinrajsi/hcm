@@ -65,12 +65,18 @@ export const NAV: NavGroup[] = [
   {
     title: "Learning",
     items: [
+      { title: "Dashboard", url: "/learning" },
+      { title: "My learning", url: "/learning/my" },
+      { title: "Announcements", url: "/learning/announcements" },
+      { title: "Calendar", url: "/learning/calendar" },
       { title: "Sessions", url: "/sessions" },
       {
         title: "Session Attendance",
         url: "/sessions/attended",
         roles: HR_OR_MANAGER,
       },
+      // Course authoring (HR admins and managers).
+      { title: "Manage courses", url: "/learning/manage", roles: HR_OR_MANAGER },
     ],
   },
   {
