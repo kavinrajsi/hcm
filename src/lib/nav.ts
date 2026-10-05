@@ -15,9 +15,18 @@ export const NAV: NavGroup[] = [
     title: "Overview",
     items: [
       { title: "Dashboard", url: "/" },
-      { title: "My Profile", url: "/profile" },
       { title: "MadMax AI", url: "/madmax" },
       { title: "Connect an AI", url: "/mcp/instructions" },
+    ],
+  },
+  {
+    // The signed-in person's own pages; every login can open them.
+    title: "Profile",
+    items: [
+      { title: "Overview", url: "/profile" },
+      { title: "My work", url: "/profile/work" },
+      { title: "My leave", url: "/profile/leave" },
+      { title: "Security", url: "/profile/security" },
     ],
   },
   {

@@ -63,7 +63,7 @@ export default async function AuthorizePage({
           <li>It can read what you can see in HCM, and make changes you could make, such as approving leave.</li>
           <li>Most AI apps ask you before running anything that changes data. Every change is logged in HCM.</li>
           <li>PAN, Aadhaar and bank details are never shared.</li>
-          <li>Disconnect any time from My Profile → Connected AI apps.</li>
+          <li>Disconnect any time from Profile → Security → Connected AI apps.</li>
         </ul>
         <div
           className={

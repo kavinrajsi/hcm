@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { removePasskey } from "./actions";
 import { AddPasskey } from "./add-passkey";
 
-/** My Profile: passkeys that can sign in as me instead of a password. */
+/** Profile → Security: passkeys that can sign in as me instead of a password. */
 export async function Passkeys({ userId }: { userId: string }) {
   const passkeys = await db.passkey.findMany({
     where: { userId },

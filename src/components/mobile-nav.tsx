@@ -30,7 +30,7 @@ const ICONS: Record<string, React.ComponentType<IconProps>> = {
   "/onboarding": PersonAddIcon,
 };
 
-const SHORT_TITLES: Record<string, string> = { "/": "Home" };
+const SHORT_TITLES: Record<string, string> = { "/": "Home", "/profile": "Profile" };
 
 const tabClass =
   "flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium";
@@ -49,7 +49,11 @@ export function MobileTabBar({ role }: { role: Role }) {
     ),
   );
   const tabs = TABS[role];
-  const inTabs = current !== undefined && tabs.includes(current);
+  // A tab also covers its sub-pages (Profile → /profile/security).
+  const currentTab = tabs.find(
+    (url) => current === url || (url !== "/" && current?.startsWith(`${url}/`)),
+  );
+  const inTabs = currentTab !== undefined;
 
   return (
     <nav
@@ -59,7 +63,7 @@ export function MobileTabBar({ role }: { role: Role }) {
       <ul className="flex">
         {tabs.map((url) => {
           const Icon = ICONS[url] ?? HomeIcon;
-          const active = current === url && !openMobile;
+          const active = currentTab === url && !openMobile;
           return (
             <li key={url} className="flex flex-1">
               <Link

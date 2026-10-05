@@ -30,7 +30,7 @@ export async function updateAccountName(
     where: { id: user.id },
     data: { name: parsed.data.name },
   });
-  revalidatePath("/profile");
+  revalidatePath("/profile", "layout");
   return { ok: true };
 }
 
@@ -113,7 +113,7 @@ export async function updateOwnContact(
   if (!parsed.success) return invalid(parsed.error);
 
   await saveContact(employeeId, parsed.data);
-  revalidatePath("/profile");
+  revalidatePath("/profile", "layout");
   return { ok: true };
 }
 
@@ -134,7 +134,7 @@ export async function finishPasskeyRegistration(
 ): Promise<RegisterResult> {
   const user = await requireUser();
   const result = await registerPasskey(user.id, response, String(name ?? ""));
-  if (result.ok) revalidatePath("/profile");
+  if (result.ok) revalidatePath("/profile", "layout");
   return result;
 }
 
@@ -144,7 +144,7 @@ export async function removePasskey(formData: FormData) {
   const id = formData.get("id");
   if (typeof id !== "string") return;
   await db.passkey.deleteMany({ where: { id, userId: user.id } });
-  revalidatePath("/profile");
+  revalidatePath("/profile", "layout");
 }
 
 /** Signs out one of the signed-in user's other devices. */
@@ -153,7 +153,7 @@ export async function signOutDevice(formData: FormData) {
   const id = formData.get("id");
   if (typeof id !== "string" || id === user.sessionId) return;
   await revokeSession(id, user.id);
-  revalidatePath("/profile");
+  revalidatePath("/profile", "layout");
 }
 
 /** Signs out every device except this one. */
@@ -161,5 +161,5 @@ export async function signOutOtherDevices() {
   const user = await requireUser();
   if (!user.sessionId) return;
   await revokeOtherSessions(user.id, user.sessionId);
-  revalidatePath("/profile");
+  revalidatePath("/profile", "layout");
 }

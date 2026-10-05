@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { signOutDevice, signOutOtherDevices } from "./actions";
 
-/** My Profile: every browser/device signed in as me, active and inactive. */
+/** Profile → Security: every browser/device signed in as me, active and inactive. */
 export async function DeviceActivity({
   userId,
   currentSessionId,

@@ -25,7 +25,7 @@ export async function POST() {
       try {
         const result = await syncBasecampPeople(send);
         revalidatePath("/employees");
-        revalidatePath("/profile");
+        revalidatePath("/profile", "layout");
         send({ type: "done", summary: summarize(result), result });
       } catch (error) {
         send({

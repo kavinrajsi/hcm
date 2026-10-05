@@ -171,7 +171,7 @@ async function tagForHolder(
 
 function revalidateDevice(id?: string) {
   revalidatePath("/devices");
-  revalidatePath("/profile");
+  revalidatePath("/profile", "layout");
   if (id) revalidatePath(`/devices/${id}`);
 }
 

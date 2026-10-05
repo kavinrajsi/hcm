@@ -4,7 +4,7 @@ import { formatDateTime } from "@/lib/format-date";
 import { Button } from "@/components/ui/button";
 import { disconnectMyApp } from "../mcp-access/actions";
 
-/** My Profile: AI apps (Claude, ChatGPT…) connected to HCM as me. */
+/** Profile → Security: AI apps (Claude, ChatGPT…) connected to HCM as me. */
 export async function ConnectedApps({ userId }: { userId: string }) {
   const connections = await listConnections(userId);
   return (

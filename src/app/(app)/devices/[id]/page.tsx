@@ -125,7 +125,7 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
           </>
         }
         actions={
-          <Button variant="outline" nativeButton={false} render={<Link href={manage ? "/devices" : "/profile"} />}>
+          <Button variant="outline" nativeButton={false} render={<Link href={manage ? "/devices" : "/profile/work"} />}>
             {manage ? "All devices" : "My profile"}
           </Button>
         }

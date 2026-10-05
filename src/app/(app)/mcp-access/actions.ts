@@ -10,7 +10,7 @@ export async function disconnectMyApp(formData: FormData) {
   const clientId = formData.get("clientId");
   if (typeof clientId !== "string") return;
   await disconnect(user.id, clientId);
-  revalidatePath("/profile");
+  revalidatePath("/profile", "layout");
   revalidatePath("/mcp-access");
 }
 
@@ -22,5 +22,5 @@ export async function disconnectAnyApp(formData: FormData) {
   if (typeof clientId !== "string" || typeof userId !== "string") return;
   await disconnect(userId, clientId);
   revalidatePath("/mcp-access");
-  revalidatePath("/profile");
+  revalidatePath("/profile", "layout");
 }

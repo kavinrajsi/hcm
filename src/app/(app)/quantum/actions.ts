@@ -62,7 +62,7 @@ export async function addQuantumEntry(
   });
 
   revalidatePath("/quantum");
-  revalidatePath("/profile");
+  revalidatePath("/profile", "layout");
   return { ok: true };
 }
 
@@ -78,7 +78,7 @@ export async function deleteQuantumEntry(formData: FormData) {
 
   await db.quantumEntry.delete({ where: { id } });
   revalidatePath("/quantum");
-  revalidatePath("/profile");
+  revalidatePath("/profile", "layout");
 }
 
 export async function importQuantumEntries(
@@ -120,7 +120,7 @@ export async function importQuantumEntries(
 
   await db.quantumEntry.createMany({ data: valid });
   revalidatePath("/quantum");
-  revalidatePath("/profile");
+  revalidatePath("/profile", "layout");
   return importSummary(valid.length, parsed.rows.length, failures);
 }
 

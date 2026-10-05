@@ -298,7 +298,7 @@ export default async function McpInstructionsPage() {
       <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-zinc-600 dark:text-zinc-400">
         <li>Your assistant signs in as you and sees only what your HCM role allows.</li>
         <li>PAN, Aadhaar and bank details are never shared.</li>
-        <li>Disconnect any time from HCM → My Profile → Connected AI apps. If your HCM account is disabled, every connection stops at once.</li>
+        <li>Disconnect any time from HCM → Profile → Security → Connected AI apps. If your HCM account is disabled, every connection stops at once.</li>
         <li>What you send to your AI app is handled by that app&rsquo;s own privacy terms.</li>
       </ul>
     </main>
