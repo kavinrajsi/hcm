@@ -233,6 +233,15 @@ export function ChevronRightIcon({ className }: IconProps) {
   );
 }
 
+export function KeyboardArrowDownIcon({ className }: IconProps) {
+  return (
+    <MaterialIcon
+      className={className}
+      d="M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z"
+    />
+  );
+}
+
 export function MoreHorizIcon({ className }: IconProps) {
   return (
     <MaterialIcon

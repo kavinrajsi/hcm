@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/rbac";
 import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/segmented";
+import { KeyboardArrowDownIcon } from "@/components/icons";
 import { canOpenCourse, isAuthor } from "@/lib/learning/access";
 import { toEmbed } from "@/lib/learning/embeds";
 import { toProgress } from "@/lib/learning/progress";
@@ -265,9 +266,7 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/l
                   <summary className="cursor-pointer list-none px-4 py-3 font-medium marker:hidden">
                     <span className="flex items-center justify-between gap-3">
                       {faq.question}
-                      <span aria-hidden className="text-zinc-400 transition-transform group-open:rotate-45">
-                        +
-                      </span>
+                      <KeyboardArrowDownIcon className="size-5 shrink-0 text-zinc-400 transition-transform group-open:rotate-180" />
                     </span>
                   </summary>
                   <p className="px-4 pb-4 text-sm whitespace-pre-line text-zinc-600 dark:text-zinc-300">{faq.answer}</p>
