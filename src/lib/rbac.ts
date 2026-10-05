@@ -2,6 +2,7 @@ import { cache } from "react";
 import { forbidden, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { checkAndTouch } from "@/lib/login-sessions";
 import type { Role } from "@/generated/prisma/enums";
 
 // Server-side authorization guards. Every Server Action and every Server
@@ -15,22 +16,33 @@ export class AuthorizationError extends Error {
   }
 }
 
-export type SessionUser = { id: string; role: Role; email: string };
+export type SessionUser = {
+  id: string;
+  role: Role;
+  email: string;
+  /** This browser's LoginSession; absent for MCP (OAuth bearer) callers. */
+  sessionId?: string;
+};
 
 /**
  * The signed-in user as the database has them now — so a role change or a
  * disabled account takes effect on the next request, not the next login.
- * Null when signed out or disabled. Cached per request.
+ * Null when signed out, disabled, or this device was signed out (its
+ * LoginSession revoked or idle 30 days; tokens from before devices were
+ * tracked have none and must sign in again). Cached per request.
  */
 export const currentUser = cache(async (): Promise<SessionUser | null> => {
   const session = await auth();
-  if (!session?.user?.id) return null;
-  const user = await db.user.findUnique({
-    where: { id: session.user.id },
-    select: { id: true, role: true, email: true, disabledAt: true },
-  });
-  if (!user || user.disabledAt) return null;
-  return { id: user.id, role: user.role, email: user.email };
+  if (!session?.user?.id || !session.sessionId) return null;
+  const [user, live] = await Promise.all([
+    db.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, role: true, email: true, disabledAt: true },
+    }),
+    checkAndTouch(session.sessionId, session.user.id),
+  ]);
+  if (!user || user.disabledAt || !live) return null;
+  return { id: user.id, role: user.role, email: user.email, sessionId: session.sessionId };
 });
 
 /**

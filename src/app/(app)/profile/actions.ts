@@ -8,6 +8,7 @@ import { fieldError, invalid, type FormState } from "@/lib/form-state";
 import { requireSelfOrRole, requireUser } from "@/lib/rbac";
 import { contactSchema, saveContact } from "@/lib/hcm-ops";
 import { registerPasskey, registrationOptions, type RegisterResult } from "@/lib/passkeys";
+import { revokeOtherSessions, revokeSession } from "@/lib/login-sessions";
 import type { RegistrationResponseJSON } from "@simplewebauthn/types";
 
 export type ProfileFormState = FormState;
@@ -85,6 +86,8 @@ export async function changePassword(
     where: { id: user.id },
     data: { passwordHash: await bcrypt.hash(parsed.data.newPassword, 10) },
   });
+  // Keep this device; sign out anyone else who had the old password.
+  if (user.sessionId) await revokeOtherSessions(user.id, user.sessionId);
   return { ok: true };
 }
 
@@ -141,5 +144,22 @@ export async function removePasskey(formData: FormData) {
   const id = formData.get("id");
   if (typeof id !== "string") return;
   await db.passkey.deleteMany({ where: { id, userId: user.id } });
+  revalidatePath("/profile");
+}
+
+/** Signs out one of the signed-in user's other devices. */
+export async function signOutDevice(formData: FormData) {
+  const user = await requireUser();
+  const id = formData.get("id");
+  if (typeof id !== "string" || id === user.sessionId) return;
+  await revokeSession(id, user.id);
+  revalidatePath("/profile");
+}
+
+/** Signs out every device except this one. */
+export async function signOutOtherDevices() {
+  const user = await requireUser();
+  if (!user.sessionId) return;
+  await revokeOtherSessions(user.id, user.sessionId);
   revalidatePath("/profile");
 }

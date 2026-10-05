@@ -16,14 +16,18 @@ const db = vi.hoisted(() => ({
   employee: { findUnique: vi.fn() },
 }));
 
+const sessions = vi.hoisted(() => ({ checkAndTouch: vi.fn() }));
+
 vi.mock("next/navigation", () => navigation);
+vi.mock("@/lib/login-sessions", () => sessions);
 vi.mock("@/lib/auth", () => ({ auth }));
 vi.mock("@/lib/db", () => ({ db }));
 
 const rbac = await import("./rbac");
 
 const signedInAs = (role: string) => {
-  auth.mockResolvedValue({ user: { id: "u1" } });
+  auth.mockResolvedValue({ user: { id: "u1" }, sessionId: "s1" });
+  sessions.checkAndTouch.mockResolvedValue(true);
   db.user.findUnique.mockResolvedValue({ id: "u1", role, email: "a@x.com", disabledAt: null });
 };
 
@@ -65,5 +69,25 @@ describe("requireRole", () => {
     signedInAs("EMPLOYEE");
     await expect(rbac.requireRole("HR_ADMIN")).rejects.toBeInstanceOf(rbac.AuthorizationError);
     expect(navigation.forbidden).not.toHaveBeenCalled();
+  });
+});
+
+describe("currentUser", () => {
+  it("carries this device's session", async () => {
+    signedInAs("EMPLOYEE");
+    await expect(rbac.currentUser()).resolves.toMatchObject({ id: "u1", sessionId: "s1" });
+    expect(sessions.checkAndTouch).toHaveBeenCalledWith("s1", "u1");
+  });
+
+  it("treats a signed-out device as signed out", async () => {
+    signedInAs("EMPLOYEE");
+    sessions.checkAndTouch.mockResolvedValue(false);
+    await expect(rbac.currentUser()).resolves.toBeNull();
+  });
+
+  it("refuses a token from before devices were tracked", async () => {
+    signedInAs("EMPLOYEE");
+    auth.mockResolvedValue({ user: { id: "u1" } });
+    await expect(rbac.currentUser()).resolves.toBeNull();
   });
 });

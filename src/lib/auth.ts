@@ -12,6 +12,7 @@ import {
   recordAttempt,
 } from "@/lib/auth-throttle";
 import { verifyPasskeySignIn } from "@/lib/passkeys";
+import { startLoginSession } from "@/lib/login-sessions";
 
 /** Sign-in refused because of too many recent failures. */
 export class TooManyAttempts extends CredentialsSignin {
@@ -24,6 +25,8 @@ declare module "next-auth" {
       id: string;
       role: Role;
     } & DefaultSession["user"];
+    /** This device's LoginSession id (src/lib/login-sessions.ts). */
+    sessionId?: string;
   }
 }
 
@@ -81,6 +84,26 @@ export async function authorizePasskey(
   return { id: user.id, email: user.email, name: user.name };
 }
 
+/**
+ * On sign-in, hydrate id + role from the DB (never from the client), and
+ * record this device so it can be listed and signed out. A token without
+ * `sid` is refused by currentUser, so this must set it on every sign-in.
+ */
+export async function stampSignIn(
+  token: { sub?: string; role?: unknown; sid?: unknown },
+  email: string,
+  provider: string | undefined,
+) {
+  const dbUser = await db.user.findUnique({
+    where: { email: email.toLowerCase() },
+    select: { id: true, role: true },
+  });
+  if (!dbUser) return;
+  token.sub = dbUser.id;
+  token.role = dbUser.role;
+  token.sid = await startLoginSession(dbUser.id, provider === "passkey" ? "passkey" : "password");
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
@@ -100,22 +123,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
-      // On sign-in, hydrate id + role from the DB (never from the client).
-      if (user?.email) {
-        const dbUser = await db.user.findUnique({
-          where: { email: user.email.toLowerCase() },
-          select: { id: true, role: true },
-        });
-        if (dbUser) {
-          token.sub = dbUser.id;
-          token.role = dbUser.role;
-        }
-      }
+    async jwt({ token, user, account }) {
+      if (user?.email) await stampSignIn(token, user.email, account?.provider);
       return token;
     },
     async session({ session, token }) {
       if (token.sub) session.user.id = token.sub;
+      if (typeof token.sid === "string") session.sessionId = token.sid;
       session.user.role = (token.role as Role | undefined) ?? "EMPLOYEE";
       return session;
     },

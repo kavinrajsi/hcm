@@ -8,6 +8,8 @@ const throttle = vi.hoisted(() => ({
 }));
 
 const passkeys = vi.hoisted(() => ({ verifyPasskeySignIn: vi.fn() }));
+const loginSessions = vi.hoisted(() => ({ startLoginSession: vi.fn() }));
+vi.mock("@/lib/login-sessions", () => loginSessions);
 
 vi.mock("@/lib/db", () => ({ db }));
 vi.mock("@/lib/passkeys", () => passkeys);
@@ -26,7 +28,7 @@ vi.mock("next-auth", () => ({
 }));
 vi.mock("next-auth/providers/credentials", () => ({ default: (options: unknown) => options }));
 
-const { authorizeCredentials, authorizePasskey, TooManyAttempts } = await import("./auth");
+const { authorizeCredentials, authorizePasskey, stampSignIn, TooManyAttempts } = await import("./auth");
 
 const request = new Request("https://h/api/auth/callback/credentials", {
   headers: { "x-forwarded-for": "1.2.3.4" },
@@ -95,5 +97,19 @@ describe("authorizePasskey", () => {
   it("refuses once throttled", async () => {
     throttle.isThrottled.mockResolvedValue(true);
     await expect(authorizePasskey({ response }, request)).rejects.toBeInstanceOf(TooManyAttempts);
+  });
+});
+
+describe("stampSignIn", () => {
+  it.each([
+    ["credentials", "password"],
+    ["passkey", "passkey"],
+  ])("puts id, role and a new device session on a %s sign-in", async (provider, method) => {
+    db.user.findUnique.mockResolvedValue({ id: "u1", role: "HR_ADMIN" });
+    loginSessions.startLoginSession.mockResolvedValue("s1");
+    const token: Record<string, unknown> = {};
+    await stampSignIn(token, "A@x.com", provider);
+    expect(token).toEqual({ sub: "u1", role: "HR_ADMIN", sid: "s1" });
+    expect(loginSessions.startLoginSession).toHaveBeenCalledWith("u1", method);
   });
 });

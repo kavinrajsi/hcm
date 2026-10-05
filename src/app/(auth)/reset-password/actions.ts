@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { revokeAllSessions } from "@/lib/login-sessions";
 import { invalid, type FormState } from "@/lib/form-state";
 
 export type ResetFormState = FormState;
@@ -57,6 +58,8 @@ export async function resetPassword(
       where: { userId: token.userId, usedAt: null },
     }),
   ]);
+  // Whoever had the old password is signed out everywhere.
+  await revokeAllSessions(token.userId);
 
   return { ok: true };
 }

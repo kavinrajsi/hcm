@@ -6,7 +6,10 @@ const db = vi.hoisted(() => ({
   $transaction: vi.fn(),
 }));
 
+const sessions = vi.hoisted(() => ({ revokeAllSessions: vi.fn() }));
+
 vi.mock("@/lib/db", () => ({ db }));
+vi.mock("@/lib/login-sessions", () => sessions);
 
 const { resetPassword } = await import("./actions");
 
@@ -39,5 +42,13 @@ describe("resetPassword", () => {
       form({ token: "t", newPassword: "longenough", confirmPassword: "longenough" }),
     );
     expect(expired).toEqual({ error: "This reset link is invalid or has expired" });
+  });
+
+  it("signs the user out of every device", async () => {
+    db.passwordResetToken.findFirst.mockResolvedValue({ id: "t1", userId: "u1" });
+    expect(
+      await resetPassword({}, form({ token: "t", newPassword: "longenough", confirmPassword: "longenough" })),
+    ).toEqual({ ok: true });
+    expect(sessions.revokeAllSessions).toHaveBeenCalledWith("u1");
   });
 });

@@ -33,6 +33,7 @@ import { EmployeeAvatar } from "@/components/employee-avatar";
 import { EmployeeDevices } from "../devices/employee-devices";
 import { ConnectedApps } from "./connected-apps";
 import { Passkeys } from "./passkeys";
+import { DeviceActivity } from "./device-activity";
 
 export const metadata = { title: "My Profile" };
 
@@ -131,6 +132,7 @@ export default async function ProfilePage() {
         </p>
         <AccountSection account={account} />
         <Passkeys userId={user.id} />
+        <DeviceActivity userId={user.id} currentSessionId={user.sessionId} />
         <ConnectedApps userId={user.id} />
       </PageShell>
     );
@@ -376,6 +378,7 @@ export default async function ProfilePage() {
       </dl>
       <AccountSection account={account} />
       <Passkeys userId={user.id} />
+      <DeviceActivity userId={user.id} currentSessionId={user.sessionId} />
       <ConnectedApps userId={user.id} />
     </PageShell>
   );

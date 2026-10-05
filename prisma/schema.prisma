@@ -116,6 +116,7 @@ model User {
   mcpAuditLogs           McpAuditLog[]           @relation("McpAuditLogs")
   emailsSent             EmailLog[]              @relation("EmailsSent")
   passkeys               Passkey[]
+  loginSessions          LoginSession[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 }
@@ -1101,4 +1102,25 @@ model WebAuthnChallenge {
   expiresAt DateTime
 
   @@index([expiresAt])
+}
+
+/// One signed-in browser/device. Its id rides in the session JWT; signing
+/// out (here or from another device) sets revokedAt. Shown under "Device
+/// activity" on My Profile; pruned a year after last use.
+model LoginSession {
+  id         String    @id @default(cuid())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  method     String // "password" | "passkey"
+  userAgent  String?
+  ip         String?
+  city       String?
+  region     String?
+  country    String?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  revokedAt  DateTime?
+
+  @@index([userId, lastSeenAt])
+  @@index([lastSeenAt])
 }
