@@ -22,7 +22,7 @@ import { NewSessionForm } from "./session-forms";
 import { importSessions, registerForSession } from "./actions";
 import { BulkImportForm } from "@/components/bulk-import-form";
 import { SESSION_IMPORT_COLUMNS } from "@/lib/import-columns";
-import { formatDateTime } from "@/lib/format-date";
+import { formatSessionTime } from "@/lib/format-date";
 
 export const metadata = { title: "Session Calendar" };
 
@@ -41,7 +41,7 @@ async function getSessions() {
 }
 
 function formatSessionDate(date: Date) {
-  return formatDateTime(date);
+  return formatSessionTime(date);
 }
 
 export default async function SessionsPage() {

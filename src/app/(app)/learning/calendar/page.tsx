@@ -143,6 +143,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/learnin
         <li className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-sky-500" /> Training session</li>
         <li className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-orange-500" /> Live class</li>
         <li className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-rose-500" /> Course due</li>
+        <li className="ml-auto">All times IST</li>
       </ul>
 
       {view === "month" ? (

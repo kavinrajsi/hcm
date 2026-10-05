@@ -73,3 +73,18 @@ export function toIstLocalInput(value: Date): string {
 export function istDayStart(dayKey: string): Date {
   return new Date(`${dayKey}T00:00:00+05:30`);
 }
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** "Mon, 05/10/2026" — the Asia/Kolkata calendar day of a timestamp, with its weekday. */
+export function formatWeekdayDay(value: Date | null | undefined): string {
+  if (!value || Number.isNaN(value.getTime())) return "";
+  const shifted = new Date(value.getTime() + IST_MS);
+  return `${WEEKDAYS[shifted.getUTCDay()]}, ${formatDay(shifted)}`;
+}
+
+/** "Mon, 05/10/2026, 6:00 pm IST" — for sessions and classes people attend. */
+export function formatSessionTime(value: Date | null | undefined): string {
+  if (!value || Number.isNaN(value.getTime())) return "";
+  return `${formatWeekdayDay(value)}, ${formatTime(value)} IST`;
+}

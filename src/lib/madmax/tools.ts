@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import type { SessionUser } from "@/lib/rbac";
 import type { Prisma } from "@/generated/prisma/client";
 import { readPii } from "@/lib/employee-pii";
-import { formatDateTime, formatDay, formatInstantDay } from "@/lib/format-date";
+import { formatDateTime, formatDay, formatInstantDay, formatSessionTime } from "@/lib/format-date";
 import { istDay } from "@/lib/date-filter";
 import { LEAVE_STATUS_LABELS, LEAVE_TYPE_LABELS } from "@/lib/leave";
 import {
@@ -327,7 +327,7 @@ export function buildTools(context: MadmaxContext): ToolSet {
         return {
           upcoming: registrations.map((registration) => ({
             name: registration.session.name,
-            when: formatDateTime(registration.session.date),
+            when: formatSessionTime(registration.session.date),
             trainer: registration.session.trainer,
           })),
           attended: attendance.map((record) => ({

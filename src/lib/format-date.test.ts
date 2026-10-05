@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDateTime, formatDay, formatInstantDay, parseIstLocal, toIstLocalInput, istDayKey, istDayStart, formatTime } from "./format-date";
+import { formatDateTime, formatDay, formatInstantDay, parseIstLocal, toIstLocalInput, istDayKey, istDayStart, formatTime, formatSessionTime, formatWeekdayDay } from "./format-date";
 
 describe("Indian date format", () => {
   it("formats calendar dates as DD/MM/YYYY", () => {
@@ -46,5 +46,15 @@ describe("Indian-time inputs", () => {
     expect(istDayKey(new Date("2026-10-05T20:00:00Z"))).toBe("2026-10-06");
     expect(istDayStart("2026-10-06").toISOString()).toBe("2026-10-05T18:30:00.000Z");
     expect(formatTime(new Date("2026-10-05T12:30:00Z"))).toBe("6:00 pm");
+  });
+});
+
+describe("session times", () => {
+  it("shows the Indian weekday, date and time", () => {
+    // 12:30 UTC on Monday 5 October is 6:00 pm in India.
+    expect(formatSessionTime(new Date("2026-10-05T12:30:00Z"))).toBe("Mon, 05/10/2026, 6:00 pm IST");
+    // 20:00 UTC on Monday is already Tuesday in India.
+    expect(formatWeekdayDay(new Date("2026-10-05T20:00:00Z"))).toBe("Tue, 06/10/2026");
+    expect(formatSessionTime(null)).toBe("");
   });
 });

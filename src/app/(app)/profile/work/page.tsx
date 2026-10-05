@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDateTime, formatDay } from "@/lib/format-date";
+import { formatDay, formatSessionTime } from "@/lib/format-date";
 import { QuantumEntryForm } from "../../quantum/quantum-entry-form";
 import { EmployeeDevices } from "../../devices/employee-devices";
 import { myEmployee } from "../data";
@@ -95,7 +95,7 @@ export default async function ProfileWorkPage() {
                 className="rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800"
               >
                 <span className="font-medium">{session.name}</span> ·{" "}
-                {formatDateTime(session.date)} · {session.trainer}
+                {formatSessionTime(session.date)} · {session.trainer}
               </li>
             ))}
           </ul>

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/segmented";
 import { AUTHOR_ROLES } from "@/lib/learning/access";
-import { formatDateTime, formatDay } from "@/lib/format-date";
+import { formatDay, formatSessionTime } from "@/lib/format-date";
 import {
   deleteCourse,
   deleteFaq,
@@ -288,7 +288,7 @@ export default async function EditCoursePage({ params, searchParams }: PageProps
                   <span>
                     <span className="font-medium">{liveClass.title}</span>
                     <span className="block text-xs text-zinc-500">
-                      {formatDateTime(liveClass.startsAt)}
+                      {formatSessionTime(liveClass.startsAt)}
                       {liveClass.trainer ? ` · ${liveClass.trainer}` : ""}
                     </span>
                   </span>

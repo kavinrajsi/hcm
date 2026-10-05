@@ -124,7 +124,7 @@ export default async function LearningDashboard() {
                 <ul className="flex flex-col gap-3 text-sm">
                   {liveToday.map((liveClass) => (
                     <li key={liveClass.id}>
-                      <span className="font-medium">{formatTime(liveClass.startsAt)}</span> ·{" "}
+                      <span className="font-medium">{formatTime(liveClass.startsAt)} IST</span> ·{" "}
                       <Link href={`/learning/courses/${liveClass.courseId}?tab=sessions`} className="underline-offset-4 hover:underline">
                         {liveClass.title}
                       </Link>
@@ -138,7 +138,7 @@ export default async function LearningDashboard() {
                   ))}
                   {sessionsToday.map((session) => (
                     <li key={session.id}>
-                      <span className="font-medium">{formatTime(session.date)}</span> ·{" "}
+                      <span className="font-medium">{formatTime(session.date)} IST</span> ·{" "}
                       <Link href="/sessions" className="underline-offset-4 hover:underline">
                         {session.name}
                       </Link>

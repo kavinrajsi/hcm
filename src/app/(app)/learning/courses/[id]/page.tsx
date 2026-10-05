@@ -9,7 +9,7 @@ import { KeyboardArrowDownIcon } from "@/components/icons";
 import { canOpenCourse, isAuthor } from "@/lib/learning/access";
 import { toEmbed } from "@/lib/learning/embeds";
 import { toProgress } from "@/lib/learning/progress";
-import { formatDateTime, formatInstantDay, formatTime } from "@/lib/format-date";
+import { formatDateTime, formatTime, formatWeekdayDay } from "@/lib/format-date";
 import { CourseCover } from "../../_components/course-cover";
 import { ProgressBar } from "../../_components/progress-bar";
 import { RichText } from "../../_components/rich-text";
@@ -199,10 +199,10 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/l
                     key={liveClass.id}
                     className="flex flex-col gap-3 rounded-xl border border-zinc-200 p-4 sm:flex-row sm:items-center dark:border-zinc-800"
                   >
-                    <div className="w-32 shrink-0 text-sm">
-                      <span className="block font-medium">{formatInstantDay(liveClass.startsAt)}</span>
+                    <div className="w-40 shrink-0 text-sm">
+                      <span className="block font-medium">{formatWeekdayDay(liveClass.startsAt)}</span>
                       <span className="text-zinc-500">
-                        {formatTime(liveClass.startsAt)} – {formatTime(liveClass.endsAt)}
+                        {formatTime(liveClass.startsAt)} – {formatTime(liveClass.endsAt)} IST
                       </span>
                     </div>
                     <div className="min-w-0 flex-1">
