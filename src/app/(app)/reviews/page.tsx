@@ -26,6 +26,7 @@ export const metadata = { title: "Review Meetings" };
 // created elsewhere surface here once the module is specced.
 export default async function ReviewsPage() {
   const user = await requirePageRole("HR_ADMIN", "MANAGER");
+  const isHr = user.role === "HR_ADMIN";
 
   // Managers see only their direct reports' meetings.
   const meetings = await db.reviewMeeting.findMany({
@@ -51,7 +52,7 @@ export default async function ReviewsPage() {
           {meetings.map((meeting) => (
             <ListCard
               key={meeting.id}
-              href={`/employees/${meeting.employee.id}`}
+              href={isHr ? `/employees/${meeting.employee.id}` : undefined}
               title={meeting.employee.name}
               subtitle={meeting.notes ?? "—"}
               meta={
@@ -86,12 +87,18 @@ export default async function ReviewsPage() {
               {meetings.map((meeting) => (
                 <TableRow key={meeting.id}>
                   <TableCell>
-                    <Link
-                      href={`/employees/${meeting.employee.id}`}
-                      className="font-medium underline-offset-4 hover:underline"
-                    >
-                      {meeting.employee.name}
-                    </Link>
+                    {isHr ? (
+                      <Link
+                        href={`/employees/${meeting.employee.id}`}
+                        className="font-medium underline-offset-4 hover:underline"
+                      >
+                        {meeting.employee.name}
+                      </Link>
+                    ) : (
+                      <span className="font-medium">
+                        {meeting.employee.name}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>{formatDay(meeting.date)}</TableCell>
                   <TableCell>{meeting.notes ?? "—"}</TableCell>

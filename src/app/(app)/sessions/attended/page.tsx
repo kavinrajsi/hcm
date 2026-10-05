@@ -34,6 +34,7 @@ export default async function SessionAttendedPage({
   searchParams,
 }: PageProps<"/sessions/attended">) {
   const user = await requirePageRole("HR_ADMIN", "MANAGER");
+  const isHr = user.role === "HR_ADMIN";
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
@@ -82,11 +83,13 @@ export default async function SessionAttendedPage({
         title="Session Attended"
         actions={
           <>
-            <BulkImportForm
-              action={importAttendance}
-              columns={ATTENDANCE_IMPORT_COLUMNS}
-              title="Import attendance"
-            />
+            {isHr && (
+              <BulkImportForm
+                action={importAttendance}
+                columns={ATTENDANCE_IMPORT_COLUMNS}
+                title="Import attendance"
+              />
+            )}
             <Link
               href="/sessions"
               className="inline-flex min-h-10 items-center text-sm underline underline-offset-4 md:min-h-0"
@@ -97,19 +100,21 @@ export default async function SessionAttendedPage({
         }
       />
 
-      <div className="mt-5 md:mt-6">
-        <CollapsibleForm label="Log attendance">
-          <AttendanceForm
-            employees={employees}
-            sessions={sessions.map((session) => ({
-              id: session.id,
-              name: session.name,
-              trainer: session.trainer,
-              date: session.date.toISOString().slice(0, 10),
-            }))}
-          />
-        </CollapsibleForm>
-      </div>
+      {isHr && (
+        <div className="mt-5 md:mt-6">
+          <CollapsibleForm label="Log attendance">
+            <AttendanceForm
+              employees={employees}
+              sessions={sessions.map((session) => ({
+                id: session.id,
+                name: session.name,
+                trainer: session.trainer,
+                date: session.date.toISOString().slice(0, 10),
+              }))}
+            />
+          </CollapsibleForm>
+        </div>
+      )}
 
       <div className="mt-6">
         <TableFilters />
@@ -120,7 +125,7 @@ export default async function SessionAttendedPage({
           {rows.map((record) => (
             <ListCard
               key={record.id}
-              href={`/employees/${record.employee.id}`}
+              href={isHr ? `/employees/${record.employee.id}` : undefined}
               title={record.employee.name}
               subtitle={
                 <>
@@ -177,12 +182,16 @@ export default async function SessionAttendedPage({
             {rows.map((record) => (
               <TableRow key={record.id}>
                 <TableCell>
-                  <Link
-                    href={`/employees/${record.employee.id}`}
-                    className="font-medium underline-offset-4 hover:underline"
-                  >
-                    {record.employee.name}
-                  </Link>
+                  {isHr ? (
+                    <Link
+                      href={`/employees/${record.employee.id}`}
+                      className="font-medium underline-offset-4 hover:underline"
+                    >
+                      {record.employee.name}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{record.employee.name}</span>
+                  )}
                 </TableCell>
                 <TableCell>{record.sessionName}</TableCell>
                 <TableCell>{formatDay(record.date)}</TableCell>

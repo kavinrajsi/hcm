@@ -37,6 +37,7 @@ export const metadata = { title: "Exit / Offboarding" };
 
 export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
   const user = await requirePageRole("HR_ADMIN", "MANAGER");
+  const isHr = user.role === "HR_ADMIN";
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
@@ -102,11 +103,13 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
     <PageShell>
       <PageHeader title="Exit / Offboarding" />
 
-      <div className="mt-5 md:mt-6">
-        <CollapsibleForm label="Record exit">
-          <ExitForm activeEmployees={activeEmployees} />
-        </CollapsibleForm>
-      </div>
+      {isHr && (
+        <div className="mt-5 md:mt-6">
+          <CollapsibleForm label="Record exit">
+            <ExitForm activeEmployees={activeEmployees} />
+          </CollapsibleForm>
+        </div>
+      )}
 
       <CountChips
         items={EMP_TYPE_OPTIONS.map((option) => ({
@@ -153,7 +156,7 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
           {exits.map((exitedEmployee) => (
             <ListCard
               key={exitedEmployee.id}
-              href={`/employees/${exitedEmployee.id}`}
+              href={isHr ? `/employees/${exitedEmployee.id}` : undefined}
               leading={
                 <EmployeeAvatar
                   name={exitedEmployee.name}
@@ -203,12 +206,16 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
             {exits.map((exitedEmployee) => (
               <TableRow key={exitedEmployee.id}>
                 <TableCell>
-                  <Link
-                    href={`/employees/${exitedEmployee.id}`}
-                    className="font-medium underline-offset-4 hover:underline"
-                  >
-                    {exitedEmployee.empId}
-                  </Link>
+                  {isHr ? (
+                    <Link
+                      href={`/employees/${exitedEmployee.id}`}
+                      className="font-medium underline-offset-4 hover:underline"
+                    >
+                      {exitedEmployee.empId}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{exitedEmployee.empId}</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <span className="flex items-center gap-2.5">

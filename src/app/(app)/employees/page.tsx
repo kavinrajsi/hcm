@@ -142,24 +142,30 @@ export default async function EmployeesPage({
     types.map((typeGroup) => [typeGroup.empType as string, typeGroup._count]),
   );
 
+  const isHr = user.role === "HR_ADMIN";
+
   return (
     <PageShell>
       <PageHeader
         title="Employees"
         actions={
           <>
-            {user.role === "HR_ADMIN" && <BasecampSyncButton />}
-            <BulkImportForm
-              action={importEmployees}
-              columns={EMPLOYEE_IMPORT_COLUMNS}
-              title="Import employees"
-            />
-            <Button
-              nativeButton={false}
-              render={<Link href="/employees/new" />}
-            >
-              Add employee
-            </Button>
+            {isHr && (
+              <>
+                <BasecampSyncButton />
+                <BulkImportForm
+                  action={importEmployees}
+                  columns={EMPLOYEE_IMPORT_COLUMNS}
+                  title="Import employees"
+                />
+                <Button
+                  nativeButton={false}
+                  render={<Link href="/employees/new" />}
+                >
+                  Add employee
+                </Button>
+              </>
+            )}
           </>
         }
       />
@@ -220,7 +226,7 @@ export default async function EmployeesPage({
           {employees.map((employee) => (
             <ListCard
               key={employee.id}
-              href={`/employees/${employee.id}`}
+              href={isHr ? `/employees/${employee.id}` : undefined}
               leading={
                 <EmployeeAvatar
                   name={employee.name}
@@ -274,12 +280,16 @@ export default async function EmployeesPage({
             {employees.map((employee) => (
               <TableRow key={employee.id}>
                 <TableCell>
-                  <Link
-                    href={`/employees/${employee.id}`}
-                    className="font-medium underline-offset-4 hover:underline"
-                  >
-                    {employee.empId}
-                  </Link>
+                  {isHr ? (
+                    <Link
+                      href={`/employees/${employee.id}`}
+                      className="font-medium underline-offset-4 hover:underline"
+                    >
+                      {employee.empId}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{employee.empId}</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <span className="flex items-center gap-2.5">

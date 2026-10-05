@@ -3,6 +3,8 @@ import { getRecruitmentStats } from "@/lib/recruitment-stats";
 import { RecruitmentSection } from "./recruitment-section";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/rbac";
+import { NAV, canSee } from "@/lib/nav";
+import type { Role } from "@/generated/prisma/enums";
 
 export const metadata = { title: "Dashboard" };
 
@@ -20,6 +22,14 @@ const modules = [
   { href: "/reviews", title: "Review Meetings" },
   { href: "/profile", title: "My Profile" },
 ] as const;
+
+const NAV_ITEMS = NAV.flatMap((group) => group.items);
+
+/** Same role rule as the sidebar, so the dashboard never links to a page the user can't open. */
+function canOpen(href: string, role: Role) {
+  const item = NAV_ITEMS.find((navItem) => navItem.url === href);
+  return !item || canSee(item, role);
+}
 
 export default async function Home() {
   const user = await requireUser();
@@ -84,33 +94,37 @@ export default async function Home() {
       </p>
 
       <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-        {stats.map((stat) => (
-          <Link
-            key={stat.label}
-            href={stat.href}
-            className="rounded-lg border border-zinc-200 p-4 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
-          >
-            <div className="text-2xl font-semibold tabular-nums">
-              {stat.value}
-            </div>
-            <div className="mt-1 text-xs text-zinc-500">{stat.label}</div>
-          </Link>
-        ))}
+        {stats
+          .filter((stat) => canOpen(stat.href, user.role))
+          .map((stat) => (
+            <Link
+              key={stat.label}
+              href={stat.href}
+              className="rounded-lg border border-zinc-200 p-4 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
+            >
+              <div className="text-2xl font-semibold tabular-nums">
+                {stat.value}
+              </div>
+              <div className="mt-1 text-xs text-zinc-500">{stat.label}</div>
+            </Link>
+          ))}
       </div>
 
       {recruitment && <RecruitmentSection stats={recruitment} />}
 
       <h2 className="mt-12 text-lg font-medium">Modules</h2>
       <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {modules.map((moduleLink) => (
-          <Link
-            key={moduleLink.href}
-            href={moduleLink.href}
-            className="rounded-lg border border-zinc-200 px-4 py-3 text-sm font-medium transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
-          >
-            {moduleLink.title}
-          </Link>
-        ))}
+        {modules
+          .filter((moduleLink) => canOpen(moduleLink.href, user.role))
+          .map((moduleLink) => (
+            <Link
+              key={moduleLink.href}
+              href={moduleLink.href}
+              className="rounded-lg border border-zinc-200 px-4 py-3 text-sm font-medium transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
+            >
+              {moduleLink.title}
+            </Link>
+          ))}
       </div>
     </main>
   );

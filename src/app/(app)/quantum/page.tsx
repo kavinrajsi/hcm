@@ -83,10 +83,12 @@ export default async function QuantumPage({
     }),
   ]);
 
+  const isHr = user.role === "HR_ADMIN";
+
   // Basecamp connection state (HR only).
   let basecampProjects: { id: string; name: string }[] | null = null;
   const configured = basecampConfigured();
-  if (configured && user.role === "HR_ADMIN") {
+  if (configured && isHr) {
     const auth = await getAccessToken(user.id);
     if (auth) {
       try {
@@ -106,45 +108,51 @@ export default async function QuantumPage({
       <PageHeader
         title="Quantum Sheet"
         actions={
-          <BulkImportForm
-            action={importQuantumEntries}
-            columns={QUANTUM_IMPORT_COLUMNS}
-            title="Import quantum entries"
-          />
+          isHr && (
+            <BulkImportForm
+              action={importQuantumEntries}
+              columns={QUANTUM_IMPORT_COLUMNS}
+              title="Import quantum entries"
+            />
+          )
         }
       />
 
-      <div className="mt-5 md:mt-6">
-        <CollapsibleForm label="Add entry">
-          <QuantumEntryForm showEmployeePicker employees={employees} />
-        </CollapsibleForm>
-      </div>
+      {isHr && (
+        <>
+          <div className="mt-5 md:mt-6">
+            <CollapsibleForm label="Add entry">
+              <QuantumEntryForm showEmployeePicker employees={employees} />
+            </CollapsibleForm>
+          </div>
 
-      <div className="mt-4 rounded-lg border border-dashed border-zinc-300 p-4 text-sm dark:border-zinc-700">
-        {!configured ? (
-          <p className="text-zinc-500">
-            Basecamp import: set BASECAMP_CLIENT_ID / BASECAMP_CLIENT_SECRET to
-            enable.
-          </p>
-        ) : basecampProjects ? (
-          <BasecampImportForm
-            employees={employees}
-            projects={basecampProjects}
-          />
-        ) : (
-          <p>
-            <a
-              href="/api/basecamp/connect"
-              className="font-medium underline underline-offset-4"
-            >
-              Connect Basecamp
-            </a>{" "}
-            <span className="text-zinc-500">
-              to import project todos into the sheet.
-            </span>
-          </p>
-        )}
-      </div>
+          <div className="mt-4 rounded-lg border border-dashed border-zinc-300 p-4 text-sm dark:border-zinc-700">
+            {!configured ? (
+              <p className="text-zinc-500">
+                Basecamp import: set BASECAMP_CLIENT_ID /
+                BASECAMP_CLIENT_SECRET to enable.
+              </p>
+            ) : basecampProjects ? (
+              <BasecampImportForm
+                employees={employees}
+                projects={basecampProjects}
+              />
+            ) : (
+              <p>
+                <a
+                  href="/api/basecamp/connect"
+                  className="font-medium underline underline-offset-4"
+                >
+                  Connect Basecamp
+                </a>{" "}
+                <span className="text-zinc-500">
+                  to import project todos into the sheet.
+                </span>
+              </p>
+            )}
+          </div>
+        </>
+      )}
 
       <div className="mt-6">
         <MobileList isEmpty={entries.length === 0} empty="No entries yet.">
@@ -161,7 +169,7 @@ export default async function QuantumPage({
                   )}
                 </>
               }
-              href={`/employees/${entry.employee.id}`}
+              href={isHr ? `/employees/${entry.employee.id}` : undefined}
               subtitle={[entry.employee.name, entry.brand]
                 .filter(Boolean)
                 .join(" · ")}
@@ -190,17 +198,19 @@ export default async function QuantumPage({
                       Open link
                     </Button>
                   )}
-                  <form action={deleteQuantumEntry} className="ml-auto">
-                    <input type="hidden" name="id" value={entry.id} />
-                    <Button
-                      type="submit"
-                      variant="ghost"
-                      className="h-10 text-zinc-500 active:text-red-600"
-                    >
-                      <DeleteIcon className="size-4" />
-                      Delete
-                    </Button>
-                  </form>
+                  {isHr && (
+                    <form action={deleteQuantumEntry} className="ml-auto">
+                      <input type="hidden" name="id" value={entry.id} />
+                      <Button
+                        type="submit"
+                        variant="ghost"
+                        className="h-10 text-zinc-500 active:text-red-600"
+                      >
+                        <DeleteIcon className="size-4" />
+                        Delete
+                      </Button>
+                    </form>
+                  )}
                 </>
               }
             />
@@ -232,12 +242,16 @@ export default async function QuantumPage({
             {entries.map((entry) => (
               <TableRow key={entry.id}>
                 <TableCell>
-                  <Link
-                    href={`/employees/${entry.employee.id}`}
-                    className="font-medium underline-offset-4 hover:underline"
-                  >
-                    {entry.employee.name}
-                  </Link>
+                  {isHr ? (
+                    <Link
+                      href={`/employees/${entry.employee.id}`}
+                      className="font-medium underline-offset-4 hover:underline"
+                    >
+                      {entry.employee.name}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{entry.employee.name}</span>
+                  )}
                 </TableCell>
                 <TableCell>{formatDay(entry.date)}</TableCell>
                 <TableCell>{entry.brand}</TableCell>
@@ -265,15 +279,17 @@ export default async function QuantumPage({
                 </TableCell>
                 <TableCell>{formatDuration(entry.durationMins)}</TableCell>
                 <TableCell>
-                  <form action={deleteQuantumEntry}>
-                    <input type="hidden" name="id" value={entry.id} />
-                    <button
-                      type="submit"
-                      className="text-xs text-zinc-400 hover:text-red-600"
-                    >
-                      Delete
-                    </button>
-                  </form>
+                  {isHr && (
+                    <form action={deleteQuantumEntry}>
+                      <input type="hidden" name="id" value={entry.id} />
+                      <button
+                        type="submit"
+                        className="text-xs text-zinc-400 hover:text-red-600"
+                      >
+                        Delete
+                      </button>
+                    </form>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

@@ -144,9 +144,11 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
             className="rounded-md border border-zinc-200"
           />
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/devices/labels?ids=${device.id}&layout=single`} />}>
-              Print label
-            </Button>
+            {manage && (
+              <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/devices/labels?ids=${device.id}&layout=single`} />}>
+                Print label
+              </Button>
+            )}
             <Button variant="outline" size="sm" nativeButton={false} render={<a href={`/api/devices/${device.id}/qr`} />}>
               Download PNG
             </Button>

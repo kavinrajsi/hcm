@@ -52,6 +52,7 @@ export default async function ProbationPage({
   searchParams,
 }: PageProps<"/probation">) {
   const user = await requirePageRole("HR_ADMIN", "MANAGER");
+  const isHr = user.role === "HR_ADMIN";
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
@@ -183,7 +184,7 @@ export default async function ProbationPage({
           {records.map((record) => (
             <ListCard
               key={record.id}
-              href={`/employees/${record.employee.id}`}
+              href={isHr ? `/employees/${record.employee.id}` : undefined}
               leading={
                 <EmployeeAvatar
                   name={record.employee.name}
@@ -205,6 +206,7 @@ export default async function ProbationPage({
                 </>
               }
               actions={
+                !isHr ||
                 record.status === "CONFIRMED" ||
                 record.status === "EXITED" ? undefined : (
                   <ProbationRowActions id={record.id} status={record.status} />
@@ -238,12 +240,16 @@ export default async function ProbationPage({
             {records.map((record) => (
               <TableRow key={record.id}>
                 <TableCell>
-                  <Link
-                    href={`/employees/${record.employee.id}`}
-                    className="font-medium underline-offset-4 hover:underline"
-                  >
-                    {record.employee.empId}
-                  </Link>
+                  {isHr ? (
+                    <Link
+                      href={`/employees/${record.employee.id}`}
+                      className="font-medium underline-offset-4 hover:underline"
+                    >
+                      {record.employee.empId}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{record.employee.empId}</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <span className="flex items-center gap-2.5">
@@ -267,7 +273,12 @@ export default async function ProbationPage({
                   )}
                 </TableCell>
                 <TableCell>
-                  <ProbationRowActions id={record.id} status={record.status} />
+                  {isHr && (
+                    <ProbationRowActions
+                      id={record.id}
+                      status={record.status}
+                    />
+                  )}
                 </TableCell>
               </TableRow>
             ))}

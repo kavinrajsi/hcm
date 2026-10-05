@@ -403,18 +403,31 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
           </h2>
           {/* One swipeable row on phones, wrapping chips on desktop. */}
           <div className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0">
-            {yearTotals.map((yearTotal) => (
-              <Link
-                key={yearTotal.employeeId}
-                href={`/employees/${yearTotal.employeeId}`}
-                className="flex min-h-10 shrink-0 items-center gap-1 rounded-md border border-zinc-200 px-2.5 text-sm whitespace-nowrap hover:bg-muted md:min-h-0 md:py-1 dark:border-zinc-800"
-              >
-                {topNames.get(yearTotal.employeeId!) ?? "—"}{" "}
-                <span className="tabular-nums text-zinc-500">
-                  {Number(yearTotal._sum.days ?? 0)}
+            {yearTotals.map((yearTotal) => {
+              const chip = (
+                <>
+                  {topNames.get(yearTotal.employeeId!) ?? "—"}{" "}
+                  <span className="tabular-nums text-zinc-500">
+                    {Number(yearTotal._sum.days ?? 0)}
+                  </span>
+                </>
+              );
+              const chipClass =
+                "flex min-h-10 shrink-0 items-center gap-1 rounded-md border border-zinc-200 px-2.5 text-sm whitespace-nowrap md:min-h-0 md:py-1 dark:border-zinc-800";
+              return isHr ? (
+                <Link
+                  key={yearTotal.employeeId}
+                  href={`/employees/${yearTotal.employeeId}`}
+                  className={`${chipClass} hover:bg-muted`}
+                >
+                  {chip}
+                </Link>
+              ) : (
+                <span key={yearTotal.employeeId} className={chipClass}>
+                  {chip}
                 </span>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
@@ -525,7 +538,7 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
                   <ListCard
                     key={leaveEntry.id}
                     href={
-                      leaveEntry.employee
+                      isHr && leaveEntry.employee
                         ? `/employees/${leaveEntry.employee.id}`
                         : undefined
                     }
@@ -655,13 +668,17 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
                     return (
                       <TableRow key={leaveEntry.id}>
                         <TableCell>
-                          {leaveEntry.employee ? (
+                          {leaveEntry.employee && isHr ? (
                             <Link
                               href={`/employees/${leaveEntry.employee.id}`}
                               className="font-medium underline-offset-4 hover:underline"
                             >
                               {leaveEntry.employee.name}
                             </Link>
+                          ) : leaveEntry.employee ? (
+                            <span className="font-medium">
+                              {leaveEntry.employee.name}
+                            </span>
                           ) : (
                             <span title={leaveEntry.creatorEmail}>
                               {leaveEntry.creatorName}

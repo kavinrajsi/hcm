@@ -47,7 +47,8 @@ const badgeVariant = {
 export default async function FreelancersPage({
   searchParams,
 }: PageProps<"/freelancers">) {
-  await requirePageRole("HR_ADMIN", "MANAGER");
+  const user = await requirePageRole("HR_ADMIN", "MANAGER");
+  const isHr = user.role === "HR_ADMIN";
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
@@ -134,17 +135,19 @@ export default async function FreelancersPage({
                 </>
               }
               actions={
-                <form action={deleteFreelancer} className="ml-auto">
-                  <input type="hidden" name="id" value={freelancer.id} />
-                  <Button
-                    type="submit"
-                    variant="ghost"
-                    className="h-10 text-zinc-500 active:text-red-600"
-                  >
-                    <DeleteIcon className="size-4" />
-                    Delete
-                  </Button>
-                </form>
+                isHr && (
+                  <form action={deleteFreelancer} className="ml-auto">
+                    <input type="hidden" name="id" value={freelancer.id} />
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      className="h-10 text-zinc-500 active:text-red-600"
+                    >
+                      <DeleteIcon className="size-4" />
+                      Delete
+                    </Button>
+                  </form>
+                )
               }
             />
           ))}
@@ -191,15 +194,17 @@ export default async function FreelancersPage({
                   {freelancer.notes ?? "—"}
                 </TableCell>
                 <TableCell>
-                  <form action={deleteFreelancer}>
-                    <input type="hidden" name="id" value={freelancer.id} />
-                    <button
-                      type="submit"
-                      className="text-xs text-zinc-400 hover:text-red-600"
-                    >
-                      Delete
-                    </button>
-                  </form>
+                  {isHr && (
+                    <form action={deleteFreelancer}>
+                      <input type="hidden" name="id" value={freelancer.id} />
+                      <button
+                        type="submit"
+                        className="text-xs text-zinc-400 hover:text-red-600"
+                      >
+                        Delete
+                      </button>
+                    </form>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

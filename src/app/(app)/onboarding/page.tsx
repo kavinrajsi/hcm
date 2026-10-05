@@ -38,6 +38,7 @@ export default async function OnboardingPage({
   searchParams,
 }: PageProps<"/onboarding">) {
   const user = await requirePageRole("HR_ADMIN", "MANAGER");
+  const isHr = user.role === "HR_ADMIN";
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
@@ -94,9 +95,11 @@ export default async function OnboardingPage({
       <PageHeader
         title="Onboarding"
         actions={
-          <Button nativeButton={false} render={<Link href="/employees/new" />}>
-            New joiner
-          </Button>
+          isHr && (
+            <Button nativeButton={false} render={<Link href="/employees/new" />}>
+              New joiner
+            </Button>
+          )
         }
       />
 
@@ -148,7 +151,7 @@ export default async function OnboardingPage({
           {records.map((record) => (
             <ListCard
               key={record.id}
-              href={`/employees/${record.employee.id}`}
+              href={isHr ? `/employees/${record.employee.id}` : undefined}
               leading={
                 <EmployeeAvatar
                   name={record.employee.name}
@@ -195,12 +198,16 @@ export default async function OnboardingPage({
             {records.map((record) => (
               <TableRow key={record.id}>
                 <TableCell>
-                  <Link
-                    href={`/employees/${record.employee.id}`}
-                    className="font-medium underline-offset-4 hover:underline"
-                  >
-                    {record.employee.empId}
-                  </Link>
+                  {isHr ? (
+                    <Link
+                      href={`/employees/${record.employee.id}`}
+                      className="font-medium underline-offset-4 hover:underline"
+                    >
+                      {record.employee.empId}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{record.employee.empId}</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <span className="flex items-center gap-2.5">
