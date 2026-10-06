@@ -8,6 +8,7 @@ import { requireRole } from "@/lib/rbac";
 import { sendEmail } from "@/lib/email";
 import { exitClearanceEmail } from "@/lib/emails";
 import { ID_CARD_STATUS_VALUES } from "@/lib/id-card-status";
+import { DEVICE_TYPE_LABELS } from "@/lib/devices/devices";
 
 const exitSchema = z.object({
   employeeId: z.string().min(1, "Pick the employee who's leaving"),
@@ -56,6 +57,18 @@ export async function markExit(
       };
     }
   }
+
+  // Devices aren't returned automatically — someone has to collect them.
+  // List them in the clearance email and for HR, and the Devices pages flag
+  // them as held by a leaver until they're marked returned.
+  const held = await db.device.findMany({
+    where: { holderId: employee.id },
+    orderBy: { assetTag: "asc" },
+    select: { type: true, brand: true, model: true, assetTag: true },
+  });
+  const devices = held.map(
+    (device) => `${DEVICE_TYPE_LABELS[device.type]} — ${device.brand} ${device.model} (${device.assetTag})`,
+  );
 
   await db.$transaction([
     db.employee.update({
@@ -113,6 +126,7 @@ export async function markExit(
         name: employee.name,
         empId: employee.empId,
         dateOfExit: parsed.data.dateOfExit,
+        devices,
       }),
     });
   } catch (error) {
@@ -124,7 +138,14 @@ export async function markExit(
   revalidatePath("/probation");
   revalidatePath("/employees");
   revalidatePath("/users");
-  return { ok: true };
+  revalidatePath("/devices");
+  return {
+    ok: devices.length
+      ? `Exit recorded. Collect ${devices.length} device${devices.length === 1 ? "" : "s"}: ${held
+          .map((device) => device.assetTag)
+          .join(", ")} — then mark ${devices.length === 1 ? "it" : "them"} returned on Devices.`
+      : true,
+  };
 }
 
 /** Reverses markExit: clears the exit date and reopens what it closed. */

@@ -70,6 +70,11 @@ export function ExitForm({ activeEmployees }: { activeEmployees: Employee[] }) {
           Exit recorded — ID card flagged for return.
         </p>
       )}
+      {typeof state.ok === "string" && (
+        <p role="status" className="text-sm text-amber-600 dark:text-amber-400">
+          {state.ok}
+        </p>
+      )}
     </ValidatedForm>
   );
 }

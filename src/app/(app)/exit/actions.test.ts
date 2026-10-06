@@ -10,6 +10,7 @@ const db = vi.hoisted(() => {
     idCard: { update: vi.fn() },
     idCardStatusChange: { findFirst: vi.fn() },
     probationRecord: { update: vi.fn() },
+    device: { findMany: vi.fn<(args: { where: unknown }) => Promise<unknown[]>>(async () => []) },
     $transaction: vi.fn(),
   };
   // Array form: run the queued updates; callback form: hand over the mock.
@@ -20,7 +21,9 @@ const db = vi.hoisted(() => {
   );
   return mockDb;
 });
-const sendEmail = vi.hoisted(() => vi.fn(async () => ({ skipped: true })));
+const sendEmail = vi.hoisted(() =>
+  vi.fn<(email: { html: string }) => Promise<{ skipped: boolean }>>(async () => ({ skipped: true })),
+);
 
 vi.mock("@/lib/db", () => ({ db }));
 vi.mock("@/lib/rbac", () => ({
@@ -58,6 +61,20 @@ beforeEach(() => {
 });
 
 describe("markExit", () => {
+  it("lists the leaver's devices to collect, in the result and the clearance email", async () => {
+    db.employee.findUnique.mockResolvedValue(baseEmployee);
+    db.user.findUnique.mockResolvedValue({ role: "EMPLOYEE" });
+    db.device.findMany.mockResolvedValueOnce([
+      { type: "LAPTOP", brand: "Apple", model: "MacBook Air", assetTag: "MAD-LAP-E1" },
+    ]);
+
+    const result = await markExit({}, form({ employeeId: "e1", dateOfExit: "2026-10-01" }));
+
+    expect(db.device.findMany.mock.calls[0][0].where).toEqual({ holderId: "e1" });
+    expect(result.ok).toBe("Exit recorded. Collect 1 device: MAD-LAP-E1 — then mark it returned on Devices.");
+    expect(sendEmail.mock.calls[0][0].html).toContain("Apple MacBook Air (MAD-LAP-E1)");
+  });
+
   it("records the exit and closes card, probation and login", async () => {
     db.employee.findUnique.mockResolvedValue(baseEmployee);
     db.user.findUnique.mockResolvedValue({ role: "EMPLOYEE" });

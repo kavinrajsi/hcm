@@ -58,11 +58,19 @@ export function exitClearanceEmail({
   name,
   empId,
   dateOfExit,
+  devices = [],
 }: {
   name: string;
   empId: string;
   dateOfExit: string;
+  /** Company devices still assigned to them, e.g. "Laptop — Apple MacBook Air (MAD-LAP-C2M069)". */
+  devices?: string[];
 }): Email {
+  const assets = devices.length
+    ? `<li>Return your company devices:<ul style="margin:4px 0 0;padding-left:20px">${devices
+        .map((device) => `<li>${escapeHtml(device)}</li>`)
+        .join("")}</ul></li>`
+    : "<li>Hand over company assets (laptop, accessories, access cards)</li>";
   return {
     subject: `Exit clearance — ${name} (${empId})`,
     html: renderEmail({
@@ -71,7 +79,7 @@ export function exitClearanceEmail({
       body: `Hi ${escapeHtml(name.split(" ")[0])},<br><br>HR has recorded your exit (${escapeHtml(empId)}) with a last working day of <strong>${escapeHtml(fmtDate(dateOfExit))}</strong>.<br><br>Before you leave, please:
 <ul style="margin:8px 0 0;padding-left:20px">
 <li>Return your ID card</li>
-<li>Hand over company assets (laptop, accessories, access cards)</li>
+${assets}
 <li>Complete knowledge transfer with your manager</li>
 </ul>`,
       footnote:

@@ -50,6 +50,7 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
           designation: true,
           avatarBlobKey: true,
           userId: true,
+          dateOfExit: true,
           manager: { select: { userId: true } },
         },
       },
@@ -234,6 +235,11 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
               <p className="text-xs text-zinc-500">
                 {device.holder.empId} · {device.holder.designation}
               </p>
+              {device.holder.dateOfExit && (
+                <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                  Left on {formatDay(device.holder.dateOfExit)} — collect this device and mark it returned.
+                </p>
+              )}
             </div>
           </div>
         ) : (

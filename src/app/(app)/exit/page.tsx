@@ -84,6 +84,8 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
           dateOfExit: true,
           designation: true,
           empType: true,
+          // Company devices still to collect from the leaver.
+          _count: { select: { devices: true } },
         },
       }),
       db.employee.count({ where }),
@@ -176,6 +178,8 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
                   <span>{exitedEmployee.empId}</span>
                   <span>Joined {formatDay(exitedEmployee.dateOfJoining)}</span>
                   <span>Exited {formatDay(exitedEmployee.dateOfExit)}</span>
+                  {/* The card itself is a link, so no nested link here. */}
+                  <DevicesToCollect count={exitedEmployee._count.devices} />
                 </>
               }
             />
@@ -224,6 +228,7 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
                       avatarKey={exitedEmployee.avatarBlobKey}
                     />
                     {exitedEmployee.name}
+                    <DevicesToCollect count={exitedEmployee._count.devices} link />
                   </span>
                 </TableCell>
                 <TableCell>{formatDay(exitedEmployee.dateOfJoining)}</TableCell>
@@ -245,5 +250,20 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
         />
       </div>
     </PageShell>
+  );
+}
+
+/** "2 devices to collect" — devices still assigned to someone who has left. */
+function DevicesToCollect({ count, link = false }: { count: number; link?: boolean }) {
+  if (count === 0) return null;
+  const className =
+    "rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300";
+  const label = `${count} device${count === 1 ? "" : "s"} to collect`;
+  return link ? (
+    <Link href="/devices?holder=left" className={`${className} hover:underline`}>
+      {label}
+    </Link>
+  ) : (
+    <span className={className}>{label}</span>
   );
 }

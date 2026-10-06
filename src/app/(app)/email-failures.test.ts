@@ -15,6 +15,7 @@ const db = vi.hoisted(() => {
     idCard: { update: vi.fn() },
     probationRecord: { update: vi.fn(), findMany: vi.fn() },
     letter: { create: vi.fn(), findFirst: vi.fn(async () => null) },
+    device: { findMany: vi.fn(async () => []) },
     $transaction: vi.fn(async (arg: unknown) =>
       Array.isArray(arg)
         ? Promise.all(arg)

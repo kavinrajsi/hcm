@@ -61,8 +61,11 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
   // Managers see only their direct reports' devices (filter options too).
   const scope: Prisma.DeviceWhereInput =
     user.role === "MANAGER" ? { holder: { manager: { userId: user.id } } } : {};
+  // ?holder=left: devices still assigned to someone who has left (exit list links here).
+  const heldByLeavers = raw.holder === "left";
   const where: Prisma.DeviceWhereInput = {
     ...scope,
+    ...(heldByLeavers ? { AND: [{ holder: { dateOfExit: { not: null } } }] } : {}),
     ...(isDeviceType(params.type) ? { type: params.type } : {}),
     ...(status ? { status } : {}),
     ...(brand ? { brand } : {}),
@@ -85,6 +88,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
       : {}),
   };
 
+  const leaverHeld = db.device.count({ where: { ...scope, AND: [{ holder: { dateOfExit: { not: null } } }] } });
   const [devices, total, openTickets, types, statuses, brands, vendors, oses, ownerships, rent] = await Promise.all([
     db.device.findMany({
       where,
@@ -100,7 +104,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
         os: true,
         ownership: true,
         status: true,
-        holder: { select: { name: true, empId: true } },
+        holder: { select: { name: true, empId: true, dateOfExit: true } },
         _count: { select: { tickets: { where: { status: { in: ["OPEN", "SENT_FOR_SERVICE"] } } } } },
       },
     }),
@@ -126,12 +130,20 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
   ]);
   const ownershipCounts = new Map(ownerships.map((group) => [group.ownership as string, group._count]));
   const monthlyRent = Number(rent._sum.monthlyRent ?? 0);
+  const heldByLeaversCount = await leaverHeld;
   const osCounts = new Map(oses.map((group) => [group.os as string, group._count]));
   const typeCounts = new Map(types.map((group) => [group.type as string, group._count]));
   const statusCounts = new Map(statuses.map((group) => [group.status as string, group._count]));
 
   const holderText = (device: (typeof devices)[number]) =>
     device.holder ? `${device.holder.name} · ${device.holder.empId}` : "—";
+  // Assigned to someone who has left: still to be collected.
+  const holderLeft = (device: (typeof devices)[number]) =>
+    device.holder?.dateOfExit ? (
+      <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+        Holder left
+      </span>
+    ) : null;
 
   return (
     <PageShell>
@@ -163,6 +175,11 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
           <AddFilter
             search={{ param: "q", hint: "Asset tag, model, serial, holder or emp ID" }}
             fields={[
+              {
+                param: "holder",
+                label: "Holder",
+                options: [{ value: "left", label: "Has left (to collect)", count: heldByLeaversCount }],
+              },
               {
                 param: "type",
                 label: "Type",
@@ -251,7 +268,10 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
                     {osSuffix(device.os)} · {device.brand} {device.model}
                     {device.ownership === "RENTED" && <span className="ml-2 text-xs text-zinc-500">Rented</span>}
                   </TableCell>
-                  <TableCell>{holderText(device)}</TableCell>
+                  <TableCell>
+                    {holderText(device)}
+                    {holderLeft(device)}
+                  </TableCell>
                   <TableCell className={DEVICE_STATUS_CLASSES[device.status]}>
                     {DEVICE_STATUS_LABELS[device.status]}
                   </TableCell>
@@ -281,7 +301,10 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
                     {DEVICE_TYPE_LABELS[device.type]}
                     {osSuffix(device.os)}
                   </span>
-                  <span>{holderText(device)}</span>
+                  <span>
+                    {holderText(device)}
+                    {holderLeft(device)}
+                  </span>
                   {device._count.tickets > 0 && <span>{device._count.tickets} open issue(s)</span>}
                 </>
               }
