@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Prisma } from "@/generated/prisma/client";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
@@ -300,6 +301,11 @@ async function BoardView({
   );
 }
 
+const SORT_KEYS = ["applied", "type", "score"] as const;
+type SortKey = (typeof SORT_KEYS)[number];
+/** First click: newest applied, A→Z type, best score. */
+const DEFAULT_DIR: Record<SortKey, "asc" | "desc"> = { applied: "desc", type: "asc", score: "desc" };
+
 async function ListView({
   and,
   types,
@@ -315,28 +321,53 @@ async function ListView({
   take: number;
   raw: Record<string, string | string[] | undefined>;
 }) {
-  const sortByScore = raw.sort === "score";
+  // ?sort=applied|type|score&dir=asc|desc; default newest applied first.
+  const sortKey: SortKey = SORT_KEYS.includes(raw.sort as SortKey) ? (raw.sort as SortKey) : "applied";
+  const sortDir: "asc" | "desc" =
+    raw.dir === "asc" || raw.dir === "desc" ? raw.dir : DEFAULT_DIR[sortKey];
   const statuses = CANDIDATE_STATUSES.filter((candidateStatus) => types.includes(candidateStatus));
-  const sortHref = (() => {
+  /** Link for a column header: sort by it, or flip the direction if it's already the sort. */
+  const sortHref = (key: SortKey) => {
     const query = new URLSearchParams();
-    for (const [key, value] of Object.entries(raw)) {
-      if (key === "sort" || key === "page" || value === undefined) continue;
-      for (const item of Array.isArray(value) ? value : [value]) query.append(key, item);
+    for (const [param, value] of Object.entries(raw)) {
+      if (param === "sort" || param === "dir" || param === "page" || value === undefined) continue;
+      for (const item of Array.isArray(value) ? value : [value]) query.append(param, item);
     }
-    if (!sortByScore) query.set("sort", "score");
+    const dir = key === sortKey ? (sortDir === "asc" ? "desc" : "asc") : DEFAULT_DIR[key];
+    if (key !== "applied" || dir !== "desc") {
+      query.set("sort", key);
+      query.set("dir", dir);
+    }
     return `/candidates${query.size ? `?${query}` : ""}`;
-  })();
+  };
+  const sortHeader = (key: SortKey, label: string) => (
+    <Link
+      href={sortHref(key)}
+      aria-label={`Sort by ${label.toLowerCase()}`}
+      className={cn(
+        "inline-flex items-center gap-1 hover:text-foreground",
+        key === sortKey && "text-foreground",
+      )}
+    >
+      {label}
+      <span aria-hidden className="text-xs">
+        {key === sortKey ? (sortDir === "asc" ? "↑" : "↓") : "↕"}
+      </span>
+    </Link>
+  );
+  const orderBy: Prisma.CandidateOrderByWithRelationInput[] =
+    sortKey === "score"
+      ? [{ score: { score: { sort: sortDir, nulls: "last" } } }, { createdAt: "desc" }]
+      : sortKey === "type"
+        ? [{ position: { sort: sortDir, nulls: "last" } }, { createdAt: "desc" }]
+        : [{ createdAt: sortDir }];
   const where = {
     AND: statuses.length ? [...and, { OR: statuses.map((status) => statusWhere(status)) }] : and,
   };
   const [rows, total] = await Promise.all([
     db.candidate.findMany({
       where,
-      // ?sort=score: best resume first (unscored last), newest within a score.
-      orderBy:
-        sortByScore
-          ? [{ score: { score: { sort: "desc", nulls: "last" } } }, { createdAt: "desc" }]
-          : { createdAt: "desc" },
+      orderBy,
       skip,
       take,
       include: WITH_SCORE,
@@ -358,20 +389,11 @@ async function ListView({
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Type</TableHead>
+              <TableHead>{sortHeader("type", "Type")}</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Location</TableHead>
-              <TableHead>Applied</TableHead>
-              <TableHead>
-                <Link
-                  href={sortHref}
-                  className="inline-flex items-center gap-1 hover:text-foreground"
-                  title={sortByScore ? "Sort by newest" : "Sort by score, best first"}
-                >
-                  Score
-                  <span aria-hidden className="text-xs">{sortByScore ? "↓" : "↕"}</span>
-                </Link>
-              </TableHead>
+              <TableHead>{sortHeader("applied", "Applied")}</TableHead>
+              <TableHead>{sortHeader("score", "Score")}</TableHead>
               <TableHead>Status</TableHead>
               <TableHead />
             </TableRow>
