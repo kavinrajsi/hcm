@@ -17,7 +17,6 @@ export const SCORE_MODEL = process.env.RESUME_AI_MODEL ?? "google/gemini-2.5-fla
 /** A failed score is retried this many times in all (cron), then left. */
 export const MAX_ATTEMPTS = 3;
 const MAX_RESUME_BYTES = 10 * 1024 * 1024;
-const CONCURRENCY = 3;
 
 const scoreSchema = z.object({
   score: z.number().int().min(0).max(100),
@@ -58,7 +57,12 @@ async function resumeBytes(fileKey: string): Promise<Uint8Array | null> {
   return buffer.byteLength > MAX_RESUME_BYTES ? null : buffer;
 }
 
-export type ScoreOutcome = "SCORED" | "NO_RESUME" | "FAILED";
+export type ScoreOutcome = "SCORED" | "NO_RESUME" | "FAILED" | "RATE_LIMITED";
+
+/** The AI Gateway's per-team request limit (5/min for Google here). */
+function isRateLimit(error: unknown): boolean {
+  return /rate ?limit/i.test(String(error));
+}
 
 /** Scores (or rescores) one candidate and saves the result. */
 export async function scoreCandidate(candidateId: bigint, trigger?: AiTrigger): Promise<ScoreOutcome> {
@@ -70,7 +74,7 @@ export async function scoreCandidate(candidateId: bigint, trigger?: AiTrigger): 
   const role = candidate.jobRole?.trim() || null;
   const attempts = (candidate.score?.attempts ?? 0) + 1;
   const save = (data: {
-    status: ScoreOutcome;
+    status: "SCORED" | "NO_RESUME" | "FAILED";
     score?: number | null;
     summary?: string;
     strengths?: string[];
@@ -140,6 +144,27 @@ export async function scoreCandidate(candidateId: bigint, trigger?: AiTrigger): 
     });
   } catch (error) {
     await recordAiUsage({ ...usage, ok: false });
+    if (isRateLimit(error)) {
+      // Not the resume's fault: keep its attempts so it's simply tried again.
+      if (candidate.score) {
+        await db.candidateScore.update({
+          where: { candidateId },
+          data: { status: "FAILED", error: "Rate limited; will retry.", attempts: candidate.score.attempts },
+        });
+      } else {
+        await db.candidateScore.create({
+          data: {
+            candidateId,
+            status: "FAILED",
+            error: "Rate limited; will retry.",
+            role,
+            model: SCORE_MODEL,
+            attempts: 0,
+          },
+        });
+      }
+      return "RATE_LIMITED";
+    }
     await save({ status: "FAILED", error: String(error).slice(0, 300) });
     return "FAILED";
   }
@@ -185,28 +210,35 @@ export async function candidatesToScore(limit: number): Promise<bigint[]> {
   return rows.map((row) => row.id);
 }
 
-/** Scores pending candidates until `deadline` (ms epoch) or `limit`. */
+/**
+ * Scores pending candidates one at a time, `spacingMs` apart (the gateway
+ * allows 5 Google requests a minute, shared with the leave sync), until
+ * `deadline` (ms epoch) or `limit`. Stops at the first rate limit; the
+ * rest are picked up next run.
+ */
 export async function scorePending({
   limit,
   deadline,
   trigger,
-  concurrency = CONCURRENCY,
+  spacingMs = 15_000,
 }: {
   limit: number;
   deadline: number;
   trigger: AiTrigger;
-  /** Resumes read at once (the backfill script uses more). */
-  concurrency?: number;
+  spacingMs?: number;
 }) {
-  const counts: Record<ScoreOutcome, number> = { SCORED: 0, NO_RESUME: 0, FAILED: 0 };
-  const queue = await candidatesToScore(limit);
-  // A few at a time: each resume takes ~15 s to read.
-  for (let index = 0; index < queue.length; index += concurrency) {
+  const counts: Record<ScoreOutcome, number> = { SCORED: 0, NO_RESUME: 0, FAILED: 0, RATE_LIMITED: 0 };
+  for (const id of await candidatesToScore(limit)) {
     if (Date.now() > deadline) break;
-    const outcomes = await Promise.all(
-      queue.slice(index, index + concurrency).map((id) => scoreCandidate(id, trigger)),
-    );
-    for (const outcome of outcomes) counts[outcome]++;
+    const started = Date.now();
+    const outcome = await scoreCandidate(id, trigger);
+    counts[outcome]++;
+    if (outcome === "RATE_LIMITED") break;
+    // Only model calls count against the limit.
+    if (outcome !== "NO_RESUME") {
+      const wait = spacingMs - (Date.now() - started);
+      if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+    }
   }
   return counts;
 }

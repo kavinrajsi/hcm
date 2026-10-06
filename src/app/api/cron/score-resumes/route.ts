@@ -8,7 +8,8 @@ export const maxDuration = 300;
 
 export async function GET(request: NextRequest) {
   if (!isAuthorizedCron(request)) return new Response("Unauthorized", { status: 401 });
-  // Stop picking up new resumes well before the 300 s limit.
-  const counts = await scorePending({ limit: 60, deadline: Date.now() + 200_000, trigger: "cron" });
+  // A few per run, 15 s apart: the gateway allows 5 Google requests a
+  // minute, shared with the leave sync. Plenty for a day's applications.
+  const counts = await scorePending({ limit: 4, deadline: Date.now() + 200_000, trigger: "cron" });
   return Response.json(counts);
 }

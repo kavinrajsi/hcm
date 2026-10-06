@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const db = vi.hoisted(() => ({
   candidate: { findUnique: vi.fn(), findMany: vi.fn() },
   roleCriteria: { findUnique: vi.fn() },
-  candidateScore: { upsert: vi.fn() },
+  candidateScore: { upsert: vi.fn(), update: vi.fn(), create: vi.fn() },
 }));
 const ai = vi.hoisted(() => ({ generateText: vi.fn() }));
 const blob = vi.hoisted(() => ({ readDocument: vi.fn() }));
@@ -14,7 +14,7 @@ vi.mock("@/lib/blob", () => blob);
 vi.mock("@/lib/ai-usage", () => usage);
 vi.mock("ai", async (original) => ({ ...(await original<typeof import("ai")>()), generateText: ai.generateText }));
 
-const { scoreCandidate, candidatesToScore } = await import("./score");
+const { scoreCandidate, candidatesToScore, scorePending } = await import("./score");
 const { scoreBand } = await import("./score-bands");
 
 const pdf = () => ({ stream: new Blob([new Uint8Array([37, 80, 68, 70])]).stream() });
@@ -83,10 +83,35 @@ describe("scoreCandidate", () => {
       position: null,
       score: { attempts: 1 },
     });
-    ai.generateText.mockRejectedValue(new Error("rate limited"));
+    ai.generateText.mockRejectedValue(new Error("Model returned invalid JSON"));
     expect(await scoreCandidate(BigInt(3))).toBe("FAILED");
     expect(saved()).toMatchObject({ status: "FAILED", attempts: 2 });
     expect(usage.recordAiUsage).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
+  });
+});
+
+describe("rate limits", () => {
+  const limited = new Error("GatewayRateLimitError: Rate limit exceeded … 5 requests per minute");
+
+  it("don't use up one of the resume's attempts", async () => {
+    db.candidate.findUnique.mockResolvedValue({
+      fileUrl: "resumes/a.pdf",
+      jobRole: "Designer",
+      position: null,
+      score: { attempts: 2 },
+    });
+    ai.generateText.mockRejectedValue(limited);
+    expect(await scoreCandidate(BigInt(4))).toBe("RATE_LIMITED");
+    expect(db.candidateScore.update.mock.calls[0][0].data).toMatchObject({ status: "FAILED", attempts: 2 });
+    expect(db.candidateScore.upsert).not.toHaveBeenCalled();
+  });
+
+  it("stop the run so the rest wait for the next one", async () => {
+    db.candidate.findMany.mockResolvedValue([{ id: BigInt(1) }, { id: BigInt(2) }, { id: BigInt(3) }]);
+    ai.generateText.mockRejectedValue(limited);
+    const counts = await scorePending({ limit: 10, deadline: Date.now() + 60_000, trigger: "cron", spacingMs: 0 });
+    expect(counts).toMatchObject({ RATE_LIMITED: 1, SCORED: 0 });
+    expect(ai.generateText).toHaveBeenCalledTimes(1);
   });
 });
 
