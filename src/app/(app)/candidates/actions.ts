@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { scoreCandidate } from "@/lib/candidates/score";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
@@ -15,6 +16,7 @@ import {
   candidateWhere,
   statusWhere,
   toCandidateDetail,
+  WITH_SCORE,
   type CandidateFilters,
 } from "./query";
 import type { CandidateDetail } from "./candidate-dialog";
@@ -59,10 +61,20 @@ export async function setCandidateStatus(
   revalidatePath("/candidates");
 }
 
+/** Scores (again) one candidate's resume against their job role. */
+export async function rescoreCandidate(id: string) {
+  await requireRole("HR_ADMIN");
+  const parsed = z.string().regex(/^\d+$/).parse(id);
+  const outcome = await scoreCandidate(BigInt(parsed), "manual-sync");
+  revalidatePath("/candidates");
+  return outcome;
+}
+
 const filtersSchema = z.object({
   q: z.string().max(200).optional(),
   position: z.array(z.string().max(50)).max(10).optional(),
   role: z.array(z.string().max(200)).max(50).optional(),
+  score: z.array(z.string().max(10)).max(4).optional(),
   created: z.string().max(10).optional(),
   from: z.string().max(20).optional(),
   to: z.string().max(20).optional(),
@@ -84,6 +96,7 @@ export async function loadMoreCandidates(
     orderBy: { createdAt: "desc" },
     skip: Math.max(0, Math.floor(offset)),
     take: BOARD_PAGE_SIZE,
+    include: WITH_SCORE,
   });
   return rows.map(toCandidateDetail);
 }

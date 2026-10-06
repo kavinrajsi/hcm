@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { CandidateDialog, type CandidateDetail } from "./candidate-dialog";
 import { CANDIDATE_STATUS_CLASSES, type CandidateStatus } from "./statuses";
 import { formatDay } from "@/lib/format-date";
+import { ScoreBadge } from "./score-badge";
 
 /** Phone list row; tapping opens the same details drawer as "View". */
 export function CandidateCard({ candidate }: { candidate: CandidateDetail }) {
@@ -34,6 +35,11 @@ export function CandidateCard({ candidate }: { candidate: CandidateDetail }) {
               {formatDay(candidate.appliedOn)}
             </span>
             {candidate.resumeHref && <span>Resume</span>}
+            {candidate.score?.value != null && (
+              <span className="inline-flex items-center gap-1">
+                Score <ScoreBadge score={candidate.score} />
+              </span>
+            )}
           </>
         }
       />

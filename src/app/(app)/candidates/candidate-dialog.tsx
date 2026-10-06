@@ -38,6 +38,7 @@ import {
 import type { CandidateNote } from "./notes";
 import { StatusHistory } from "./status-history";
 import { ConvertToEmployee } from "./convert-to-employee";
+import { ScoreSection } from "./score-section";
 import { CANDIDATE_STATUSES } from "./statuses";
 import { formatDay } from "@/lib/format-date";
 
@@ -57,6 +58,17 @@ export type CandidateDetail = {
   pageUrl: string | null;
   addedManually: boolean;
   referrer: string | null;
+  /** AI resume score against the job role; null until scored. */
+  score: {
+    status: "SCORED" | "NO_RESUME" | "FAILED";
+    value: number | null;
+    summary: string;
+    strengths: string[];
+    gaps: string[];
+    role: string | null;
+    usedCriteria: boolean;
+    scoredOn: string;
+  } | null;
 };
 
 function Row({
@@ -341,6 +353,8 @@ export function CandidateDialog({
               )}
             </div>
           </ValidatedForm>
+
+          <ScoreSection candidate={candidate} />
 
           <NotesLog candidateId={candidate.id} notes={candidate.notes} />
 

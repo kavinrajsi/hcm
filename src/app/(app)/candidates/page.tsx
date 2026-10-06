@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
 import { parseTableParams } from "@/lib/table-params";
@@ -33,6 +35,7 @@ import {
   statusOf,
   statusWhere,
   toCandidateDetail,
+  WITH_SCORE,
   type CandidateFilters,
 } from "./query";
 import {
@@ -41,6 +44,8 @@ import {
   type CandidateStatus,
 } from "./statuses";
 import { formatDay } from "@/lib/format-date";
+import { SCORE_BANDS, type ScoreBand } from "@/lib/candidates/score-bands";
+import { ScoreBadge } from "./score-badge";
 
 export const metadata = { title: "Candidates" };
 
@@ -69,6 +74,7 @@ export default async function CandidatesPage({
     q: params.q,
     position: listParam(raw.position),
     role: listParam(raw.role),
+    score: listParam(raw.score),
     created: trimmedParam(raw.created),
     from: trimmedParam(raw.from),
     to: trimmedParam(raw.to),
@@ -124,6 +130,18 @@ export default async function CandidatesPage({
     ]),
   );
 
+  // Score filter counts across all (non-spam) candidates.
+  const [strong, fair, weak, scoredTotal, allTotal] = await Promise.all([
+    ...(Object.keys(SCORE_BANDS) as ScoreBand[]).map((band) =>
+      db.candidateScore.count({
+        where: { score: { gte: SCORE_BANDS[band].min, lte: SCORE_BANDS[band].max }, candidate: NOT_SPAM },
+      }),
+    ),
+    db.candidateScore.count({ where: { score: { not: null }, candidate: NOT_SPAM } }),
+    db.candidate.count({ where: NOT_SPAM }),
+  ]);
+  const scoreCounts = { strong, fair, weak, none: allTotal - scoredTotal };
+
   const countByStatus = new Map<CandidateStatus, number>();
   for (const statusCount of statusCounts) {
     const statusKey = statusOf(statusCount.status);
@@ -150,7 +168,14 @@ export default async function CandidatesPage({
       <PageHeader
         title="Candidates"
         description="Applications from the madarth.com career form."
-        actions={<AddCandidate />}
+        actions={
+          <>
+            <Button variant="outline" nativeButton={false} render={<Link href="/candidates/criteria" />}>
+              Role criteria
+            </Button>
+            <AddCandidate />
+          </>
+        }
       />
 
       <CountChips
@@ -190,6 +215,19 @@ export default async function CandidatesPage({
               }))}
             />
             <FilterMultiSelect param="role" label="Job role" plural="Job roles" options={roles} searchable />
+            <FilterMultiSelect
+              param="score"
+              label="Score"
+              plural="Scores"
+              options={[
+                ...(Object.keys(SCORE_BANDS) as ScoreBand[]).map((band) => ({
+                  value: band,
+                  label: SCORE_BANDS[band].label,
+                  count: scoreCounts[band],
+                })),
+                { value: "none", label: "Not scored", count: scoreCounts.none },
+              ]}
+            />
           </div>
           <Segmented
             label="View"
@@ -239,6 +277,7 @@ async function BoardView({
           where,
           orderBy: { createdAt: "desc" },
           take: BOARD_PAGE_SIZE,
+          include: WITH_SCORE,
         }),
         db.candidate.count({ where }),
       ]);
@@ -276,16 +315,31 @@ async function ListView({
   take: number;
   raw: Record<string, string | string[] | undefined>;
 }) {
+  const sortByScore = raw.sort === "score";
   const statuses = CANDIDATE_STATUSES.filter((candidateStatus) => types.includes(candidateStatus));
+  const sortHref = (() => {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(raw)) {
+      if (key === "sort" || key === "page" || value === undefined) continue;
+      for (const item of Array.isArray(value) ? value : [value]) query.append(key, item);
+    }
+    if (!sortByScore) query.set("sort", "score");
+    return `/candidates${query.size ? `?${query}` : ""}`;
+  })();
   const where = {
     AND: statuses.length ? [...and, { OR: statuses.map((status) => statusWhere(status)) }] : and,
   };
   const [rows, total] = await Promise.all([
     db.candidate.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      // ?sort=score: best resume first (unscored last), newest within a score.
+      orderBy:
+        sortByScore
+          ? [{ score: { score: { sort: "desc", nulls: "last" } } }, { createdAt: "desc" }]
+          : { createdAt: "desc" },
       skip,
       take,
+      include: WITH_SCORE,
     }),
     db.candidate.count({ where }),
   ]);
@@ -308,6 +362,16 @@ async function ListView({
               <TableHead>Contact</TableHead>
               <TableHead>Location</TableHead>
               <TableHead>Applied</TableHead>
+              <TableHead>
+                <Link
+                  href={sortHref}
+                  className="inline-flex items-center gap-1 hover:text-foreground"
+                  title={sortByScore ? "Sort by newest" : "Sort by score, best first"}
+                >
+                  Score
+                  <span aria-hidden className="text-xs">{sortByScore ? "↓" : "↕"}</span>
+                </Link>
+              </TableHead>
               <TableHead>Status</TableHead>
               <TableHead />
             </TableRow>
@@ -315,7 +379,7 @@ async function ListView({
           <TableBody>
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-zinc-500">
+                <TableCell colSpan={8} className="text-center text-zinc-500">
                   No candidates.
                 </TableCell>
               </TableRow>
@@ -344,6 +408,9 @@ async function ListView({
                   <TableCell>{candidate.location ?? "—"}</TableCell>
                   <TableCell className="whitespace-nowrap tabular-nums">
                     {formatDay(candidate.appliedOn)}
+                  </TableCell>
+                  <TableCell>
+                    <ScoreBadge score={candidate.score} />
                   </TableCell>
                   <TableCell>
                     <span

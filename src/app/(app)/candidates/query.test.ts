@@ -20,4 +20,14 @@ describe("candidateWhere", () => {
   it("adds nothing for empty selections", () => {
     expect(candidateWhere({ position: [], role: [] })).toHaveLength(1); // just the spam filter
   });
+
+  it("filters by score bands, including not scored", () => {
+    const and = candidateWhere({ score: ["strong", "none", "bogus"] });
+    expect(and).toContainEqual({
+      OR: [
+        { score: { is: { score: { gte: 75, lte: 100 } } } },
+        { OR: [{ score: { is: null } }, { score: { is: { score: null } } }] },
+      ],
+    });
+  });
 });

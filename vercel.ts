@@ -12,6 +12,8 @@ export const config: VercelConfig = {
     // Daily 04:30 UTC (10:00 IST) — pull the Basecamp leave check-in.
     // Daily 04:00 UTC — Email log keeps one year.
     { path: "/api/cron/email-log-cleanup", schedule: "0 4 * * *" },
+    // Every 15 minutes — AI resume scores for new applications.
+    { path: "/api/cron/score-resumes", schedule: "*/15 * * * *" },
     { path: "/api/cron/leave-sync", schedule: "30 4 * * *" },
     // Daily 05:00 UTC (10:30 IST) — Basecamp people and profile pictures.
     { path: "/api/cron/basecamp-people", schedule: "0 5 * * *" },

@@ -1,4 +1,5 @@
-import type { Candidate, Prisma } from "@/generated/prisma/client";
+import type { Candidate, CandidateScore, Prisma } from "@/generated/prisma/client";
+import { SCORE_BANDS, type ScoreBand } from "@/lib/candidates/score-bands";
 import type { CandidateDetail } from "./candidate-dialog";
 import { CANDIDATE_STATUSES, type CandidateStatus } from "./statuses";
 import { formatNoteTime, parseNotes } from "./notes";
@@ -17,6 +18,8 @@ export type CandidateFilters = {
   position?: string[];
   /** Any of these job roles (exact, case-insensitive). */
   role?: string[];
+  /** Resume score bands: strong / fair / weak, or "none" (no score yet). */
+  score?: string[];
   /** Preset key from DATE_PRESETS; ignored when from/to are set. */
   created?: string;
   /** Custom range, IST: "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM" (to is inclusive). */
@@ -39,6 +42,17 @@ export function candidateWhere(
   const roles = (filters.role ?? []).map((role) => role.trim()).filter(Boolean);
   if (roles.length)
     and.push({ OR: roles.map((role) => ({ jobRole: { equals: role, mode: "insensitive" as const } })) });
+  const bands = (filters.score ?? []).filter((band): band is ScoreBand | "none" =>
+    band === "none" || band in SCORE_BANDS,
+  );
+  if (bands.length)
+    and.push({
+      OR: bands.map((band) =>
+        band === "none"
+          ? { OR: [{ score: { is: null } }, { score: { is: { score: null } } }] }
+          : { score: { is: { score: { gte: SCORE_BANDS[band].min, lte: SCORE_BANDS[band].max } } } },
+      ),
+    });
   const created = instantRange({
     preset: filters.created,
     from: filters.from,
@@ -89,7 +103,12 @@ export function statusOf(value: string | null): CandidateStatus {
   );
 }
 
-export function toCandidateDetail(candidate: Candidate): CandidateDetail {
+/** Candidate rows carry their resume score (CandidateScore) for the UI. */
+export const WITH_SCORE = { score: true } as const;
+
+export function toCandidateDetail(
+  candidate: Candidate & { score?: CandidateScore | null },
+): CandidateDetail {
   return {
     id: String(candidate.id),
     name:
@@ -113,5 +132,17 @@ export function toCandidateDetail(candidate: Candidate): CandidateDetail {
     pageUrl: candidate.pageUrl,
     addedManually: candidate.sourceUrl === MANUAL_SOURCE,
     referrer: candidate.referrer,
+    score: candidate.score
+      ? {
+          status: candidate.score.status,
+          value: candidate.score.score,
+          summary: candidate.score.summary,
+          strengths: candidate.score.strengths,
+          gaps: candidate.score.gaps,
+          role: candidate.score.role,
+          usedCriteria: candidate.score.usedCriteria,
+          scoredOn: candidate.score.scoredAt.toISOString(),
+        }
+      : null,
   };
 }

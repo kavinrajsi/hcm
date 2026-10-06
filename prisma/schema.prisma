@@ -124,6 +124,7 @@ model User {
   lessonProgress         LessonProgress[]
   announcementsPosted    Announcement[]
   announcementReads      AnnouncementRead[]
+  roleCriteriaEdits      RoleCriteria[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 }
@@ -484,6 +485,7 @@ model Candidate {
   honeypot     String?  @default("")
 
   statusChanges CandidateStatusChange[]
+  score         CandidateScore?
 
   @@index([createdAt(sort: Desc)])
   @@map("candidates")
@@ -1321,4 +1323,47 @@ model AnnouncementRead {
 
   @@unique([announcementId, userId])
   @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Resume scores: an AI read of each candidate's resume against the job role
+// they applied for, using HR's criteria for that role (RoleCriteria). Kept
+// in HCM's own tables; the website's `candidates` table is untouched.
+
+enum CandidateScoreStatus {
+  SCORED
+  NO_RESUME
+  FAILED
+}
+
+model CandidateScore {
+  id           String               @id @default(cuid())
+  candidate    Candidate            @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  candidateId  BigInt               @unique
+  status       CandidateScoreStatus
+  score        Int? // 0–100 when SCORED
+  summary      String               @default("")
+  strengths    String[]
+  gaps         String[]
+  role         String? // job role it was scored against
+  usedCriteria Boolean              @default(false) // HR criteria existed for the role
+  model        String
+  error        String?
+  attempts     Int                  @default(1)
+  scoredAt     DateTime             @default(now()) @updatedAt
+
+  @@index([score])
+  @@index([status])
+}
+
+/// What HR looks for in a job role ("Video Editor": Premiere, 2+ years,
+/// reel portfolio…). Resume scores for that role are judged against it.
+model RoleCriteria {
+  id          String   @id @default(cuid())
+  roleKey     String   @unique // lowercased job role
+  role        String
+  criteria    String
+  updatedBy   User     @relation(fields: [updatedById], references: [id])
+  updatedById String
+  updatedAt   DateTime @updatedAt
 }

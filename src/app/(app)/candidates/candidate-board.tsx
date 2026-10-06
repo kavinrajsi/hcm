@@ -25,6 +25,7 @@ import {
   type CandidateStatus,
 } from "./statuses";
 import { formatDay } from "@/lib/format-date";
+import { ScoreBadge } from "./score-badge";
 
 type Columns = Record<CandidateStatus, CandidateDetail[]>;
 type Counts = Record<CandidateStatus, number>;
@@ -44,12 +45,15 @@ function CardBody({ candidate }: { candidate: CandidateDetail }) {
     <>
       <div className="flex items-start justify-between gap-2">
         <span className="font-medium leading-snug">{candidate.name}</span>
-        {candidate.resumeHref && (
-          <FileText
-            className="mt-0.5 size-3.5 shrink-0 text-zinc-400"
-            aria-label="Has resume"
-          />
-        )}
+        <span className="flex shrink-0 items-center gap-1.5">
+          {candidate.score?.value != null && <ScoreBadge score={candidate.score} />}
+          {candidate.resumeHref && (
+            <FileText
+              className="mt-0.5 size-3.5 shrink-0 text-zinc-400"
+              aria-label="Has resume"
+            />
+          )}
+        </span>
       </div>
       <div className="mt-0.5 text-xs text-zinc-500">
         {candidate.jobRole ?? "—"}
