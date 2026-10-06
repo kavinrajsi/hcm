@@ -191,7 +191,7 @@ export default async function CandidatesPage({
       <div className="mt-5 flex flex-col gap-3 md:mt-6">
         <FilterSearch placeholder="Search name, email, phone, role or location" />
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
-          <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:flex-wrap md:items-center [&>*]:md:w-56">
+          <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:items-center [&>*]:md:min-w-0 [&>*]:md:flex-1">
             <FilterDateRange param="created" presets={["1h", "24h", "7d", "30d", "month"]} withTime />
             {/* Board columns are the statuses, so no status filter there. */}
             {view === "list" && (
