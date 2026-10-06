@@ -13,9 +13,10 @@ export const MANUAL_SOURCE = "hcm";
 
 export type CandidateFilters = {
   q?: string;
-  position?: string;
-  /** Exact job role (case-insensitive). */
-  role?: string;
+  /** Any of these positions. */
+  position?: string[];
+  /** Any of these job roles (exact, case-insensitive). */
+  role?: string[];
   /** Preset key from DATE_PRESETS; ignored when from/to are set. */
   created?: string;
   /** Custom range, IST: "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM" (to is inclusive). */
@@ -33,12 +34,11 @@ export function candidateWhere(
 ): Prisma.CandidateWhereInput[] {
   const and: Prisma.CandidateWhereInput[] = [NOT_SPAM];
   and.push(...searchWhere(filters.q));
-  const position = POSITIONS.find(
-    (candidatePosition) => candidatePosition === filters.position,
-  );
-  if (position) and.push({ position });
-  const role = filters.role?.trim();
-  if (role) and.push({ jobRole: { equals: role, mode: "insensitive" } });
+  const positions = POSITIONS.filter((candidatePosition) => filters.position?.includes(candidatePosition));
+  if (positions.length) and.push({ position: { in: positions } });
+  const roles = (filters.role ?? []).map((role) => role.trim()).filter(Boolean);
+  if (roles.length)
+    and.push({ OR: roles.map((role) => ({ jobRole: { equals: role, mode: "insensitive" as const } })) });
   const created = instantRange({
     preset: filters.created,
     from: filters.from,

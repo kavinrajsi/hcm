@@ -18,7 +18,9 @@ export function TablePagination({
   function pageHref(pageNumber: number) {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(searchParams)) {
-      if (typeof value === "string" && key !== "page") params.set(key, value);
+      if (key === "page" || value === undefined) continue;
+      // Multi-select filters repeat their param (?role=a&role=b).
+      for (const item of Array.isArray(value) ? value : [value]) params.append(key, item);
     }
     params.set("page", String(pageNumber));
     return `${pathname}?${params.toString()}`;

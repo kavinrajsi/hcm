@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
 import { parseTableParams } from "@/lib/table-params";
-import { AddFilter } from "@/components/data-table/add-filter";
+import { FilterDateRange, FilterMultiSelect, FilterSearch } from "@/components/data-table/filter-bar";
 import { CountChips } from "@/components/data-table/count-chips";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
@@ -55,17 +55,20 @@ export default async function CandidatesPage({
   const raw = await searchParams;
   const params = parseTableParams(raw);
   const view = raw.view === "board" ? "board" : "list";
-  const position = POSITIONS.find(
-    (positionOption) => positionOption === raw.position,
-  );
+  // Multi-selects arrive as repeated params (?role=a&role=b).
+  const listParam = (value: unknown) =>
+    (Array.isArray(value) ? value : [value])
+      .filter((item): item is string => typeof item === "string" && item.trim() !== "")
+      .map((item) => item.trim().slice(0, 200))
+      .slice(0, 50);
   const trimmedParam = (value: unknown) =>
     typeof value === "string" && value.trim()
       ? value.trim().slice(0, 200)
       : undefined;
   const filters: CandidateFilters = {
     q: params.q,
-    position,
-    role: trimmedParam(raw.role),
+    position: listParam(raw.position),
+    role: listParam(raw.role),
     created: trimmedParam(raw.created),
     from: trimmedParam(raw.from),
     to: trimmedParam(raw.to),
@@ -133,12 +136,10 @@ export default async function CandidatesPage({
   const hrefWith = (key: string, value?: string) => {
     const queryString = new URLSearchParams();
     for (const [paramKey, paramValue] of Object.entries(raw)) {
-      if (
-        typeof paramValue === "string" &&
-        paramKey !== key &&
-        paramKey !== "page"
-      )
-        queryString.set(paramKey, paramValue);
+      if (paramKey === key || paramKey === "page" || paramValue === undefined) continue;
+      // Keep every value of a multi-select (?role=a&role=b).
+      for (const item of Array.isArray(paramValue) ? paramValue : [paramValue])
+        queryString.append(paramKey, item);
     }
     if (value) queryString.set(key, value);
     return `/candidates${queryString.size ? `?${queryString}` : ""}`;
@@ -161,55 +162,48 @@ export default async function CandidatesPage({
         }))}
       />
 
-      {/* Phones: stacked. Desktop: filters (incl. search) and view in one row. */}
-      <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:items-center">
-        <div className="min-w-0 md:flex-1">
-          <AddFilter
-            search={{ param: "q", hint: "Name, email, phone or role" }}
-            fields={[
-              // Board columns are the statuses, so no status filter there.
-              ...(view === "list"
-                ? [
-                    {
-                      param: "type",
-                      label: "Status",
-                      options: CANDIDATE_STATUSES.map((candidateStatus) => ({
-                        value: candidateStatus,
-                        count: countByStatus.get(candidateStatus) ?? 0,
-                      })),
-                    },
-                  ]
-                : []),
-              {
-                param: "position",
-                label: "Position",
-                options: POSITIONS.map((positionOption) => ({
-                  value: positionOption,
-                  count: countByPosition.get(positionOption) ?? 0,
-                })),
-              },
-              { param: "role", label: "Role", options: roles },
-            ]}
-            date={{
-              param: "created",
-              label: "Created",
-              presets: ["1h", "24h", "7d", "30d", "month"],
-              withTime: true,
-            }}
+      {/* Row 1: one search across everything. Row 2: the filters and the view. */}
+      <div className="mt-5 flex flex-col gap-3 md:mt-6">
+        <FilterSearch placeholder="Search name, email, phone, role or location" />
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:flex-wrap md:items-center [&>*]:md:w-56">
+            <FilterDateRange param="created" presets={["1h", "24h", "7d", "30d", "month"]} withTime />
+            {/* Board columns are the statuses, so no status filter there. */}
+            {view === "list" && (
+              <FilterMultiSelect
+                param="type"
+                label="Status"
+                plural="Statuses"
+                options={CANDIDATE_STATUSES.map((candidateStatus) => ({
+                  value: candidateStatus,
+                  count: countByStatus.get(candidateStatus) ?? 0,
+                }))}
+              />
+            )}
+            <FilterMultiSelect
+              param="position"
+              label="Position"
+              plural="Positions"
+              options={POSITIONS.map((positionOption) => ({
+                value: positionOption,
+                count: countByPosition.get(positionOption) ?? 0,
+              }))}
+            />
+            <FilterMultiSelect param="role" label="Job role" plural="Job roles" options={roles} searchable />
+          </div>
+          <Segmented
+            label="View"
+            items={(["list", "board"] as const).map((viewOption) => ({
+              key: viewOption,
+              href: hrefWith(
+                "view",
+                viewOption === "board" ? "board" : undefined,
+              ),
+              label: viewOption === "list" ? "List" : "Board",
+              active: view === viewOption,
+            }))}
           />
         </div>
-        <Segmented
-          label="View"
-          items={(["list", "board"] as const).map((viewOption) => ({
-            key: viewOption,
-            href: hrefWith(
-              "view",
-              viewOption === "board" ? "board" : undefined,
-            ),
-            label: viewOption === "list" ? "List" : "Board",
-            active: view === viewOption,
-          }))}
-        />
       </div>
 
       <div className="mt-4">
@@ -218,7 +212,7 @@ export default async function CandidatesPage({
         ) : (
           <ListView
             and={and}
-            type={params.type}
+            types={listParam(raw.type)}
             page={params.page}
             skip={params.skip}
             take={params.take}
@@ -269,23 +263,23 @@ async function BoardView({
 
 async function ListView({
   and,
-  type,
+  types,
   page,
   skip,
   take,
   raw,
 }: {
   and: ReturnType<typeof candidateWhere>;
-  type?: string;
+  types: string[];
   page: number;
   skip: number;
   take: number;
   raw: Record<string, string | string[] | undefined>;
 }) {
-  const status = CANDIDATE_STATUSES.find(
-    (candidateStatus) => candidateStatus === type,
-  );
-  const where = { AND: status ? [...and, statusWhere(status)] : and };
+  const statuses = CANDIDATE_STATUSES.filter((candidateStatus) => types.includes(candidateStatus));
+  const where = {
+    AND: statuses.length ? [...and, { OR: statuses.map((status) => statusWhere(status)) }] : and,
+  };
   const [rows, total] = await Promise.all([
     db.candidate.findMany({
       where,

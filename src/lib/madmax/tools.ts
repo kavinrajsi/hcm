@@ -548,7 +548,7 @@ export function buildTools(context: MadmaxContext): ToolSet {
       execute: async ({ query, status, role, limit: take }) => {
         const where = {
           AND: [
-            ...candidateWhere({ q: query, role }),
+            ...candidateWhere({ q: query, role: role ? [role] : undefined }),
             ...(status ? [statusWhere(status)] : []),
           ],
         };

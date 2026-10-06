@@ -60,7 +60,7 @@ function formatPoint(value: string, withTime: boolean) {
   return `${formatDay(date)}${withTime && time ? ` ${time}` : ""}`;
 }
 
-function dateLabel(range: {
+export function dateLabel(range: {
   preset?: string | null;
   from?: string | null;
   to?: string | null;
@@ -471,7 +471,7 @@ function Chip({
 }
 
 /** Month grid + start/end fields; dates and times are IST. */
-function CustomRange({
+export function CustomRange({
   from,
   to,
   withTime,
