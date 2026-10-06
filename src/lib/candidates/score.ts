@@ -190,18 +190,21 @@ export async function scorePending({
   limit,
   deadline,
   trigger,
+  concurrency = CONCURRENCY,
 }: {
   limit: number;
   deadline: number;
   trigger: AiTrigger;
+  /** Resumes read at once (the backfill script uses more). */
+  concurrency?: number;
 }) {
   const counts: Record<ScoreOutcome, number> = { SCORED: 0, NO_RESUME: 0, FAILED: 0 };
   const queue = await candidatesToScore(limit);
   // A few at a time: each resume takes ~15 s to read.
-  for (let index = 0; index < queue.length; index += CONCURRENCY) {
+  for (let index = 0; index < queue.length; index += concurrency) {
     if (Date.now() > deadline) break;
     const outcomes = await Promise.all(
-      queue.slice(index, index + CONCURRENCY).map((id) => scoreCandidate(id, trigger)),
+      queue.slice(index, index + concurrency).map((id) => scoreCandidate(id, trigger)),
     );
     for (const outcome of outcomes) counts[outcome]++;
   }

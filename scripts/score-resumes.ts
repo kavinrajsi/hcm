@@ -12,7 +12,7 @@ async function main() {
   let total = { SCORED: 0, NO_RESUME: 0, FAILED: 0 };
   // Batches of 30 so progress shows and a crash loses little.
   while (true) {
-    const counts = await scorePending({ limit: 30, deadline: Date.now() + 10 * 60_000, trigger: "script" });
+    const counts = await scorePending({ limit: 40, deadline: Date.now() + 10 * 60_000, trigger: "script", concurrency: 8 });
     const done = counts.SCORED + counts.NO_RESUME + counts.FAILED;
     total = { SCORED: total.SCORED + counts.SCORED, NO_RESUME: total.NO_RESUME + counts.NO_RESUME, FAILED: total.FAILED + counts.FAILED };
     console.log(JSON.stringify(total));
