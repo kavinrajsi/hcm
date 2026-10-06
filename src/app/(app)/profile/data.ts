@@ -1,22 +1,13 @@
 import { cache } from "react";
 import { db } from "@/lib/db";
+import { myEmployeeId } from "@/lib/my-employee";
 import type { Prisma } from "@/generated/prisma/client";
 import type { SessionUser } from "@/lib/rbac";
 
-// Shared by the Profile sub-pages: the signed-in person's employee record,
-// found by link or work email, and linked on first sight.
+// Shared by the Profile sub-pages: the signed-in person's employee record
+// (see myEmployeeId), resolved once per request.
 
-const resolveEmployeeId = cache(async (userId: string, email: string) => {
-  const employee = await db.employee.findFirst({
-    where: { OR: [{ userId }, { workEmail: email }] },
-    select: { id: true, userId: true },
-  });
-  if (!employee) return null;
-  if (!employee.userId) {
-    await db.employee.update({ where: { id: employee.id }, data: { userId } });
-  }
-  return employee.id;
-});
+const resolveEmployeeId = cache((userId: string, email: string) => myEmployeeId({ id: userId, email }));
 
 /** The caller's employee record with just the relations a page needs. */
 export async function myEmployee<Include extends Prisma.EmployeeInclude>(

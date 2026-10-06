@@ -1,6 +1,7 @@
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { myEmployeeId } from "@/lib/my-employee";
 import type { SessionUser } from "@/lib/rbac";
 import type { Prisma } from "@/generated/prisma/client";
 import { readPii } from "@/lib/employee-pii";
@@ -90,15 +91,15 @@ export function toolNamesFor(role: SessionUser["role"]): string[] {
   return [...EVERYONE];
 }
 
-/** The caller's employee record: linked user, else matching work email. */
+/** The caller's employee record (see myEmployeeId). */
 export async function loadContext(user: SessionUser): Promise<MadmaxContext> {
-  const [account, employee] = await Promise.all([
+  const [account, employeeId] = await Promise.all([
     db.user.findUnique({ where: { id: user.id }, select: { name: true } }),
-    db.employee.findFirst({
-      where: { OR: [{ userId: user.id }, { workEmail: user.email }] },
-      select: { id: true, name: true },
-    }),
+    myEmployeeId(user),
   ]);
+  const employee = employeeId
+    ? await db.employee.findUnique({ where: { id: employeeId }, select: { id: true, name: true } })
+    : null;
   return {
     user,
     employeeId: employee?.id ?? null,

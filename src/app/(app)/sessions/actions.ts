@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { fieldError, invalid, type FormState } from "@/lib/form-state";
 import { parseIstLocal } from "@/lib/format-date";
+import { myEmployeeId } from "@/lib/my-employee";
 import { requireRole, requireUser } from "@/lib/rbac";
 import {
   cell,
@@ -95,12 +96,9 @@ export async function registerForSession(formData: FormData) {
     !employeeId
   ) {
     // Self-registration: resolve the caller's employee record.
-    const self = await db.employee.findFirst({
-      where: { OR: [{ userId: user.id }, { workEmail: user.email }] },
-      select: { id: true },
-    });
+    const self = await myEmployeeId(user);
     if (!self) throw new Error("No employee record linked to your account");
-    employeeId = self.id;
+    employeeId = self;
   }
 
   await db.sessionRegistration.upsert({
