@@ -23,6 +23,8 @@ export const NAV: NavGroup[] = [
     title: "Overview",
     items: [
       { title: "Dashboard", url: "/" },
+      // Everyone's photo and name; any signed-in user.
+      { title: "Staff", url: "/staff" },
       { title: "MadMax AI", url: "/madmax" },
       { title: "Connect an AI", url: "/mcp/instructions" },
     ],
