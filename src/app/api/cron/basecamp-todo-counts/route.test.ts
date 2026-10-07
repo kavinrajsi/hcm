@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const counts = vi.hoisted(() => ({
@@ -11,7 +11,11 @@ const { GET } = await import("./route");
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.CRON_SECRET = "s";
+  // 03:30 IST, inside the 02:00–08:00 window.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-07T22:00:00Z"));
 });
+afterEach(() => vi.useRealTimers());
 
 describe("basecamp-todo-counts cron", () => {
   it("needs the cron secret", async () => {
@@ -32,5 +36,12 @@ describe("basecamp-todo-counts cron", () => {
       new NextRequest("https://h/api/cron/basecamp-todo-counts", { headers: { authorization: "Bearer s" } }),
     );
     expect(response.status).toBe(503);
+  });
+
+  it("skips runs outside 02:00–08:00 IST", async () => {
+    vi.setSystemTime(new Date("2026-10-07T06:00:00Z")); // 11:30 IST
+    const response = await GET(new NextRequest("https://h/api/cron/basecamp-todo-counts", { headers: { authorization: "Bearer s" } }));
+    expect(await response.json()).toEqual({ skipped: "outside 02:00–08:00 IST" });
+    expect(counts.syncOpenTodoCounts).not.toHaveBeenCalled();
   });
 });

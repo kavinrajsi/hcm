@@ -64,7 +64,7 @@ AES-256-GCM in `src/lib/crypto.ts`; values look like `k<keyId>:iv:tag:ct`. Encry
 `/` (U). `src/app/(app)/page.tsx`; HR-only recruitment section `src/app/(app)/recruitment-section.tsx`, stats in `src/lib/recruitment-stats.ts`.
 
 ### Staff
-`/staff` (U). `src/app/(app)/staff/` — grid of current employees (`dateOfExit: null`), `TodoRing` (`todo-ring.tsx`), bottom sheet of open to-dos (`person-todos.tsx`, server action `loadOpenTodos` fetching live through `openTodosFor`). Counts: `src/lib/basecamp-todo-counts.ts` → `syncOpenTodoCounts()` reads Basecamp's `/reports/todos/assigned/{personId}.json` for each linked employee (3 at a time) and stores dated / undated / overdue (due before today in IST). Cron `/api/cron/basecamp-todo-counts` every 30 min. Sheet visible to everyone (titles from any project the HR connection sees).
+`/staff` (U). `src/app/(app)/staff/` — grid of current employees (`dateOfExit: null`), `TodoRing` (`todo-ring.tsx`), bottom sheet of open to-dos (`person-todos.tsx`, server action `loadOpenTodos` fetching live through `openTodosFor`). Counts: `src/lib/basecamp-todo-counts.ts` → `syncOpenTodoCounts()` reads Basecamp's `/reports/todos/assigned/{personId}.json` for each linked employee (3 at a time) and stores dated / undated / overdue (due before today in IST). Cron `/api/cron/basecamp-todo-counts` every 30 min overnight (02:00–08:00 IST). Sheet visible to everyone (titles from any project the HR connection sees).
 
 ### MadMax AI
 `/madmax`, `/madmax/[threadId]` (U). Route `src/app/api/madmax/route.ts`: streams `streamText` through the AI Gateway; history from `src/lib/madmax/store.ts`; models in `src/lib/madmax/models.ts` (Gemini 2.5 Flash default; Claude options need paid credit); system prompt `prompt.ts`; tools `tools.ts` with role lists `EVERYONE` / `MANAGER` / `HR`; write tools (`WRITE_TOOLS`) need approval, signed with an HMAC of `AUTH_SECRET`; max 8 steps. **Caps:** `src/lib/madmax/cap.ts` — monthly per-person and company caps in ₹ (`AppSetting` key `madmax-cap`), checked before each request (429 with a plain message); spend from `AiUsage` (feature `madmax`) at `USD_INR_RATE` (default 88).
@@ -83,7 +83,7 @@ AES-256-GCM in `src/lib/crypto.ts`; values look like `k<keyId>:iv:tag:ct`. Encry
 - `scoreCandidate` sends the PDF plus role, position and `RoleCriteria` to `RESUME_AI_MODEL` (default `google/gemini-2.5-flash`) with structured output `{score, summary, strengths, gaps}`; prompt includes today's IST date.
 - Outcomes `SCORED`, `NO_RESUME` (missing or non-PDF), `FAILED` (retried up to `MAX_ATTEMPTS` = 3), `RATE_LIMITED` and `NO_CREDIT` (neither uses an attempt; the run stops).
 - Credit-out parks scores as `FAILED` with error "Waiting for AI credit…" (`waitingForCreditWhere`); the cron retries them whatever their attempts once credit is back. The Candidates page shows a banner with the count.
-- Cron `/api/cron/score-resumes` every 15 min, 15 s apart (Gateway limit ~5/min); backfill `scripts/score-resumes.ts`.
+- Cron `/api/cron/score-resumes` every 15 min overnight (02:00–08:00 IST), up to 12 a run, 15 s apart (Gateway limit ~5/min); backfill `scripts/score-resumes.ts`.
 - **MCP fallback** (`src/lib/candidates/mcp-scoring.ts`, HR tools `listResumesToScore`, `getResumeForScoring`, `saveResumeScore`): Claude reads resume text extracted with pdf.js (`src/lib/candidates/resume-text.ts`; `pdfjs-dist` is in `serverExternalPackages`) plus the same brief (`scoringInstructions`), and saves with model `"mcp"`.
 - Bands in `src/lib/candidates/score-bands.ts`.
 
@@ -163,16 +163,18 @@ ZeptoMail (`src/lib/email.ts`); without `ZEPTOMAIL_TOKEN` mail is logged as not 
 
 Declared in `vercel.ts`; every route checks `Authorization: Bearer $CRON_SECRET` (`src/lib/cron-auth.ts`) and fails closed without it.
 
+All jobs run overnight, **02:00–08:00 IST** (20:30–02:30 UTC). The two frequent jobs are scheduled 20:00–02:59 UTC and skip runs outside the window (`inNightWindow` in `src/lib/cron-auth.ts`). Daily jobs are spaced so they don't share the AI Gateway's per-minute limit.
+
 | Route | UTC | IST | Does |
 |---|---|---|---|
-| `/api/cron/score-resumes` | `*/15 * * * *` | every 15 min | AI-score new/retryable/parked resumes |
-| `/api/cron/basecamp-todo-counts` | `*/30 * * * *` | every 30 min | Open to-do counts for Staff |
-| `/api/cron/probation-reminders` | `30 3 * * 1` | Mon 09:00 | Overdue probation digest to HR |
-| `/api/cron/employment-end-reminders` | `45 3 * * *` | 09:15 | One-week notice of probation/contract/internship ends |
-| `/api/cron/email-log-cleanup` | `0 4 * * *` | 09:30 | Prune email log (1 yr), auth attempts, challenges, old sessions |
-| `/api/cron/leave-sync` | `30 4 * * *` | 10:00 | Basecamp leave/WFH sync + classification |
-| `/api/cron/basecamp-people` | `0 5 * * *` | 10:30 | People link + avatars |
-| `/api/cron/basecamp-jobs` | `30 5 * * *` | 11:00 | Completed jobs + comments for Assign, then classify |
+| `/api/cron/score-resumes` | `*/15 20-23,0-2 * * *` | every 15 min, 02:00–07:45 | AI-score new/retryable/parked resumes (up to 12 a run) |
+| `/api/cron/basecamp-todo-counts` | `0,30 20-23,0-2 * * *` | every 30 min, 02:00–07:30 | Open to-do counts for Staff |
+| `/api/cron/email-log-cleanup` | `0 21 * * *` | 02:30 | Prune email log (1 yr), auth attempts, challenges, old sessions |
+| `/api/cron/leave-sync` | `30 21 * * *` | 03:00 | Basecamp leave/WFH sync + classification |
+| `/api/cron/basecamp-people` | `0 22 * * *` | 03:30 | People link + avatars |
+| `/api/cron/basecamp-jobs` | `30 22 * * *` | 04:00 | Completed jobs + comments for Assign, then classify |
+| `/api/cron/probation-reminders` | `30 0 * * 1` | Mon 06:00 | Overdue probation digest to HR |
+| `/api/cron/employment-end-reminders` | `45 0 * * *` | 06:15 | One-week notice of probation/contract/internship ends |
 
 ## Webhooks
 

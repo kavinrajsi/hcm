@@ -69,7 +69,7 @@ flowchart LR
 
 ## Background work
 
-Vercel crons (`vercel.ts`) do all scheduled work: resume scoring (15 min), Basecamp to-do counts (30 min), leave sync, people sync, jobs sync, reminders, cleanup. Long syncs stream NDJSON progress when run by hand (`/api/basecamp/*-sync`). Jobs are idempotent and resumable: scoring and syncs pick up where they stopped.
+Vercel crons (`vercel.ts`) do all scheduled work: all between 02:00 and 08:00 IST: resume scoring (every 15 min), Basecamp to-do counts (every 30 min), leave sync, people sync, jobs sync, reminders, cleanup. Long syncs stream NDJSON progress when run by hand (`/api/basecamp/*-sync`). Jobs are idempotent and resumable: scoring and syncs pick up where they stopped.
 
 ## Basecamp
 

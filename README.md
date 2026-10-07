@@ -67,4 +67,4 @@ Run with `npx tsx scripts/<name>.ts`. Scripts that write default to a dry run; p
 
 ## Deploying
 
-Push to `main`; Vercel builds and deploys to connect.madarth.com. Background jobs are Vercel crons declared in [`vercel.ts`](vercel.ts) (resume scoring every 15 min, Basecamp to-do counts every 30 min, leave sync, people sync, jobs sync, reminders, log cleanup) and protected by `CRON_SECRET`. See [WIKI-DETAILED.md → Crons](WIKI-DETAILED.md#crons).
+Push to `main`; Vercel builds and deploys to connect.madarth.com. Background jobs are Vercel crons declared in [`vercel.ts`](vercel.ts) that all run overnight between 02:00 and 08:00 IST (resume scoring every 15 min, Basecamp to-do counts every 30 min, leave sync, people sync, jobs sync, reminders, log cleanup) and protected by `CRON_SECRET`. See [WIKI-DETAILED.md → Crons](WIKI-DETAILED.md#crons).

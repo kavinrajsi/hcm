@@ -20,7 +20,7 @@ The sidebar only shows what your role can open; the page itself also checks.
 `/` — the home page. HR also sees recruitment charts (applications and pipeline).
 
 ### Staff
-`/staff` — everyone at the company as a photo and name, open to all. Each photo has a ring of that person's open Basecamp to-dos: **red overdue**, **amber dated**, **grey no date**, with counts under the name. Click a photo for the full list (soonest due first, overdue in red), linking to Basecamp. Counts refresh every 30 minutes.
+`/staff` — everyone at the company as a photo and name, open to all. Each photo has a ring of that person's open Basecamp to-dos: **red overdue**, **amber dated**, **grey no date**, with counts under the name. Click a photo for the full list (soonest due first, overdue in red), linking to Basecamp. Counts refresh every 30 minutes overnight (2–8 am IST).
 
 ### MadMax AI
 `/madmax` — an AI chat assistant that knows HCM. It can look up your leave, devices, sessions and profile; managers can review their team's leave; HR can search employees and candidates, manage probation and score resumes. Anything that changes data asks you first. Chats are saved. HR sets monthly spending caps (Admin → AI usage).
@@ -33,7 +33,7 @@ The sidebar only shows what your role can open; the page itself also checks.
 ### Candidates
 `/candidates` (HR) — applications from the madarth.com career form, as a list or a status board (New, Screening, Interview, Offer, Freelancer, Rejected). Filter by date, status, position, job role and AI score; sort by applied date, type or score; add notes; convert a hire into an employee.
 
-**AI resume scores:** every 15 minutes new applications are scored 0–100 against the job role, with a one-line summary, strengths and gaps (Strong / Fair / Weak bands). HR writes what to look for per role in **Role criteria** (`/candidates/criteria`). If the AI credit runs out, resumes wait ("Waiting for AI credit") and a banner says so; HR can top up, or score them from Claude over MCP ("score the resumes waiting in HCM").
+**AI resume scores:** overnight (every 15 minutes, 2–8 am IST) new applications are scored 0–100 against the job role, with a one-line summary, strengths and gaps (Strong / Fair / Weak bands). HR writes what to look for per role in **Role criteria** (`/candidates/criteria`). If the AI credit runs out, resumes wait ("Waiting for AI credit") and a banner says so; HR can top up, or score them from Claude over MCP ("score the resumes waiting in HCM").
 
 ### Employees
 `/employees` (HR, managers see their reports) — the employee directory and records: job details, employment type and end dates, manager, documents, previous employments, personal details (encrypted). HR adds people one at a time or by CSV import.
@@ -92,7 +92,7 @@ The sidebar only shows what your role can open; the page itself also checks.
 ## Admin (HR only)
 
 - **Users & roles** (`/users`) — give roles, disable accounts, create logins for employees who can't sign in yet.
-- **Basecamp sync** (`/basecamp-sync`) — link Basecamp people to employees and refresh photos now (also runs daily at 10:30 IST).
+- **Basecamp sync** (`/basecamp-sync`) — link Basecamp people to employees and refresh photos now (also runs every night at 03:30 IST).
 - **AI usage** (`/ai-usage`) — what the AI features cost (USD and ₹), Gateway credit left, and **MadMax monthly caps** per person and company-wide.
 - **MCP access** (`/mcp-access`) — AI apps connected to HCM and every change they made; manage the guide's screenshots.
 - **Email templates** (`/email-templates`) — every email HCM sends, with a preview.
@@ -100,13 +100,15 @@ The sidebar only shows what your role can open; the page itself also checks.
 
 ## What runs on its own
 
+Every scheduled job runs overnight, between 2 and 8 am IST, so everything is fresh at the start of the day.
+
 | When (IST) | What |
 |---|---|
-| Every 15 min | AI-score new resumes |
-| Every 30 min | Count each person's open Basecamp to-dos (Staff) |
-| Daily 09:15 | Heads-up emails a week before probation/contract/internship ends |
-| Daily 09:30 | Clean up the email log and old sign-in data |
-| Daily 10:00 | Sync leave/WFH check-ins from Basecamp and classify them |
-| Daily 10:30 | Sync Basecamp people and photos |
-| Daily 11:00 | Sync completed Basecamp jobs for Assign and classify them |
-| Mondays 09:00 | Email HR overdue probation confirmations |
+| Every 15 min, 02:00–07:45 | AI-score new resumes |
+| Every 30 min, 02:00–07:30 | Count each person's open Basecamp to-dos (Staff) |
+| 02:30 | Clean up the email log and old sign-in data |
+| 03:00 | Sync leave/WFH check-ins from Basecamp and classify them (new posts also arrive live by webhook) |
+| 03:30 | Sync Basecamp people and photos |
+| 04:00 | Sync completed Basecamp jobs for Assign and classify them |
+| Mondays 06:00 | Email HR overdue probation confirmations |
+| 06:15 | Heads-up emails a week before probation/contract/internship ends |

@@ -17,7 +17,7 @@ Completed Basecamp to-dos are pulled into three tables (`prisma/schema.prisma`):
 
 Sync: `src/lib/assign/jobs-sync.ts`. Runs from the Assign page (HR button,
 streamed through `/api/basecamp/jobs-sync`), the daily cron
-(`/api/cron/basecamp-jobs`, 11:00 IST) or `npx tsx scripts/sync-basecamp-jobs.ts`.
+(`/api/cron/basecamp-jobs`, 04:00 IST) or `npx tsx scripts/sync-basecamp-jobs.ts`.
 Unchanged to-dos are skipped, so re-running is cheap.
 
 Client Coordinators on the Assign form are current employees with one of

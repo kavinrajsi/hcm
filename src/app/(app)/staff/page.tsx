@@ -47,7 +47,7 @@ export default async function StaffPage() {
     <PageShell>
       <PageHeader
         title="Staff"
-        description={`Everyone at the company · ${employees.length}. Open Basecamp to-dos, with and without a due date, update every 30 minutes. Ring: red overdue, amber dated, grey no date. Click a photo for the list.`}
+        description={`Everyone at the company · ${employees.length}. Open Basecamp to-dos, with and without a due date, update overnight (2–8 am IST). Ring: red overdue, amber dated, grey no date. Click a photo for the list.`}
       />
 
       {employees.length === 0 ? (

@@ -46,7 +46,7 @@ export function ScoreSection({ candidate }: { candidate: CandidateDetail }) {
       </div>
 
       {!score ? (
-        <p className="mt-3 text-zinc-500">Not scored yet — new applications are scored within about 15 minutes.</p>
+        <p className="mt-3 text-zinc-500">Not scored yet — new applications are scored overnight, between 2 and 8 am IST.</p>
       ) : score.status !== "SCORED" ? (
         <p className="mt-3 text-zinc-500">
           {score.status === "NO_RESUME" ? score.summary || "No resume to score." : "The last attempt to score this resume failed."}
