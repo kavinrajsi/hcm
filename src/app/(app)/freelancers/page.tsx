@@ -1,7 +1,12 @@
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
-import { parseTableParams } from "@/lib/table-params";
-import { TableFilters } from "@/components/data-table/filters";
+import { listParam, parseTableParams, stringParam } from "@/lib/table-params";
+import { instantRange } from "@/lib/date-filter";
+import {
+  FilterDateRange,
+  FilterMultiSelect,
+  FilterSearch,
+} from "@/components/data-table/filter-bar";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
   Table,
@@ -35,7 +40,7 @@ const AVAILABILITY_FILTER = [
   { value: "BUSY", label: "Busy" },
   { value: "UNAVAILABLE", label: "Unavailable" },
   { value: "UNKNOWN", label: "Unknown" },
-];
+] as const;
 
 const badgeVariant = {
   AVAILABLE: "default",
@@ -52,7 +57,19 @@ export default async function FreelancersPage({
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
-  // ~20k rows: every filter below hits an index; results always paginated.
+  // Repeated ?type= params; unknown availabilities are ignored.
+  const typeValues = listParam(raw.type);
+  const availabilities = AVAILABILITY_FILTER.filter((option) =>
+    typeValues.includes(option.value),
+  ).map((option) => option.value);
+  const added = instantRange({
+    preset: stringParam(raw.added),
+    from: stringParam(raw.from),
+    to: stringParam(raw.to),
+  });
+
+  // ~20k rows: search and availability hit indexes; createdAt has none, but a
+  // range scan over 20k rows is still cheap and results are always paginated.
   const where: Prisma.FreelancerWhereInput = {
     ...(params.q
       ? {
@@ -62,10 +79,11 @@ export default async function FreelancersPage({
           ],
         }
       : {}),
-    ...(params.type ? { availability: params.type as never } : {}),
+    ...(availabilities.length ? { availability: { in: availabilities } } : {}),
+    ...(added ? { createdAt: added } : {}),
   };
 
-  const [freelancers, total] = await Promise.all([
+  const [freelancers, total, availabilityGroups] = await Promise.all([
     db.freelancer.findMany({
       where,
       orderBy: { name: "asc" },
@@ -73,7 +91,15 @@ export default async function FreelancersPage({
       take: params.take,
     }),
     db.freelancer.count({ where }),
+    // Indexed enum, so cheap even across the whole pool.
+    db.freelancer.groupBy({ by: ["availability"], _count: true }),
   ]);
+  const availabilityCounts = new Map(
+    availabilityGroups.map((group) => [
+      group.availability as string,
+      group._count,
+    ]),
+  );
 
   return (
     <PageShell>
@@ -94,11 +120,28 @@ export default async function FreelancersPage({
         </CollapsibleForm>
       </div>
 
-      <div className="mt-5 md:mt-6">
-        <TableFilters
-          typeOptions={AVAILABILITY_FILTER}
-          typeLabel="Availability"
-        />
+      {/* Row 1: one search across everything. Row 2: the filters. */}
+      <div className="mt-5 flex flex-col gap-3 md:mt-6">
+        <FilterSearch placeholder="Search name or skillset" />
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:items-center [&>*]:md:min-w-0 [&>*]:md:flex-1">
+            <FilterDateRange
+              param="added"
+              presets={["7d", "30d", "month", "year"]}
+              withTime
+            />
+            <FilterMultiSelect
+              param="type"
+              label="Availability"
+              plural="Availabilities"
+              options={AVAILABILITY_FILTER.map((option) => ({
+                value: option.value,
+                label: option.label,
+                count: availabilityCounts.get(option.value) ?? 0,
+              }))}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="mt-4">

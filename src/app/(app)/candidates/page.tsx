@@ -3,7 +3,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
-import { parseTableParams } from "@/lib/table-params";
+import { listParam, parseTableParams } from "@/lib/table-params";
 import { FilterDateRange, FilterMultiSelect, FilterSearch } from "@/components/data-table/filter-bar";
 import { CountChips } from "@/components/data-table/count-chips";
 import { TablePagination } from "@/components/data-table/pagination";
@@ -62,12 +62,6 @@ export default async function CandidatesPage({
   const raw = await searchParams;
   const params = parseTableParams(raw);
   const view = raw.view === "board" ? "board" : "list";
-  // Multi-selects arrive as repeated params (?role=a&role=b).
-  const listParam = (value: unknown) =>
-    (Array.isArray(value) ? value : [value])
-      .filter((item): item is string => typeof item === "string" && item.trim() !== "")
-      .map((item) => item.trim().slice(0, 200))
-      .slice(0, 50);
   const trimmedParam = (value: unknown) =>
     typeof value === "string" && value.trim()
       ? value.trim().slice(0, 200)

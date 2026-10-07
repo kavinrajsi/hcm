@@ -3,12 +3,17 @@ import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
 import { teamEmployeeWhere } from "@/lib/team-scope";
 import {
+  listParam,
   optionsByCount,
   parseTableParams,
   stringParam,
 } from "@/lib/table-params";
 import { dayRange } from "@/lib/date-filter";
-import { AddFilter } from "@/components/data-table/add-filter";
+import {
+  FilterDateRange,
+  FilterMultiSelect,
+  FilterSearch,
+} from "@/components/data-table/filter-bar";
 import { CountChips } from "@/components/data-table/count-chips";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
@@ -56,10 +61,13 @@ export default async function ProbationPage({
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
-  const status = STATUS_OPTIONS.find(
-    (option) => option.value === params.type,
-  )?.value;
-  const department = stringParam(raw.department);
+  // Multi-selects arrive as repeated params (?type=PENDING&type=EXTENDED);
+  // unknown statuses are ignored.
+  const typeParam = listParam(raw.type);
+  const statuses = STATUS_OPTIONS.map((option) => option.value).filter(
+    (value) => typeParam.includes(value),
+  );
+  const departments = listParam(raw.department);
   const due = dayRange({
     preset: stringParam(raw.due),
     from: stringParam(raw.from),
@@ -79,7 +87,7 @@ export default async function ProbationPage({
   const where: Prisma.ProbationRecordWhereInput = {
     ...current,
     AND: [{ employee: team }],
-    ...(params.q || department
+    ...(params.q || departments.length
       ? {
           employee: {
             ...(params.q
@@ -90,15 +98,15 @@ export default async function ProbationPage({
                   ],
                 }
               : {}),
-            ...(department ? { department } : {}),
+            ...(departments.length ? { department: { in: departments } } : {}),
           },
         }
       : {}),
-    ...(status ? { status } : {}),
+    ...(statuses.length ? { status: { in: statuses } } : {}),
     ...(due ? { dueDate: due } : {}),
   };
 
-  const [records, total, statuses, departments] = await Promise.all([
+  const [records, total, statusGroups, departmentGroups] = await Promise.all([
     db.probationRecord.findMany({
       where,
       orderBy: { dueDate: "asc" },
@@ -129,7 +137,7 @@ export default async function ProbationPage({
     }),
   ]);
   const statusCounts = new Map(
-    statuses.map((group) => [group.status as string, group._count]),
+    statusGroups.map((group) => [group.status as string, group._count]),
   );
 
   return (
@@ -144,35 +152,30 @@ export default async function ProbationPage({
         }))}
       />
 
-      <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:items-center">
-        <div className="min-w-0 md:flex-1">
-          <AddFilter
-            search={{ param: "q", hint: "Name or employee ID" }}
-            fields={[
-              {
-                param: "type",
-                label: "Status",
-                options: STATUS_OPTIONS.map((option) => ({
-                  value: option.value,
-                  label: option.label,
-                  count: statusCounts.get(option.value) ?? 0,
-                })),
-              },
-              {
-                param: "department",
-                label: "Department",
-                options: optionsByCount(
-                  departments,
-                  (group) => group.department,
-                ),
-              },
-            ]}
-            date={{
-              param: "due",
-              label: "Due",
-              presets: ["month", "year"],
-            }}
-          />
+      {/* Row 1: one search across everything. Row 2: the filters. */}
+      <div className="mt-5 flex flex-col gap-3 md:mt-6">
+        <FilterSearch placeholder="Search name or employee ID" />
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:items-center [&>*]:md:min-w-0 [&>*]:md:flex-1">
+            <FilterDateRange param="due" presets={["month", "year"]} />
+            <FilterMultiSelect
+              param="type"
+              label="Status"
+              plural="Statuses"
+              options={STATUS_OPTIONS.map((option) => ({
+                value: option.value,
+                label: option.label,
+                count: statusCounts.get(option.value) ?? 0,
+              }))}
+            />
+            <FilterMultiSelect
+              param="department"
+              label="Department"
+              plural="Departments"
+              options={optionsByCount(departmentGroups, (group) => group.department)}
+              searchable
+            />
+          </div>
         </div>
       </div>
 

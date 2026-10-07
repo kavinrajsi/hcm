@@ -7,7 +7,18 @@ import {
   getAccessToken,
   listProjects,
 } from "@/lib/basecamp";
-import { parseTableParams } from "@/lib/table-params";
+import {
+  listParam,
+  optionsByCount,
+  parseTableParams,
+  stringParam,
+} from "@/lib/table-params";
+import { dayRange } from "@/lib/date-filter";
+import {
+  FilterDateRange,
+  FilterMultiSelect,
+  FilterSearch,
+} from "@/components/data-table/filter-bar";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
   Table,
@@ -47,41 +58,79 @@ export default async function QuantumPage({
   const user = await requirePageRole("HR_ADMIN", "MANAGER");
   const raw = await searchParams;
   const params = parseTableParams(raw);
-  const employeeFilter = typeof raw.employee === "string" ? raw.employee : "";
 
   // Managers see only their direct reports' entries.
   const team = teamEmployeeWhere(user);
-  const where: Prisma.QuantumEntryWhereInput = {
-    AND: [{ employee: team }],
-    ...(employeeFilter ? { employeeId: employeeFilter } : {}),
-    ...(params.q
-      ? {
-          OR: [
-            { brand: { contains: params.q, mode: "insensitive" } },
-            { workName: { contains: params.q, mode: "insensitive" } },
-            { employee: { name: { contains: params.q, mode: "insensitive" } } },
-          ],
-        }
-      : {}),
-  };
+  const inScope: Prisma.QuantumEntryWhereInput = { employee: team };
+  const and: Prisma.QuantumEntryWhereInput[] = [inScope];
+  if (params.q) {
+    and.push({
+      OR: [
+        { brand: { contains: params.q, mode: "insensitive" } },
+        { workName: { contains: params.q, mode: "insensitive" } },
+        { employee: { name: { contains: params.q, mode: "insensitive" } } },
+      ],
+    });
+  }
+  const employeeIds = listParam(raw.employee);
+  if (employeeIds.length) and.push({ employeeId: { in: employeeIds } });
+  const brands = listParam(raw.brand);
+  if (brands.length) {
+    and.push({
+      OR: brands.map((brand) => ({
+        brand: { equals: brand, mode: "insensitive" as const },
+      })),
+    });
+  }
+  const dates = dayRange({
+    preset: stringParam(raw.date),
+    from: stringParam(raw.from),
+    to: stringParam(raw.to),
+  });
+  if (dates) and.push({ date: dates });
+  const where: Prisma.QuantumEntryWhereInput = { AND: and };
 
-  const [entries, total, employees] = await Promise.all([
-    db.quantumEntry.findMany({
-      where,
-      orderBy: [{ employee: { name: "asc" } }, { date: "desc" }],
-      skip: params.skip,
-      take: params.take,
-      include: {
-        employee: { select: { id: true, empId: true, name: true } },
-      },
-    }),
-    db.quantumEntry.count({ where }),
-    db.employee.findMany({
-      where: { dateOfExit: null, ...team },
+  const [entries, total, employees, employeeCounts, brandCounts] =
+    await Promise.all([
+      db.quantumEntry.findMany({
+        where,
+        orderBy: [{ employee: { name: "asc" } }, { date: "desc" }],
+        skip: params.skip,
+        take: params.take,
+        include: {
+          employee: { select: { id: true, empId: true, name: true } },
+        },
+      }),
+      db.quantumEntry.count({ where }),
+      db.employee.findMany({
+        where: { dateOfExit: null, ...team },
+        orderBy: { name: "asc" },
+        select: { id: true, empId: true, name: true },
+      }),
+      // Filter menus: everyone / every brand with entries in scope.
+      db.quantumEntry.groupBy({
+        by: ["employeeId"],
+        where: inScope,
+        _count: true,
+      }),
+      db.quantumEntry.groupBy({ by: ["brand"], where: inScope, _count: true }),
+    ]);
+
+  const entryCount = new Map(
+    employeeCounts.map((group) => [group.employeeId, group._count]),
+  );
+  const employeeOptions = (
+    await db.employee.findMany({
+      where: { id: { in: [...entryCount.keys()] } },
       orderBy: { name: "asc" },
-      select: { id: true, empId: true, name: true },
-    }),
-  ]);
+      select: { id: true, name: true },
+    })
+  ).map((employee) => ({
+    value: employee.id,
+    label: employee.name,
+    count: entryCount.get(employee.id),
+  }));
+  const brandOptions = optionsByCount(brandCounts, (group) => group.brand);
 
   const isHr = user.role === "HR_ADMIN";
 
@@ -154,7 +203,29 @@ export default async function QuantumPage({
         </>
       )}
 
-      <div className="mt-6">
+      {/* Row 1: one search across everything. Row 2: the filters. */}
+      <div className="mt-6 flex flex-col gap-3">
+        <FilterSearch placeholder="Search employee, brand or work name" />
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:items-center [&>*]:md:min-w-0 [&>*]:md:flex-1">
+          <FilterDateRange param="date" presets={["7d", "30d", "month", "year"]} />
+          <FilterMultiSelect
+            param="employee"
+            label="Employee"
+            plural="Employees"
+            options={employeeOptions}
+            searchable
+          />
+          <FilterMultiSelect
+            param="brand"
+            label="Brand"
+            plural="Brands"
+            options={brandOptions}
+            searchable
+          />
+        </div>
+      </div>
+
+      <div className="mt-4">
         <MobileList isEmpty={entries.length === 0} empty="No entries yet.">
           {entries.map((entry) => (
             <ListCard

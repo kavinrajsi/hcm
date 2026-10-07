@@ -101,12 +101,10 @@ export function monthLinks(
     );
     const params = new URLSearchParams();
     for (const [paramKey, paramValue] of Object.entries(searchParams)) {
-      if (
-        typeof paramValue === "string" &&
-        paramKey !== "month" &&
-        paramKey !== "page"
-      )
-        params.set(paramKey, paramValue);
+      if (paramKey === "month" || paramKey === "page" || paramValue === undefined) continue;
+      // Keep every value of a multi-select (?type=a&type=b).
+      for (const item of Array.isArray(paramValue) ? paramValue : [paramValue])
+        params.append(paramKey, item);
     }
     params.set("month", key(target).slice(0, 7));
     return `/leave?${params}`;

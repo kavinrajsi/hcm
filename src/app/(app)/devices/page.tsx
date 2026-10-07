@@ -1,9 +1,8 @@
 import Link from "next/link";
 import type { Prisma } from "@/generated/prisma/client";
-import type { DeviceStatus } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
-import { optionsByCount, parseTableParams, stringParam } from "@/lib/table-params";
+import { listParam, optionsByCount, parseTableParams, stringParam } from "@/lib/table-params";
 import { dayRange } from "@/lib/date-filter";
 import {
   DEVICE_STATUSES,
@@ -18,7 +17,7 @@ import {
   formatRupees,
   isDeviceOwnership,
 } from "@/lib/devices/devices";
-import { AddFilter } from "@/components/data-table/add-filter";
+import { FilterDateRange, FilterMultiSelect, FilterSearch } from "@/components/data-table/filter-bar";
 import { DEVICE_OSES, DEVICE_OS_LABELS, isDeviceOs, osSuffix } from "@/lib/devices/os";
 import { CountChips } from "@/components/data-table/count-chips";
 import { TablePagination } from "@/components/data-table/pagination";
@@ -47,11 +46,13 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
   const user = await requirePageRole("HR_ADMIN", "MANAGER");
   const raw = await searchParams;
   const params = parseTableParams(raw);
-  const status: DeviceStatus | undefined = isDeviceStatus(raw.status) ? raw.status : undefined;
-  const brand = stringParam(raw.brand);
-  const vendor = stringParam(raw.vendor);
-  const os = isDeviceOs(raw.os) ? raw.os : undefined;
-  const ownership = isDeviceOwnership(raw.ownership) ? raw.ownership : undefined;
+  // Multi-selects arrive as repeated params; enum values are validated, unknown ones ignored.
+  const deviceTypes = listParam(raw.type).filter(isDeviceType);
+  const statuses = listParam(raw.status).filter(isDeviceStatus);
+  const brands = listParam(raw.brand);
+  const vendors = listParam(raw.vendor);
+  const oses = listParam(raw.os).filter(isDeviceOs);
+  const ownerships = listParam(raw.ownership).filter(isDeviceOwnership);
   const purchased = dayRange({
     preset: stringParam(raw.purchased),
     from: stringParam(raw.from),
@@ -62,16 +63,16 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
   const scope: Prisma.DeviceWhereInput =
     user.role === "MANAGER" ? { holder: { manager: { userId: user.id } } } : {};
   // ?holder=left: devices still assigned to someone who has left (exit list links here).
-  const heldByLeavers = raw.holder === "left";
+  const heldByLeavers = listParam(raw.holder).includes("left");
   const where: Prisma.DeviceWhereInput = {
     ...scope,
     ...(heldByLeavers ? { AND: [{ holder: { dateOfExit: { not: null } } }] } : {}),
-    ...(isDeviceType(params.type) ? { type: params.type } : {}),
-    ...(status ? { status } : {}),
-    ...(brand ? { brand } : {}),
-    ...(os ? { os } : {}),
-    ...(ownership ? { ownership } : {}),
-    ...(vendor ? { vendor: { name: vendor } } : {}),
+    ...(deviceTypes.length ? { type: { in: deviceTypes } } : {}),
+    ...(statuses.length ? { status: { in: statuses } } : {}),
+    ...(brands.length ? { brand: { in: brands } } : {}),
+    ...(oses.length ? { os: { in: oses } } : {}),
+    ...(ownerships.length ? { ownership: { in: ownerships } } : {}),
+    ...(vendors.length ? { vendor: { name: { in: vendors } } } : {}),
     ...(purchased ? { purchaseDate: purchased } : {}),
     ...(params.q
       ? {
@@ -89,7 +90,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
   };
 
   const leaverHeld = db.device.count({ where: { ...scope, AND: [{ holder: { dateOfExit: { not: null } } }] } });
-  const [devices, total, openTickets, types, statuses, brands, vendors, oses, ownerships, rent] = await Promise.all([
+  const [devices, total, openTickets, typeGroups, statusGroups, brandGroups, vendorRows, osGroups, ownershipGroups, rent] = await Promise.all([
     db.device.findMany({
       where,
       orderBy: { assetTag: "asc" },
@@ -128,12 +129,12 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
       _sum: { monthlyRent: true },
     }),
   ]);
-  const ownershipCounts = new Map(ownerships.map((group) => [group.ownership as string, group._count]));
+  const ownershipCounts = new Map(ownershipGroups.map((group) => [group.ownership as string, group._count]));
   const monthlyRent = Number(rent._sum.monthlyRent ?? 0);
   const heldByLeaversCount = await leaverHeld;
-  const osCounts = new Map(oses.map((group) => [group.os as string, group._count]));
-  const typeCounts = new Map(types.map((group) => [group.type as string, group._count]));
-  const statusCounts = new Map(statuses.map((group) => [group.status as string, group._count]));
+  const osCounts = new Map(osGroups.map((group) => [group.os as string, group._count]));
+  const typeCounts = new Map(typeGroups.map((group) => [group.type as string, group._count]));
+  const statusCounts = new Map(statusGroups.map((group) => [group.status as string, group._count]));
 
   const holderText = (device: (typeof devices)[number]) =>
     device.holder ? `${device.holder.name} · ${device.holder.empId}` : "—";
@@ -170,69 +171,73 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
         ]}
       />
 
-      <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:items-center">
-        <div className="min-w-0 md:flex-1">
-          <AddFilter
-            search={{ param: "q", hint: "Asset tag, model, serial, holder or emp ID" }}
-            fields={[
-              {
-                param: "holder",
-                label: "Holder",
-                options: [{ value: "left", label: "Has left (to collect)", count: heldByLeaversCount }],
-              },
-              {
-                param: "type",
-                label: "Type",
-                options: DEVICE_TYPES.map((type) => ({
-                  value: type,
-                  label: DEVICE_TYPE_LABELS[type],
-                  count: typeCounts.get(type) ?? 0,
-                })),
-              },
-              {
-                param: "status",
-                label: "Status",
-                options: DEVICE_STATUSES.map((value) => ({
-                  value,
-                  label: DEVICE_STATUS_LABELS[value],
-                  count: statusCounts.get(value) ?? 0,
-                })),
-              },
-              {
-                param: "ownership",
-                label: "Owned / rented",
-                options: DEVICE_OWNERSHIPS.map((value) => ({
-                  value,
-                  label: DEVICE_OWNERSHIP_LABELS[value],
-                  count: ownershipCounts.get(value) ?? 0,
-                })),
-              },
-              {
-                param: "os",
-                label: "OS",
-                options: DEVICE_OSES.map((value) => ({
-                  value,
-                  label: DEVICE_OS_LABELS[value],
-                  count: osCounts.get(value) ?? 0,
-                })),
-              },
-              {
-                param: "brand",
-                label: "Brand",
-                options: optionsByCount(brands, (group) => group.brand),
-              },
-              {
-                param: "vendor",
-                label: "Vendor",
-                options: vendors.map((row) => ({ value: row.name, count: row._count.devices })),
-              },
-            ]}
-            date={{
-              param: "purchased",
-              label: "Purchased",
-              presets: ["30d", "month", "year"],
-            }}
-          />
+      {/* Row 1: one search across everything. Row 2: the filters. */}
+      <div className="mt-5 flex flex-col gap-3 md:mt-6">
+        <FilterSearch placeholder="Search asset tag, brand, model, serial, stock tag, holder or emp ID" />
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:items-center [&>*]:md:min-w-0 [&>*]:md:flex-1">
+            <FilterDateRange param="purchased" presets={["30d", "month", "year"]} />
+            <FilterMultiSelect
+              param="type"
+              label="Type"
+              plural="Types"
+              options={DEVICE_TYPES.map((type) => ({
+                value: type,
+                label: DEVICE_TYPE_LABELS[type],
+                count: typeCounts.get(type) ?? 0,
+              }))}
+            />
+            <FilterMultiSelect
+              param="status"
+              label="Status"
+              plural="Statuses"
+              options={DEVICE_STATUSES.map((value) => ({
+                value,
+                label: DEVICE_STATUS_LABELS[value],
+                count: statusCounts.get(value) ?? 0,
+              }))}
+            />
+            <FilterMultiSelect
+              param="ownership"
+              label="Owned / rented"
+              plural="Owned / rented"
+              options={DEVICE_OWNERSHIPS.map((value) => ({
+                value,
+                label: DEVICE_OWNERSHIP_LABELS[value],
+                count: ownershipCounts.get(value) ?? 0,
+              }))}
+            />
+            <FilterMultiSelect
+              param="os"
+              label="OS"
+              plural="OSes"
+              options={DEVICE_OSES.map((value) => ({
+                value,
+                label: DEVICE_OS_LABELS[value],
+                count: osCounts.get(value) ?? 0,
+              }))}
+            />
+            <FilterMultiSelect
+              param="brand"
+              label="Brand"
+              plural="Brands"
+              options={optionsByCount(brandGroups, (group) => group.brand)}
+              searchable
+            />
+            <FilterMultiSelect
+              param="vendor"
+              label="Vendor"
+              plural="Vendors"
+              options={vendorRows.map((row) => ({ value: row.name, count: row._count.devices }))}
+              searchable
+            />
+            <FilterMultiSelect
+              param="holder"
+              label="Holder"
+              plural="Holders"
+              options={[{ value: "left", label: "Has left (to collect)", count: heldByLeaversCount }]}
+            />
+          </div>
         </div>
       </div>
 

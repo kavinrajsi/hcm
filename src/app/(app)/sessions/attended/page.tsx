@@ -2,8 +2,18 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
 import { teamEmployeeWhere } from "@/lib/team-scope";
-import { datePartsToRange, parseTableParams } from "@/lib/table-params";
-import { TableFilters } from "@/components/data-table/filters";
+import {
+  listParam,
+  optionsByCount,
+  parseTableParams,
+  stringParam,
+} from "@/lib/table-params";
+import { dayRange } from "@/lib/date-filter";
+import {
+  FilterDateRange,
+  FilterMultiSelect,
+  FilterSearch,
+} from "@/components/data-table/filter-bar";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
   Table,
@@ -40,42 +50,87 @@ export default async function SessionAttendedPage({
 
   // Managers see only their direct reports' attendance.
   const team = teamEmployeeWhere(user);
-  const where: Prisma.SessionAttendanceWhereInput = {
-    AND: [{ employee: team }],
-    ...(params.q
-      ? {
-          OR: [
-            { employee: { name: { contains: params.q, mode: "insensitive" } } },
-            { sessionName: { contains: params.q, mode: "insensitive" } },
-          ],
-        }
-      : {}),
-  };
-  const dateRange = datePartsToRange(params);
-  if (dateRange) where.date = dateRange;
+  const inScope: Prisma.SessionAttendanceWhereInput = { employee: team };
+  const and: Prisma.SessionAttendanceWhereInput[] = [inScope];
+  if (params.q) {
+    and.push({
+      OR: [
+        { employee: { name: { contains: params.q, mode: "insensitive" } } },
+        { sessionName: { contains: params.q, mode: "insensitive" } },
+      ],
+    });
+  }
+  const employeeIds = listParam(raw.employee);
+  if (employeeIds.length) and.push({ employeeId: { in: employeeIds } });
+  const sessionNames = listParam(raw.session);
+  if (sessionNames.length) {
+    and.push({
+      OR: sessionNames.map((sessionName) => ({
+        sessionName: { equals: sessionName, mode: "insensitive" as const },
+      })),
+    });
+  }
+  const dates = dayRange({
+    preset: stringParam(raw.date),
+    from: stringParam(raw.from),
+    to: stringParam(raw.to),
+  });
+  if (dates) and.push({ date: dates });
+  const where: Prisma.SessionAttendanceWhereInput = { AND: and };
 
-  const [rows, total, employees, sessions] = await Promise.all([
-    db.sessionAttendance.findMany({
-      where,
-      orderBy: { date: "desc" },
-      skip: params.skip,
-      take: params.take,
-      include: {
-        employee: { select: { id: true, empId: true, name: true } },
-      },
-    }),
-    db.sessionAttendance.count({ where }),
-    db.employee.findMany({
-      where: { dateOfExit: null, ...team },
+  const [rows, total, employees, sessions, employeeCounts, sessionCounts] =
+    await Promise.all([
+      db.sessionAttendance.findMany({
+        where,
+        orderBy: { date: "desc" },
+        skip: params.skip,
+        take: params.take,
+        include: {
+          employee: { select: { id: true, empId: true, name: true } },
+        },
+      }),
+      db.sessionAttendance.count({ where }),
+      db.employee.findMany({
+        where: { dateOfExit: null, ...team },
+        orderBy: { name: "asc" },
+        select: { id: true, empId: true, name: true },
+      }),
+      db.trainingSession.findMany({
+        orderBy: { date: "desc" },
+        take: 50,
+        select: { id: true, name: true, trainer: true, date: true },
+      }),
+      // Filter menus: everyone / every session with attendance in scope.
+      db.sessionAttendance.groupBy({
+        by: ["employeeId"],
+        where: inScope,
+        _count: true,
+      }),
+      db.sessionAttendance.groupBy({
+        by: ["sessionName"],
+        where: inScope,
+        _count: true,
+      }),
+    ]);
+
+  const attendanceCount = new Map(
+    employeeCounts.map((group) => [group.employeeId, group._count]),
+  );
+  const employeeOptions = (
+    await db.employee.findMany({
+      where: { id: { in: [...attendanceCount.keys()] } },
       orderBy: { name: "asc" },
-      select: { id: true, empId: true, name: true },
-    }),
-    db.trainingSession.findMany({
-      orderBy: { date: "desc" },
-      take: 50,
-      select: { id: true, name: true, trainer: true, date: true },
-    }),
-  ]);
+      select: { id: true, name: true },
+    })
+  ).map((employee) => ({
+    value: employee.id,
+    label: employee.name,
+    count: attendanceCount.get(employee.id),
+  }));
+  const sessionOptions = optionsByCount(
+    sessionCounts,
+    (group) => group.sessionName,
+  );
 
   return (
     <PageShell>
@@ -116,8 +171,26 @@ export default async function SessionAttendedPage({
         </div>
       )}
 
-      <div className="mt-6">
-        <TableFilters />
+      {/* Row 1: one search across everything. Row 2: the filters. */}
+      <div className="mt-6 flex flex-col gap-3">
+        <FilterSearch placeholder="Search employee or session" />
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:items-center [&>*]:md:min-w-0 [&>*]:md:flex-1">
+          <FilterDateRange param="date" presets={["7d", "30d", "month", "year"]} />
+          <FilterMultiSelect
+            param="employee"
+            label="Employee"
+            plural="Employees"
+            options={employeeOptions}
+            searchable
+          />
+          <FilterMultiSelect
+            param="session"
+            label="Session"
+            plural="Sessions"
+            options={sessionOptions}
+            searchable
+          />
+        </div>
       </div>
 
       <div className="mt-4">

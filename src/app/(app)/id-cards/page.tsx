@@ -2,12 +2,17 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
 import {
+  listParam,
   optionsByCount,
   parseTableParams,
   stringParam,
 } from "@/lib/table-params";
 import { instantRange } from "@/lib/date-filter";
-import { AddFilter } from "@/components/data-table/add-filter";
+import {
+  FilterDateRange,
+  FilterMultiSelect,
+  FilterSearch,
+} from "@/components/data-table/filter-bar";
 import { CountChips } from "@/components/data-table/count-chips";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
@@ -45,17 +50,19 @@ export default async function IdCardsPage({
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
-  const status = STATUS_OPTIONS.find(
-    (option) => option.value === params.type,
-  )?.value;
-  const department = stringParam(raw.department);
+  // Multi-selects arrive as repeated params; unknown statuses are ignored.
+  const statusValues = listParam(raw.type);
+  const statuses = STATUS_OPTIONS.filter((option) =>
+    statusValues.includes(option.value),
+  ).map((option) => option.value);
+  const departments = listParam(raw.department);
   const updated = instantRange({
     preset: stringParam(raw.updated),
     from: stringParam(raw.from),
     to: stringParam(raw.to),
   });
   const where: Prisma.IdCardWhereInput = {
-    ...(params.q || department
+    ...(params.q || departments.length
       ? {
           employee: {
             ...(params.q
@@ -66,15 +73,15 @@ export default async function IdCardsPage({
                   ],
                 }
               : {}),
-            ...(department ? { department } : {}),
+            ...(departments.length ? { department: { in: departments } } : {}),
           },
         }
       : {}),
-    ...(status ? { status } : {}),
+    ...(statuses.length ? { status: { in: statuses } } : {}),
     ...(updated ? { updatedAt: updated } : {}),
   };
 
-  const [cards, total, statuses, departments] = await Promise.all([
+  const [cards, total, statusGroups, departmentGroups] = await Promise.all([
     db.idCard.findMany({
       where,
       orderBy: { updatedAt: "desc" },
@@ -101,7 +108,7 @@ export default async function IdCardsPage({
     }),
   ]);
   const statusCounts = new Map(
-    statuses.map((group) => [group.status as string, group._count]),
+    statusGroups.map((group) => [group.status as string, group._count]),
   );
 
   return (
@@ -116,35 +123,37 @@ export default async function IdCardsPage({
         }))}
       />
 
-      <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:items-center">
-        <div className="min-w-0 md:flex-1">
-          <AddFilter
-            search={{ param: "q", hint: "Name or employee ID" }}
-            fields={[
-              {
-                param: "type",
-                label: "Status",
-                options: STATUS_OPTIONS.map((option) => ({
-                  value: option.value,
-                  label: option.label,
-                  count: statusCounts.get(option.value) ?? 0,
-                })),
-              },
-              {
-                param: "department",
-                label: "Department",
-                options: optionsByCount(
-                  departments,
-                  (group) => group.department,
-                ),
-              },
-            ]}
-            date={{
-              param: "updated",
-              label: "Updated",
-              presets: ["7d", "30d", "month"],
-            }}
-          />
+      {/* Row 1: one search across everything. Row 2: the filters. */}
+      <div className="mt-5 flex flex-col gap-3 md:mt-6">
+        <FilterSearch placeholder="Search name or employee ID" />
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:items-center [&>*]:md:min-w-0 [&>*]:md:flex-1">
+            <FilterDateRange
+              param="updated"
+              presets={["7d", "30d", "month"]}
+              withTime
+            />
+            <FilterMultiSelect
+              param="type"
+              label="Status"
+              plural="Statuses"
+              options={STATUS_OPTIONS.map((option) => ({
+                value: option.value,
+                label: option.label,
+                count: statusCounts.get(option.value) ?? 0,
+              }))}
+            />
+            <FilterMultiSelect
+              param="department"
+              label="Department"
+              plural="Departments"
+              options={optionsByCount(
+                departmentGroups,
+                (group) => group.department,
+              )}
+              searchable
+            />
+          </div>
         </div>
       </div>
 

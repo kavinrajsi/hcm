@@ -38,14 +38,12 @@ export function LeaveDayStrip({
   byDay,
   initialKey,
   links,
-  filters,
 }: {
   monthLabel: string;
   days: StripDay[];
   byDay: Record<string, CalendarEntry[]>;
   initialKey: string;
   links: { prev: string; today: string; next: string };
-  filters: React.ReactNode;
 }) {
   const [selected, setSelected] = useState(initialKey);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -150,10 +148,6 @@ export function LeaveDayStrip({
               </div>
             );
           })}
-        </div>
-
-        <div className="-mx-4 border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">
-          {filters}
         </div>
       </div>
 

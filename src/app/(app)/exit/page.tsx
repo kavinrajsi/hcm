@@ -3,12 +3,17 @@ import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
 import { teamEmployeeWhere } from "@/lib/team-scope";
 import {
+  listParam,
   optionsByCount,
   parseTableParams,
   stringParam,
 } from "@/lib/table-params";
 import { dayRange } from "@/lib/date-filter";
-import { AddFilter } from "@/components/data-table/add-filter";
+import {
+  FilterDateRange,
+  FilterMultiSelect,
+  FilterSearch,
+} from "@/components/data-table/filter-bar";
 import { CountChips } from "@/components/data-table/count-chips";
 import { EMP_TYPE_LABELS, EMP_TYPE_OPTIONS } from "@/lib/emp-type";
 import { TablePagination } from "@/components/data-table/pagination";
@@ -41,10 +46,13 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
-  const empType = EMP_TYPE_OPTIONS.find(
-    (option) => option.value === params.type,
-  )?.value;
-  const designation = stringParam(raw.designation);
+  // Multi-selects arrive as repeated params (?type=INTERN&type=CONTRACT);
+  // unknown emp types are ignored.
+  const typeParam = listParam(raw.type);
+  const empTypes = EMP_TYPE_OPTIONS.map((option) => option.value).filter(
+    (value) => typeParam.includes(value),
+  );
+  const designations = listParam(raw.designation);
   const exited = dayRange({
     preset: stringParam(raw.exited),
     from: stringParam(raw.from),
@@ -63,12 +71,12 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
           ],
         }
       : {}),
-    ...(empType ? { empType } : {}),
-    ...(designation ? { designation } : {}),
+    ...(empTypes.length ? { empType: { in: empTypes } } : {}),
+    ...(designations.length ? { designation: { in: designations } } : {}),
     ...(exited ? { dateOfExit: { not: null, ...exited } } : {}),
   };
 
-  const [exits, total, activeEmployees, types, designations] =
+  const [exits, total, activeEmployees, types, designationGroups] =
     await Promise.all([
       db.employee.findMany({
         where,
@@ -121,35 +129,30 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
         }))}
       />
 
-      <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:items-center">
-        <div className="min-w-0 md:flex-1">
-          <AddFilter
-            search={{ param: "q", hint: "Name or employee ID" }}
-            fields={[
-              {
-                param: "type",
-                label: "Emp type",
-                options: EMP_TYPE_OPTIONS.map((option) => ({
-                  value: option.value,
-                  label: option.label,
-                  count: typeCounts.get(option.value) ?? 0,
-                })),
-              },
-              {
-                param: "designation",
-                label: "Designation",
-                options: optionsByCount(
-                  designations,
-                  (group) => group.designation,
-                ),
-              },
-            ]}
-            date={{
-              param: "exited",
-              label: "Exited",
-              presets: ["30d", "month", "year"],
-            }}
-          />
+      {/* Row 1: one search across everything. Row 2: the filters. */}
+      <div className="mt-5 flex flex-col gap-3 md:mt-6">
+        <FilterSearch placeholder="Search name or employee ID" />
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:items-center [&>*]:md:min-w-0 [&>*]:md:flex-1">
+            <FilterDateRange param="exited" presets={["30d", "month", "year"]} />
+            <FilterMultiSelect
+              param="type"
+              label="Emp type"
+              plural="Emp types"
+              options={EMP_TYPE_OPTIONS.map((option) => ({
+                value: option.value,
+                label: option.label,
+                count: typeCounts.get(option.value) ?? 0,
+              }))}
+            />
+            <FilterMultiSelect
+              param="designation"
+              label="Designation"
+              plural="Designations"
+              options={optionsByCount(designationGroups, (group) => group.designation)}
+              searchable
+            />
+          </div>
         </div>
       </div>
 

@@ -2,12 +2,17 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
 import {
+  listParam,
   optionsByCount,
   parseTableParams,
   stringParam,
 } from "@/lib/table-params";
 import { dayRange } from "@/lib/date-filter";
-import { AddFilter } from "@/components/data-table/add-filter";
+import {
+  FilterDateRange,
+  FilterMultiSelect,
+  FilterSearch,
+} from "@/components/data-table/filter-bar";
 import { CountChips } from "@/components/data-table/count-chips";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
@@ -57,11 +62,14 @@ export default async function EmployeesPage({
   const raw = await searchParams;
   const params = parseTableParams(raw);
 
-  const empType = EMP_TYPE_OPTIONS.find(
-    (option) => option.value === params.type,
-  )?.value;
-  const department = stringParam(raw.department);
-  const designation = stringParam(raw.designation);
+  // Multi-selects arrive as repeated params (?type=INTERN&type=CONTRACT);
+  // unknown emp types are ignored.
+  const typeParam = listParam(raw.type);
+  const empTypes = EMP_TYPE_OPTIONS.map((option) => option.value).filter(
+    (value) => typeParam.includes(value),
+  );
+  const departments = listParam(raw.department);
+  const designations = listParam(raw.designation);
   const joined = dayRange({
     preset: stringParam(raw.joined),
     from: stringParam(raw.from),
@@ -81,13 +89,13 @@ export default async function EmployeesPage({
           ],
         }
       : {}),
-    ...(empType ? { empType: empType as never } : {}),
-    ...(department ? { department } : {}),
-    ...(designation ? { designation } : {}),
+    ...(empTypes.length ? { empType: { in: empTypes } } : {}),
+    ...(departments.length ? { department: { in: departments } } : {}),
+    ...(designations.length ? { designation: { in: designations } } : {}),
     ...(joined ? { dateOfJoining: joined } : {}),
   };
 
-  const [matchedTypes, types, departments, designations] = await Promise.all([
+  const [matchedTypes, types, departmentGroups, designationGroups] = await Promise.all([
     db.employee.groupBy({ by: ["empType"], where, _count: true }),
     db.employee.groupBy({ by: ["empType"], where: scope, _count: true }),
     db.employee.groupBy({ by: ["department"], where: scope, _count: true }),
@@ -176,43 +184,37 @@ export default async function EmployeesPage({
         }))}
       />
 
-      <div className="mt-5 flex flex-col gap-3 md:mt-6 md:flex-row md:items-center">
-        <div className="min-w-0 md:flex-1">
-          <AddFilter
-            search={{ param: "q", hint: "Name or employee ID" }}
-            fields={[
-              {
-                param: "type",
-                label: "Emp type",
-                options: EMP_TYPE_OPTIONS.map((option) => ({
-                  value: option.value,
-                  label: option.label,
-                  count: typeCounts.get(option.value) ?? 0,
-                })),
-              },
-              {
-                param: "department",
-                label: "Department",
-                options: optionsByCount(
-                  departments,
-                  (group) => group.department,
-                ),
-              },
-              {
-                param: "designation",
-                label: "Designation",
-                options: optionsByCount(
-                  designations,
-                  (group) => group.designation,
-                ),
-              },
-            ]}
-            date={{
-              param: "joined",
-              label: "Joined",
-              presets: ["7d", "30d", "month", "year"],
-            }}
-          />
+      {/* Row 1: one search across everything. Row 2: the filters. */}
+      <div className="mt-5 flex flex-col gap-3 md:mt-6">
+        <FilterSearch placeholder="Search name or employee ID" />
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:items-center [&>*]:md:min-w-0 [&>*]:md:flex-1">
+            <FilterDateRange param="joined" presets={["7d", "30d", "month", "year"]} />
+            <FilterMultiSelect
+              param="type"
+              label="Emp type"
+              plural="Emp types"
+              options={EMP_TYPE_OPTIONS.map((option) => ({
+                value: option.value,
+                label: option.label,
+                count: typeCounts.get(option.value) ?? 0,
+              }))}
+            />
+            <FilterMultiSelect
+              param="department"
+              label="Department"
+              plural="Departments"
+              options={optionsByCount(departmentGroups, (group) => group.department)}
+              searchable
+            />
+            <FilterMultiSelect
+              param="designation"
+              label="Designation"
+              plural="Designations"
+              options={optionsByCount(designationGroups, (group) => group.designation)}
+              searchable
+            />
+          </div>
         </div>
       </div>
 

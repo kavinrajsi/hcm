@@ -2,19 +2,20 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
 import { basecampConfigured, getAccessToken } from "@/lib/basecamp";
-import { datePartsToRange, parseTableParams } from "@/lib/table-params";
+import { listParam, parseTableParams, stringParam } from "@/lib/table-params";
 import {
   LEAVE_STATUSES,
   LEAVE_STATUS_CLASSES,
   LEAVE_STATUS_LABELS,
   LEAVE_TYPES,
   LEAVE_TYPE_LABELS,
-  leaveTotalsConditions,
-  leaveTotalsPeriod,
   type LeaveStatusValue,
-  type LeaveTypeValue,
 } from "@/lib/leave";
-import { TableFilters } from "@/components/data-table/filters";
+import {
+  FilterDateRange,
+  FilterMultiSelect,
+  FilterSearch,
+} from "@/components/data-table/filter-bar";
 import { TablePagination } from "@/components/data-table/pagination";
 import { Badge } from "@/components/ui/badge";
 import { CheckIcon, CloseIcon, UndoIcon } from "@/components/icons";
@@ -50,6 +51,15 @@ import {
   type CalendarEntry,
 } from "./leave-calendar";
 import { LeaveDayStrip, type StripDay } from "./leave-day-strip";
+import {
+  leaveConditions,
+  leaveDateRange,
+  leaveTotalsConditions,
+  leaveTotalsKind,
+  leaveTotalsPeriod,
+  onDays,
+  type LeaveFilters,
+} from "./query";
 import { cn } from "@/lib/utils";
 import type { Prisma } from "@/generated/prisma/client";
 import { formatDay, formatInstantDay } from "@/lib/format-date";
@@ -60,16 +70,6 @@ export const metadata = { title: "Leave" };
 // sync pages through years of check-in answers and classifies a batch.
 export const maxDuration = 300;
 
-const TYPE_OPTIONS = [
-  ...LEAVE_TYPES.map((leaveType) => ({
-    value: leaveType,
-    label: LEAVE_TYPE_LABELS[leaveType],
-  })),
-  { value: "UNCLASSIFIED", label: "Unclassified" },
-  { value: "UNMATCHED", label: "No employee match" },
-];
-
-const STATUSES = LEAVE_STATUSES;
 type Status = LeaveStatusValue;
 const STATUS_LABELS = LEAVE_STATUS_LABELS;
 const STATUS_CLASSES = LEAVE_STATUS_CLASSES;
@@ -179,25 +179,24 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
     user.role === "MANAGER"
       ? { employee: { manager: { userId: user.id } } }
       : {};
+  const isHr = user.role === "HR_ADMIN";
 
-  const where: Prisma.LeaveEntryWhereInput = { ...scope };
-  const and: Prisma.LeaveEntryWhereInput[] = [];
-  if (params.q) {
-    and.push({
-      OR: [
-        { creatorName: { contains: params.q, mode: "insensitive" } },
-        { employee: { name: { contains: params.q, mode: "insensitive" } } },
-        { message: { contains: params.q, mode: "insensitive" } },
-      ],
-    });
-  }
-  if (params.type === "UNCLASSIFIED") and.push({ type: null });
-  else if (params.type === "UNMATCHED") and.push({ employeeId: null });
-  else if (LEAVE_TYPES.includes(params.type as LeaveTypeValue)) {
-    and.push({ type: params.type as LeaveTypeValue });
-  }
-  const status = STATUSES.find((value) => value === raw.status);
-  if (status) and.push({ status });
+  const filters: LeaveFilters = {
+    q: params.q,
+    type: listParam(raw.type),
+    status: listParam(raw.status),
+    date: stringParam(raw.date),
+    from: stringParam(raw.from),
+    to: stringParam(raw.to),
+  };
+  // Search, type and status apply everywhere; the date range only to the
+  // list and the chips (the calendar shows its own ?month=YYYY-MM).
+  const and = leaveConditions(filters);
+  const range = leaveDateRange(filters);
+  const where: Prisma.LeaveEntryWhereInput = {
+    ...scope,
+    AND: range ? [...and, onDays(range)] : and,
+  };
 
   // No ?view: day strip on phones, list on desktop. ?view=list / calendar
   // pick one explicitly (calendar = strip on phones, month grid on desktop).
@@ -210,7 +209,7 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
   const monthEnd = new Date(
     Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1),
   );
-  // Calendar ignores the day/month/year filter and shows entries touching the month.
+  // Calendar ignores the date range and shows entries touching the month.
   const calendarWhere: Prisma.LeaveEntryWhereInput = {
     ...scope,
     AND: [
@@ -225,26 +224,24 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
     ],
   };
 
-  const range = datePartsToRange(params);
-  if (range) {
-    and.push({
-      OR: [{ startDate: range }, { startDate: null, postedOn: range }],
-    });
-  }
-  if (and.length) where.AND = and;
-
   const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
-  // "Most leave days" follows the same filters as the list (name, type, status,
-  // day/month/year); null = the type filter has no per-employee day totals.
-  const totalsConditions = leaveTotalsConditions({
-    q: params.q,
-    type: params.type,
-    status,
-    range,
-    yearStart,
-  });
-  const [entries, total, yearTotals, calendarEntries, pendingCount] =
-    await Promise.all([
+  // "Most leave days" follows the list's filters; null = the type filter
+  // picks no full/half-day type, so there's nothing to total.
+  // The calendar hides the date range, so the chips ignore it there too.
+  const totalsFilters: LeaveFilters =
+    view === "calendar"
+      ? { ...filters, date: undefined, from: undefined, to: undefined }
+      : filters;
+  const totalsConditions = leaveTotalsConditions(totalsFilters, yearStart);
+  const [
+    entries,
+    total,
+    yearTotals,
+    calendarEntries,
+    statusCounts,
+    typeCounts,
+    unmatchedCount,
+  ] = await Promise.all([
       db.leaveEntry.findMany({
         where,
         orderBy: [{ postedOn: "desc" }, { postedAt: "desc" }],
@@ -261,7 +258,7 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
             by: ["employeeId"],
             where: {
               ...scope,
-              AND: totalsConditions as Prisma.LeaveEntryWhereInput[],
+              AND: totalsConditions,
             },
             _sum: { days: true },
             orderBy: { _sum: { days: "desc" } },
@@ -286,8 +283,39 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
             },
           })
         : Promise.resolve([]),
-      db.leaveEntry.count({ where: { ...scope, status: "PENDING" } }),
+      // Filter menu counts: every entry in scope, unfiltered.
+      db.leaveEntry.groupBy({ by: ["status"], where: scope, _count: true }),
+      db.leaveEntry.groupBy({ by: ["type"], where: scope, _count: true }),
+      isHr
+        ? db.leaveEntry.count({ where: { ...scope, employeeId: null } })
+        : Promise.resolve(0),
     ]);
+
+  const countByStatus = new Map(
+    statusCounts.map((statusCount) => [statusCount.status, statusCount._count]),
+  );
+  const countByType = new Map(
+    typeCounts.map((typeCount) => [
+      typeCount.type ?? "UNCLASSIFIED",
+      typeCount._count,
+    ]),
+  );
+  const typeOptions = [
+    ...LEAVE_TYPES.map((leaveType) => ({
+      value: leaveType,
+      label: LEAVE_TYPE_LABELS[leaveType],
+      count: countByType.get(leaveType) ?? 0,
+    })),
+    {
+      value: "UNCLASSIFIED",
+      label: "Unclassified",
+      count: countByType.get("UNCLASSIFIED") ?? 0,
+    },
+    // Managers only see their reports, so every entry has a match.
+    ...(isHr
+      ? [{ value: "UNMATCHED", label: "No employee match", count: unmatchedCount }]
+      : []),
+  ];
 
   const topNames = new Map(
     (
@@ -303,12 +331,11 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
   const hrefWith = (key: string, value?: string) => {
     const query = new URLSearchParams();
     for (const [paramKey, paramValue] of Object.entries(raw)) {
-      if (
-        typeof paramValue === "string" &&
-        paramKey !== key &&
-        paramKey !== "page"
-      )
-        query.set(paramKey, paramValue);
+      if (paramKey === key || paramKey === "page" || paramValue === undefined)
+        continue;
+      // Keep every value of a multi-select (?type=a&type=b).
+      for (const item of Array.isArray(paramValue) ? paramValue : [paramValue])
+        query.append(paramKey, item);
     }
     if (value) query.set(key, value);
     return `/leave${query.size ? `?${query}` : ""}`;
@@ -350,7 +377,6 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
     });
   }
 
-  const isHr = user.role === "HR_ADMIN";
   const configured = basecampConfigured();
   const connected =
     isHr && configured && (await getAccessToken(user.id)) !== null;
@@ -393,13 +419,8 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
       {yearTotals.length > 0 && (
         <section className="mt-6">
           <h2 className="text-sm font-medium text-zinc-500">
-            Most leave days {leaveTotalsPeriod(params)} (
-            {params.type === "FULL_DAY"
-              ? "full days"
-              : params.type === "HALF_DAY"
-                ? "half days"
-                : "full + half days"}
-            )
+            Most leave days {leaveTotalsPeriod(totalsFilters)} (
+            {leaveTotalsKind(filters)})
           </h2>
           {/* One swipeable row on phones, wrapping chips on desktop. */}
           <div className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0">
@@ -432,40 +453,61 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
         </section>
       )}
 
-      <div className="mt-6 flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
-        <div className={cn(stripOnPhone && "hidden md:block")}>
-          <TableFilters typeOptions={TYPE_OPTIONS} />
-        </div>
-        <div className="hidden md:block">
-          <Segmented
-            label="View"
-            items={(["list", "calendar"] as const).map((viewOption) => ({
-              key: viewOption,
-              href: hrefWith(
-                "view",
-                viewOption === "calendar" ? "calendar" : undefined,
-              ),
-              label: viewOption === "list" ? "List" : "Calendar",
-              active:
-                viewOption === "calendar"
-                  ? view === "calendar"
-                  : view !== "calendar",
-            }))}
-          />
-        </div>
-        <div className="md:hidden">
-          <Segmented
-            label="View"
-            items={(["calendar", "list"] as const).map((viewOption) => ({
-              key: viewOption,
-              href: hrefWith(
-                "view",
-                viewOption === "list" ? "list" : undefined,
-              ),
-              label: viewOption === "list" ? "List" : "Calendar",
-              active: viewOption === "list" ? view === "list" : view !== "list",
-            }))}
-          />
+      {/* Row 1: one search across everything. Row 2: the filters and the view. */}
+      <div className="mt-6 flex flex-col gap-3">
+        <FilterSearch placeholder="Search employee, Basecamp name or message" />
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:items-center [&>*]:md:min-w-0 [&>*]:md:flex-1">
+            {/* The calendar and the phone day strip show a whole month, so
+                no date range there (no ?view = strip on phones, list on desktop). */}
+            {view !== "calendar" && (
+              <div className={cn("grid", view === "" && "hidden md:grid")}>
+                <FilterDateRange param="date" presets={["7d", "30d", "month", "year"]} />
+              </div>
+            )}
+            <FilterMultiSelect param="type" label="Type" plural="Types" options={typeOptions} />
+            <FilterMultiSelect
+              param="status"
+              label="Status"
+              plural="Statuses"
+              options={LEAVE_STATUSES.map((statusOption) => ({
+                value: statusOption,
+                label: STATUS_LABELS[statusOption],
+                count: countByStatus.get(statusOption) ?? 0,
+              }))}
+            />
+          </div>
+          <div className="hidden md:block">
+            <Segmented
+              label="View"
+              items={(["list", "calendar"] as const).map((viewOption) => ({
+                key: viewOption,
+                href: hrefWith(
+                  "view",
+                  viewOption === "calendar" ? "calendar" : undefined,
+                ),
+                label: viewOption === "list" ? "List" : "Calendar",
+                active:
+                  viewOption === "calendar"
+                    ? view === "calendar"
+                    : view !== "calendar",
+              }))}
+            />
+          </div>
+          <div className="md:hidden">
+            <Segmented
+              label="View"
+              items={(["calendar", "list"] as const).map((viewOption) => ({
+                key: viewOption,
+                href: hrefWith(
+                  "view",
+                  viewOption === "list" ? "list" : undefined,
+                ),
+                label: viewOption === "list" ? "List" : "Calendar",
+                active: viewOption === "list" ? view === "list" : view !== "list",
+              }))}
+            />
+          </div>
         </div>
       </div>
 
@@ -486,13 +528,6 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
                 : stripDays[0].key
             }
             links={monthLinks(month, raw)}
-            filters={
-              <TableFilters
-                typeOptions={TYPE_OPTIONS}
-                dateFilters={false}
-                mobileSummary
-              />
-            }
           />
         </div>
       )}
@@ -503,30 +538,7 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
         </div>
       ) : (
         <div className={cn(stripOnPhone && "hidden md:block")}>
-          <div className="mt-4">
-            <Segmented
-              label="Status"
-              items={([undefined, ...STATUSES] as const).map(
-                (statusOption) => ({
-                  key: statusOption ?? "ALL",
-                  href: hrefWith("status", statusOption),
-                  active: status === statusOption,
-                  label: (
-                    <>
-                      {statusOption ? STATUS_LABELS[statusOption] : "All"}
-                      {statusOption === "PENDING" && pendingCount > 0 && (
-                        <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 text-xs font-medium text-white tabular-nums">
-                          {pendingCount}
-                        </span>
-                      )}
-                    </>
-                  ),
-                }),
-              )}
-            />
-          </div>
-
-          <div className="mt-3 md:hidden">
+          <div className="mt-4 md:hidden">
             <MobileList
               isEmpty={entries.length === 0}
               empty="No leave entries."
@@ -637,7 +649,7 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
             </MobileList>
           </div>
 
-          <div className="mt-3">
+          <div className="mt-4">
             <DesktopTable>
               <Table>
                 <TableHeader>

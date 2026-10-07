@@ -96,3 +96,14 @@ export function stringParam(value: unknown): string | undefined {
     ? value.trim().slice(0, 200)
     : undefined;
 }
+
+/**
+ * Values of a multi-select filter, which arrive as repeated params
+ * (?role=a&role=b). Trimmed, blanks dropped, capped in length and count.
+ */
+export function listParam(value: unknown): string[] {
+  return (Array.isArray(value) ? value : [value])
+    .filter((item): item is string => typeof item === "string" && item.trim() !== "")
+    .map((item) => item.trim().slice(0, 200))
+    .slice(0, 50);
+}

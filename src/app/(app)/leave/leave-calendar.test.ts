@@ -111,6 +111,16 @@ describe("monthLinks", () => {
     expect(next.has("page")).toBe(false);
   });
 
+  it("keeps every value of a multi-select filter", () => {
+    const links = monthLinks(utcDate("2026-01-01"), {
+      type: ["FULL_DAY", "WFH"],
+      status: "PENDING",
+    });
+    const next = new URL(links.next, "http://x").searchParams;
+    expect(next.getAll("type")).toEqual(["FULL_DAY", "WFH"]);
+    expect(next.getAll("status")).toEqual(["PENDING"]);
+  });
+
   it("does not add a view when none was set (phone default strip)", () => {
     const links = monthLinks(utcDate("2026-05-01"), {});
     expect(new URL(links.next, "http://x").searchParams.has("view")).toBe(
