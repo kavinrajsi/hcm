@@ -391,8 +391,11 @@ export type BasecampPerson = {
 
 export type AssignedTodo = {
   id: number;
+  title: string;
+  app_url: string;
   due_on: string | null;
   completed: boolean;
+  bucket: { name: string };
 };
 
 /** A person's open assigned to-dos (their "My Assignments"); one response. */

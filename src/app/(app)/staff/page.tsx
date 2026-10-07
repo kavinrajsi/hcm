@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/rbac";
 import { PageHeader, PageShell } from "@/components/page";
 import { EmployeeAvatar } from "@/components/employee-avatar";
+import { PersonTodos } from "./person-todos";
 
 export const metadata = { title: "Staff" };
 
@@ -16,6 +17,7 @@ export default async function StaffPage() {
       id: true,
       name: true,
       avatarBlobKey: true,
+      basecampPersonId: true,
       openTodosDated: true,
       openTodosUndated: true,
     },
@@ -27,7 +29,7 @@ export default async function StaffPage() {
     <PageShell>
       <PageHeader
         title="Staff"
-        description={`Everyone at the company · ${employees.length}. Open Basecamp to-dos, with and without a due date, update every 30 minutes.`}
+        description={`Everyone at the company · ${employees.length}. Open Basecamp to-dos, with and without a due date, update every 30 minutes. Click a photo for the list.`}
       />
 
       {employees.length === 0 ? (
@@ -41,12 +43,23 @@ export default async function StaffPage() {
               key={employee.id}
               className="flex min-w-0 flex-col items-center gap-2 text-center"
             >
-              <EmployeeAvatar
-                name={employee.name}
-                avatarKey={employee.avatarBlobKey}
-                size="lg"
-                className="size-16 md:size-20"
-              />
+              {employee.basecampPersonId ? (
+                <PersonTodos employeeId={employee.id} name={employee.name}>
+                  <EmployeeAvatar
+                    name={employee.name}
+                    avatarKey={employee.avatarBlobKey}
+                    size="lg"
+                    className="size-16 transition-opacity hover:opacity-80 md:size-20"
+                  />
+                </PersonTodos>
+              ) : (
+                <EmployeeAvatar
+                  name={employee.name}
+                  avatarKey={employee.avatarBlobKey}
+                  size="lg"
+                  className="size-16 md:size-20"
+                />
+              )}
               {canOpenEmployee ? (
                 <Link
                   href={`/employees/${employee.id}`}
