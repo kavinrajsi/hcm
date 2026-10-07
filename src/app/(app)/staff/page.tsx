@@ -12,7 +12,13 @@ export default async function StaffPage() {
   const user = await requireUser();
   const employees = await db.employee.findMany({
     where: { dateOfExit: null },
-    select: { id: true, name: true, avatarBlobKey: true },
+    select: {
+      id: true,
+      name: true,
+      avatarBlobKey: true,
+      openTodosDated: true,
+      openTodosUndated: true,
+    },
     orderBy: { name: "asc" },
   });
   const canOpenEmployee = user.role === "HR_ADMIN";
@@ -21,7 +27,7 @@ export default async function StaffPage() {
     <PageShell>
       <PageHeader
         title="Staff"
-        description={`Everyone at the company · ${employees.length}`}
+        description={`Everyone at the company · ${employees.length}. Open Basecamp to-dos, with and without a due date, update every 30 minutes.`}
       />
 
       {employees.length === 0 ? (
@@ -53,6 +59,13 @@ export default async function StaffPage() {
                   {employee.name}
                 </span>
               )}
+              {employee.openTodosDated !== null &&
+                employee.openTodosUndated !== null && (
+                  <p className="-mt-1 text-xs text-zinc-500 tabular-nums">
+                    {employee.openTodosDated} dated ·{" "}
+                    {employee.openTodosUndated} no date
+                  </p>
+                )}
             </li>
           ))}
         </ul>

@@ -81,7 +81,7 @@ function extension(contentType: string): string {
 }
 
 /** Runs `work` over items with at most `limit` in flight. */
-async function eachLimited<T>(
+export async function eachLimited<T>(
   items: T[],
   limit: number,
   work: (item: T) => Promise<void>,

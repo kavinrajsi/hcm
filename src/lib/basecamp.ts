@@ -389,6 +389,26 @@ export type BasecampPerson = {
   client: boolean;
 };
 
+export type AssignedTodo = {
+  id: number;
+  due_on: string | null;
+  completed: boolean;
+};
+
+/** A person's open assigned to-dos (their "My Assignments"); one response. */
+export async function listAssignedTodos(
+  accessToken: string,
+  accountId: string,
+  personId: string,
+): Promise<AssignedTodo[]> {
+  const report = await api<{ todos: AssignedTodo[] }>(
+    accessToken,
+    accountId,
+    `/reports/todos/assigned/${personId}.json`,
+  );
+  return report.todos;
+}
+
 /** Everyone visible to the connected account. */
 export async function listPeople(
   accessToken: string,

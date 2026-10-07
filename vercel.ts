@@ -20,5 +20,7 @@ export const config: VercelConfig = {
     // Daily 05:30 UTC (11:00 IST) — completed Basecamp to-dos and comments
     // for Assignment Intelligence, then AI classification of what's new.
     { path: "/api/cron/basecamp-jobs", schedule: "30 5 * * *" },
+    // Every 30 minutes — each employee's open Basecamp to-dos for Staff.
+    { path: "/api/cron/basecamp-todo-counts", schedule: "*/30 * * * *" },
   ],
 };

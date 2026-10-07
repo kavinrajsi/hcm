@@ -179,6 +179,11 @@ model Employee {
   basecampPersonId String? @unique
   avatarBlobKey    String? // private blob, avatars/<empId>…
   avatarSourceUrl  String? // Basecamp avatar_url last downloaded
+  // Open Basecamp to-dos assigned to them, synced every 30 min (null =
+  // never synced).
+  openTodosDated    Int? // with a due date
+  openTodosUndated  Int? // without one
+  openTodosSyncedAt DateTime?
 
   // Statutory (plaintext-safe identifiers)
   pfNumber  String?
