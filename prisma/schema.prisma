@@ -183,6 +183,7 @@ model Employee {
   // never synced).
   openTodosDated    Int? // with a due date
   openTodosUndated  Int? // without one
+  openTodosOverdue  Int? // dated and past due (IST), part of openTodosDated
   openTodosSyncedAt DateTime?
 
   // Statutory (plaintext-safe identifiers)

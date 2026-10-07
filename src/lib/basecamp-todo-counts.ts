@@ -6,14 +6,20 @@ import {
 } from "@/lib/basecamp";
 import { eachLimited } from "@/lib/basecamp-people";
 import { leaveSyncUserId } from "@/lib/leave-sync";
+import { istDayKey } from "@/lib/format-date";
 
 // Each current employee's open Basecamp to-dos, split by whether they have a
 // due date, for the Staff page. Read through the HR admin's connection.
 
-export function countOpenTodos(todos: AssignedTodo[]) {
+/** `today` is the IST "YYYY-MM-DD"; due today isn't overdue yet. */
+export function countOpenTodos(todos: AssignedTodo[], today: string) {
   const open = todos.filter((todo) => !todo.completed);
-  const dated = open.filter((todo) => todo.due_on).length;
-  return { dated, undated: open.length - dated };
+  const dated = open.filter((todo) => todo.due_on);
+  return {
+    dated: dated.length,
+    undated: open.length - dated.length,
+    overdue: dated.filter((todo) => todo.due_on! < today).length,
+  };
 }
 
 export type OpenTodo = {
@@ -64,6 +70,7 @@ export async function syncOpenTodoCounts() {
     where: { dateOfExit: null, basecampPersonId: { not: null } },
     select: { id: true, basecampPersonId: true },
   });
+  const today = istDayKey(new Date());
   let synced = 0;
   let failed = 0;
   // One person's failure (left Basecamp, 404) doesn't stop the rest.
@@ -74,12 +81,13 @@ export async function syncOpenTodoCounts() {
         token.accountId,
         employee.basecampPersonId!,
       );
-      const { dated, undated } = countOpenTodos(todos);
+      const { dated, undated, overdue } = countOpenTodos(todos, today);
       await db.employee.update({
         where: { id: employee.id },
         data: {
           openTodosDated: dated,
           openTodosUndated: undated,
+          openTodosOverdue: overdue,
           openTodosSyncedAt: new Date(),
         },
       });

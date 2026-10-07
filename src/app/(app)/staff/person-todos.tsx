@@ -10,11 +10,10 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { istDayKey } from "@/lib/format-date";
 import type { OpenTodo } from "@/lib/basecamp-todo-counts";
 import { loadOpenTodos } from "./actions";
 
-const todayIst = () =>
-  new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
 
 const formatDue = (date: string) =>
   new Date(`${date}T00:00:00Z`).toLocaleDateString("en-IN", {
@@ -45,7 +44,12 @@ export function PersonTodos({
     setResult(null);
     startTransition(async () => setResult(await loadOpenTodos(employeeId)));
   };
-  const today = todayIst();
+  const today = istDayKey(new Date());
+  const overdueCount =
+    result && "todos" in result
+      ? result.todos.filter((todo) => todo.dueOn !== null && todo.dueOn < today)
+          .length
+      : 0;
 
   return (
     <>
@@ -65,9 +69,22 @@ export function PersonTodos({
           <SheetHeader>
             <SheetTitle>{name}</SheetTitle>
             <SheetDescription>
-              {result && "todos" in result
-                ? `${result.todos.length} open Basecamp to-dos · soonest due first`
-                : "Open Basecamp to-dos"}
+              {result && "todos" in result ? (
+                <>
+                  {result.todos.length} open Basecamp to-dos
+                  {overdueCount > 0 && (
+                    <>
+                      {" · "}
+                      <span className="font-medium text-red-600 dark:text-red-400">
+                        {overdueCount} overdue
+                      </span>
+                    </>
+                  )}
+                  {" · soonest due first"}
+                </>
+              ) : (
+                "Open Basecamp to-dos"
+              )}
             </SheetDescription>
           </SheetHeader>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
@@ -86,14 +103,20 @@ export function PersonTodos({
                   return (
                     <li
                       key={todo.id}
-                      className="flex items-start justify-between gap-3 py-2.5"
+                      className={cn(
+                        "flex items-start justify-between gap-3 py-2.5",
+                        overdue && "border-l-2 border-l-red-500 pl-2",
+                      )}
                     >
                       <div className="min-w-0">
                         <a
                           href={todo.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-start gap-1 font-medium underline-offset-4 hover:underline"
+                          className={cn(
+                            "inline-flex items-start gap-1 font-medium underline-offset-4 hover:underline",
+                            overdue && "text-red-600 dark:text-red-400",
+                          )}
                         >
                           {todo.title}
                           <ExternalLink className="mt-0.5 size-3 shrink-0 text-zinc-400" />
