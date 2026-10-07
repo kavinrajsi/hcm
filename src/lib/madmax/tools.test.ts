@@ -45,8 +45,19 @@ describe("tool sets per role", () => {
     const manager = Object.keys(buildTools(context("MANAGER")));
     expect(manager).toContain("reviewLeave");
     expect(manager).not.toContain("setCandidateStatus");
+    // Resumes are HR's alone.
+    expect(manager).not.toContain("getResumeForScoring");
+    expect(manager).not.toContain("saveResumeScore");
     const hr = Object.keys(buildTools(context("HR_ADMIN")));
-    expect(hr).toEqual(expect.arrayContaining([...WRITE_TOOLS, "listVendors", "listDeviceRequests"]));
+    expect(hr).toEqual(
+      expect.arrayContaining([
+        ...WRITE_TOOLS,
+        "listVendors",
+        "listDeviceRequests",
+        "listResumesToScore",
+        "getResumeForScoring",
+      ]),
+    );
   });
 
   it("scopes employees by role", () => {

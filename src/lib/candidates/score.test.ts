@@ -117,7 +117,43 @@ describe("rate limits", () => {
   });
 });
 
+describe("no AI credit", () => {
+  const broke = new Error(
+    "GatewayInternalServerError: A positive credit balance is required for all requests, including BYOK",
+  );
+
+  it("parks the resume as waiting without using an attempt", async () => {
+    db.candidate.findUnique.mockResolvedValue({
+      fileUrl: "resumes/a.pdf",
+      jobRole: "Designer",
+      position: null,
+      score: { attempts: 3 },
+    });
+    ai.generateText.mockRejectedValue(broke);
+    expect(await scoreCandidate(BigInt(4))).toBe("NO_CREDIT");
+    expect(db.candidateScore.update.mock.calls[0][0].data).toMatchObject({
+      status: "FAILED",
+      attempts: 3,
+      error: expect.stringMatching(/^Waiting for AI credit/),
+    });
+  });
+
+  it("stops the run at the first one", async () => {
+    db.candidate.findMany.mockResolvedValue([{ id: BigInt(1) }, { id: BigInt(2) }]);
+    ai.generateText.mockRejectedValue(broke);
+    const counts = await scorePending({ limit: 10, deadline: Date.now() + 60_000, trigger: "cron", spacingMs: 0 });
+    expect(counts).toMatchObject({ NO_CREDIT: 1, SCORED: 0 });
+    expect(ai.generateText).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("candidatesToScore", () => {
+  it("includes ones parked for credit whatever their attempts", async () => {
+    db.candidate.findMany.mockResolvedValue([]);
+    await candidatesToScore(10);
+    expect(JSON.stringify(db.candidate.findMany.mock.calls[0][0].where.AND)).toContain("Waiting for AI credit");
+  });
+
   it("picks unscored or retryable failures, newest first, skipping spam", async () => {
     db.candidate.findMany.mockResolvedValue([{ id: BigInt(5) }]);
     expect(await candidatesToScore(10)).toEqual([BigInt(5)]);

@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
+  // Resume text for MCP scoring: pdf.js loads its own worker file at
+  // runtime, which bundling breaks.
+  serverExternalPackages: ["pdfjs-dist"],
   experimental: {
     // forbidden(): a wrong role renders app/forbidden.tsx with a 403
     // instead of throwing an error that lands in the runtime logs.

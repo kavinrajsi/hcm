@@ -10,11 +10,15 @@ async function main() {
   const { scorePending, candidatesToScore } = await import("@/lib/candidates/score");
   const limit = Number(process.argv[2] ?? 2000);
   console.log(`Scoring up to ${(await candidatesToScore(limit)).length} candidates…`);
-  const total = { SCORED: 0, NO_RESUME: 0, FAILED: 0, RATE_LIMITED: 0 };
+  const total = { SCORED: 0, NO_RESUME: 0, FAILED: 0, RATE_LIMITED: 0, NO_CREDIT: 0 };
   while (true) {
     const counts = await scorePending({ limit: 20, deadline: Date.now() + 10 * 60_000, trigger: "script" });
     for (const key of Object.keys(total) as (keyof typeof total)[]) total[key] += counts[key];
     console.log(new Date().toISOString().slice(11, 19), JSON.stringify(total));
+    if (counts.NO_CREDIT) {
+      console.log("AI Gateway credit is out; stopping. Top up, or score from Claude over MCP.");
+      break;
+    }
     if (counts.RATE_LIMITED) {
       await new Promise((resolve) => setTimeout(resolve, 60_000));
       continue;

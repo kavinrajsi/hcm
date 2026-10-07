@@ -47,6 +47,7 @@ import {
 import { formatDay } from "@/lib/format-date";
 import { SCORE_BANDS, type ScoreBand } from "@/lib/candidates/score-bands";
 import { ScoreBadge } from "./score-badge";
+import { waitingForCreditWhere } from "@/lib/candidates/score";
 
 export const metadata = { title: "Candidates" };
 
@@ -132,7 +133,7 @@ export default async function CandidatesPage({
   );
 
   // Score filter counts across all (non-spam) candidates.
-  const [strong, fair, weak, scoredTotal, allTotal] = await Promise.all([
+  const [strong, fair, weak, scoredTotal, allTotal, waitingForCredit] = await Promise.all([
     ...(Object.keys(SCORE_BANDS) as ScoreBand[]).map((band) =>
       db.candidateScore.count({
         where: { score: { gte: SCORE_BANDS[band].min, lte: SCORE_BANDS[band].max }, candidate: NOT_SPAM },
@@ -140,6 +141,7 @@ export default async function CandidatesPage({
     ),
     db.candidateScore.count({ where: { score: { not: null }, candidate: NOT_SPAM } }),
     db.candidate.count({ where: NOT_SPAM }),
+    db.candidateScore.count({ where: { ...waitingForCreditWhere, candidate: NOT_SPAM } }),
   ]);
   const scoreCounts = { strong, fair, weak, none: allTotal - scoredTotal };
 
@@ -178,6 +180,18 @@ export default async function CandidatesPage({
           </>
         }
       />
+
+      {waitingForCredit > 0 && (
+        <p className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+          {waitingForCredit.toLocaleString("en-IN")} resume
+          {waitingForCredit === 1 ? " is" : "s are"} waiting for an AI score: the AI Gateway is out of
+          credit. Top it up, or in Claude with HCM connected (
+          <Link href="/mcp/instructions" className="underline underline-offset-4">
+            Connect an AI
+          </Link>
+          ) ask: &ldquo;score the resumes waiting in HCM&rdquo;.
+        </p>
+      )}
 
       <CountChips
         items={CANDIDATE_STATUSES.map((candidateStatus) => ({
