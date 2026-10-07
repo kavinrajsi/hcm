@@ -1,6 +1,6 @@
 // Seed the first HR admin so someone can sign in and manage everything else.
 // Usage: npx tsx prisma/seed.ts <email> [password]
-// With a password → credentials login; without → Google SSO only.
+// With a password → can sign in now; without → set one via Forgot password.
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "../src/generated/prisma/client";
