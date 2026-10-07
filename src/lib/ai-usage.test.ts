@@ -92,6 +92,7 @@ describe("recordAiUsage", () => {
         costUsd: 0.001,
         generationId: "gen_1",
         ok: true,
+        userId: null,
       },
     });
   });

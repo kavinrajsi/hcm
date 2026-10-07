@@ -16,6 +16,7 @@ import { gatewayCost, recordAiUsage } from "@/lib/ai-usage";
 import { DEFAULT_MODEL, MADMAX_MODELS, modelByKey } from "@/lib/madmax/models";
 import { WRITE_TOOLS, buildTools, loadContext } from "@/lib/madmax/tools";
 import { systemPrompt } from "@/lib/madmax/prompt";
+import { madmaxCapCheck } from "@/lib/madmax/cap";
 import {
   findOwnThread,
   loadMessages,
@@ -53,6 +54,10 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return new Response("Bad request", { status: 400 });
   const { id: threadId, message } = parsed.data;
+
+  // Monthly spending caps (Admin → AI usage); checked before any model call.
+  const capped = await madmaxCapCheck(user.id);
+  if (capped) return new Response(capped, { status: 429 });
 
   // New thread on first message; someone else's thread is "not found".
   // Requests without a model (auto-send after an approval) keep the
@@ -150,6 +155,7 @@ export async function POST(request: Request) {
       );
       await recordAiUsage({
         feature: "madmax",
+        userId: user.id,
         model: model.id,
         items: 1,
         inputTokens: totalUsage.inputTokens ?? 0,
@@ -161,6 +167,7 @@ export async function POST(request: Request) {
       console.error("[madmax] model error", error);
       await recordAiUsage({
         feature: "madmax",
+        userId: user.id,
         model: model.id,
         items: 1,
         ok: false,

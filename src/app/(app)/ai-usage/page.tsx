@@ -27,6 +27,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDateTime } from "@/lib/format-date";
+import { madmaxCap, madmaxMonthInr, madmaxSpendByUser } from "@/lib/madmax/cap";
+import { CapForm } from "./cap-form";
 
 export const metadata = { title: "AI usage" };
 
@@ -42,6 +44,10 @@ const inr = (usd: number) => {
       ? `₹${amount.toFixed(2)}`
       : `₹${Math.round(amount).toLocaleString("en-IN")}`;
 };
+const rupees = (amount: number) =>
+  amount < 1 && amount > 0
+    ? `₹${amount.toFixed(2)}`
+    : `₹${Math.round(amount).toLocaleString("en-IN")}`;
 const shortDay = (day: string) =>
   new Date(`${day}T00:00:00Z`).toLocaleDateString("en-IN", {
     day: "numeric",
@@ -113,9 +119,12 @@ export default async function AiUsagePage({
     ? (raw as AiRange)
     : "month";
 
-  const [summary, balance] = await Promise.all([
+  const [summary, balance, cap, madmaxUsers, madmaxMonth] = await Promise.all([
     aiUsageSummary(range),
     gatewayBalance(),
+    madmaxCap(),
+    madmaxSpendByUser(),
+    madmaxMonthInr(),
   ]);
   const totals = summary.totals;
 
@@ -183,6 +192,55 @@ export default async function AiUsagePage({
           sub={balance === null ? "Unavailable" : "Whole Vercel team, all apps"}
         />
       </div>
+
+      <Section
+        title="MadMax AI cap"
+        subtitle="Monthly limits in rupees (Asia/Kolkata months). At a limit, MadMax stops answering until the 1st. Applies to everyone, HR included."
+      >
+        <div className="rounded-lg border border-zinc-200 p-3 md:p-4 dark:border-zinc-800">
+          <CapForm cap={cap} />
+          <p className="mt-4 text-sm">
+            This month:{" "}
+            <span className="font-medium tabular-nums">
+              {rupees(madmaxMonth)}
+            </span>
+            {cap.totalInr !== null && (
+              <span className="text-zinc-500">
+                {" "}
+                of {rupees(cap.totalInr)} company cap
+              </span>
+            )}
+          </p>
+          {madmaxUsers.length > 0 && (
+            <ul className="mt-2 divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
+              {madmaxUsers.map((row) => {
+                const over =
+                  cap.perUserInr !== null && row.spentInr >= cap.perUserInr;
+                return (
+                  <li
+                    key={row.userId}
+                    className="flex items-center justify-between gap-3 py-1.5"
+                  >
+                    <span className="min-w-0 truncate">{row.name}</span>
+                    <span
+                      className={
+                        over
+                          ? "shrink-0 font-medium text-red-600 tabular-nums dark:text-red-400"
+                          : "shrink-0 text-zinc-500 tabular-nums"
+                      }
+                    >
+                      {rupees(row.spentInr)}
+                      {cap.perUserInr !== null &&
+                        ` / ${rupees(cap.perUserInr)}`}
+                      {` · ${formatNumber(row.requests)} requests`}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </Section>
 
       {totals.requests === 0 ? (
         <p className="mt-8 rounded-xl border border-dashed border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500 dark:border-zinc-800">

@@ -54,6 +54,7 @@ export async function recordAiUsage(row: {
   costUsd?: number | null;
   generationId?: string | null;
   ok?: boolean;
+  userId?: string | null;
 }): Promise<void> {
   try {
     await db.aiUsage.create({
@@ -67,6 +68,7 @@ export async function recordAiUsage(row: {
         costUsd: row.costUsd ?? null,
         generationId: row.generationId ?? null,
         ok: row.ok ?? true,
+        userId: row.userId ?? null,
       },
     });
   } catch (error) {
