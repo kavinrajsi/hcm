@@ -20,6 +20,7 @@ import {
 import { FilterDateRange, FilterMultiSelect, FilterSearch } from "@/components/data-table/filter-bar";
 import { DEVICE_OSES, DEVICE_OS_LABELS, isDeviceOs, osSuffix } from "@/lib/devices/os";
 import { CountChips } from "@/components/data-table/count-chips";
+import { DEVICE_CHIPS } from "@/lib/chip-tones";
 import { TablePagination } from "@/components/data-table/pagination";
 import { ListCard } from "@/components/list-card";
 import { Button } from "@/components/ui/button";
@@ -166,8 +167,14 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
             key: value,
             label: DEVICE_STATUS_LABELS[value],
             count: statusCounts.get(value) ?? 0,
+            className: DEVICE_CHIPS[value],
           })),
-          { key: "RENTED", label: "Rented", count: ownershipCounts.get("RENTED") ?? 0 },
+          {
+            key: "RENTED",
+            label: "Rented",
+            count: ownershipCounts.get("RENTED") ?? 0,
+            className: DEVICE_CHIPS.RENTED,
+          },
         ]}
       />
 

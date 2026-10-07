@@ -15,6 +15,7 @@ import {
   FilterSearch,
 } from "@/components/data-table/filter-bar";
 import { CountChips } from "@/components/data-table/count-chips";
+import { EMP_TYPE_CHIPS } from "@/lib/chip-tones";
 import { EMP_TYPE_LABELS, EMP_TYPE_OPTIONS } from "@/lib/emp-type";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
@@ -116,6 +117,7 @@ export default async function OnboardingPage({
           key: option.value,
           label: option.label,
           count: typeCounts.get(option.value) ?? 0,
+          className: EMP_TYPE_CHIPS[option.value],
         }))}
       />
 

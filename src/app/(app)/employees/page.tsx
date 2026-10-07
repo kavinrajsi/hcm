@@ -14,6 +14,7 @@ import {
   FilterSearch,
 } from "@/components/data-table/filter-bar";
 import { CountChips } from "@/components/data-table/count-chips";
+import { EMP_TYPE_CHIPS } from "@/lib/chip-tones";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
   Table,
@@ -181,6 +182,7 @@ export default async function EmployeesPage({
           key: option.value,
           label: option.label,
           count: typeCounts.get(option.value) ?? 0,
+          className: EMP_TYPE_CHIPS[option.value],
         }))}
       />
 

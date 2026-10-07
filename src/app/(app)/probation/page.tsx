@@ -15,6 +15,7 @@ import {
   FilterSearch,
 } from "@/components/data-table/filter-bar";
 import { CountChips } from "@/components/data-table/count-chips";
+import { PROBATION_CHIPS } from "@/lib/chip-tones";
 import { TablePagination } from "@/components/data-table/pagination";
 import {
   Table,
@@ -149,6 +150,7 @@ export default async function ProbationPage({
           key: option.value,
           label: option.label,
           count: statusCounts.get(option.value) ?? 0,
+          className: PROBATION_CHIPS[option.value],
         }))}
       />
 

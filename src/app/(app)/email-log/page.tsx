@@ -8,6 +8,7 @@ import { formatDateTime } from "@/lib/format-date";
 import { EMAIL_KINDS, isEmailKind } from "@/lib/email-log";
 import { AddFilter } from "@/components/data-table/add-filter";
 import { CountChips } from "@/components/data-table/count-chips";
+import { EMAIL_STATUS_CHIPS } from "@/lib/chip-tones";
 import { TablePagination } from "@/components/data-table/pagination";
 import { ListCard } from "@/components/list-card";
 import { DesktopTable, MobileList, PageHeader, PageShell } from "@/components/page";
@@ -94,6 +95,7 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
           key,
           label: filter.label,
           count: statusCounts.get(key) ?? 0,
+          className: EMAIL_STATUS_CHIPS[key],
         }))}
       />
       <div className="mt-5 md:mt-6">
