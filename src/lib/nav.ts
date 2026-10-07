@@ -100,6 +100,8 @@ export const NAV: NavGroup[] = [
     title: "Admin",
     items: [
       { title: "Users & roles", url: "/users", roles: HR },
+      // Basecamp people and profile pictures, on demand.
+      { title: "Basecamp sync", url: "/basecamp-sync", roles: HR },
       { title: "AI usage", url: "/ai-usage", roles: HR },
       { title: "MCP access", url: "/mcp-access", roles: HR },
       { title: "Email templates", url: "/email-templates", roles: HR },

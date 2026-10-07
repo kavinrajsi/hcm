@@ -32,7 +32,6 @@ import { importEmployees } from "./actions";
 import type { Prisma } from "@/generated/prisma/client";
 import { formatDay } from "@/lib/format-date";
 import { EmployeeAvatar } from "@/components/employee-avatar";
-import { BasecampSyncButton } from "./basecamp-sync";
 import { EMP_TYPE_LABELS, EMP_TYPE_OPTIONS } from "@/lib/emp-type";
 
 export const metadata = { title: "Employees" };
@@ -152,7 +151,6 @@ export default async function EmployeesPage({
           <>
             {isHr && (
               <>
-                <BasecampSyncButton />
                 <BulkImportForm
                   action={importEmployees}
                   columns={EMPLOYEE_IMPORT_COLUMNS}
