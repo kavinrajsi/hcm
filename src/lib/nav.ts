@@ -30,16 +30,6 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
-    // The signed-in person's own pages; every login can open them.
-    title: "Profile",
-    items: [
-      { title: "Overview", url: "/profile" },
-      { title: "My work", url: "/profile/work" },
-      { title: "My leave", url: "/profile/leave" },
-      { title: "Security", url: "/profile/security" },
-    ],
-  },
-  {
     title: "People",
     items: [
       { title: "Candidates", url: "/candidates", roles: HR },
@@ -94,6 +84,16 @@ export const NAV: NavGroup[] = [
     items: [
       { title: "Letters", url: "/letters", roles: HR },
       { title: "Reviews", url: "/reviews", roles: HR_OR_MANAGER },
+    ],
+  },
+  {
+    // The signed-in person's own pages; every login can open them.
+    title: "Profile",
+    items: [
+      { title: "Overview", url: "/profile" },
+      { title: "My work", url: "/profile/work" },
+      { title: "My leave", url: "/profile/leave" },
+      { title: "Security", url: "/profile/security" },
     ],
   },
   {
