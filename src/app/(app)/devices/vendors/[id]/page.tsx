@@ -8,6 +8,7 @@ import {
   DEVICE_TYPE_LABELS,
   TICKET_STATUS_LABELS,
 } from "@/lib/devices/devices";
+import { shownModel } from "@/lib/devices/devices";
 import { VENDOR_KIND_LABELS } from "@/lib/devices/vendors";
 import { formatDay } from "@/lib/format-date";
 import { PageHeader, PageShell } from "@/components/page";
@@ -169,7 +170,7 @@ export default async function VendorPage({ params }: { params: Promise<{ id: str
             {vendor.devices.map((device) => (
               <li key={device.id} className="flex justify-between gap-3 px-4 py-2">
                 <Link href={`/devices/${device.id}`} className="hover:underline">
-                  <span className="font-mono">{device.assetTag}</span> {DEVICE_TYPE_LABELS[device.type]} · {device.brand} {device.model}
+                  <span className="font-mono">{device.assetTag}</span> {DEVICE_TYPE_LABELS[device.type]} · {device.brand} {shownModel(device.model)}
                   {device.vendorRef ? ` · ${device.vendorRef}` : ""}
                 </Link>
                 <span className="shrink-0 text-xs text-zinc-500">

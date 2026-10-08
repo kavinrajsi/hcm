@@ -17,6 +17,7 @@ import {
   formatRupees,
   isDeviceOwnership,
 } from "@/lib/devices/devices";
+import { shownModel } from "@/lib/devices/devices";
 import { FilterDateRange, FilterMultiSelect, FilterSearch } from "@/components/data-table/filter-bar";
 import { DEVICE_OSES, DEVICE_OS_LABELS, isDeviceOs, osSuffix } from "@/lib/devices/os";
 import { CountChips } from "@/components/data-table/count-chips";
@@ -277,7 +278,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
                   </TableCell>
                   <TableCell>
                     {DEVICE_TYPE_LABELS[device.type]}
-                    {osSuffix(device.os)} · {device.brand} {device.model}
+                    {osSuffix(device.os)} · {device.brand} {shownModel(device.model)}
                     {device.ownership === "RENTED" && <span className="ml-2 text-xs text-zinc-500">Rented</span>}
                   </TableCell>
                   <TableCell>
@@ -300,7 +301,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
             <ListCard
               key={device.id}
               href={`/devices/${device.id}`}
-              title={`${device.brand} ${device.model}`}
+              title={`${device.brand} ${shownModel(device.model)}`}
               subtitle={<span className="font-mono">{device.assetTag}</span>}
               badge={
                 <span className={`text-xs ${DEVICE_STATUS_CLASSES[device.status]}`}>

@@ -161,3 +161,8 @@ export function deviceScanUrl(token: string, origin?: string): string {
   const base = (process.env.AUTH_URL ?? origin ?? "").replace(/\/$/, "");
   return `${base}/d/${token}`;
 }
+
+/** Hides the "Not given" placeholder for devices whose model the sheet didn't give. */
+export function shownModel(model: string): string {
+  return model === "Not given" ? "" : model;
+}

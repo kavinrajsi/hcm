@@ -14,7 +14,6 @@ export function DeviceLabel({
   brand,
   model,
   holder = null,
-  stockTag = null,
   className,
 }: {
   svg: string;
@@ -23,8 +22,6 @@ export function DeviceLabel({
   brand: string;
   model: string;
   holder?: { name: string } | null;
-  /** The numbered tag, printed small when the asset tag is a holder's. */
-  stockTag?: string | null;
   className?: string;
 }) {
   const tag = assetTag;
@@ -56,7 +53,7 @@ export function DeviceLabel({
         </p>
         <p className="truncate text-[7pt]">{model}</p>
         <p className="mt-[1mm] text-[6pt] text-zinc-600">
-          {stockTag && stockTag !== assetTag ? `${stockTag} · ` : ""}Property of Madarth
+          Property of Madarth
         </p>
       </div>
     </div>

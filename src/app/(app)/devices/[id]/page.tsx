@@ -13,6 +13,7 @@ import {
   deviceScanUrl,
   formatRupees,
 } from "@/lib/devices/devices";
+import { shownModel } from "@/lib/devices/devices";
 import { qrSvg } from "@/lib/devices/qr";
 import { SALES_KINDS, SERVICE_KINDS } from "@/lib/devices/vendors";
 import { osSuffix } from "@/lib/devices/os";
@@ -117,7 +118,7 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
   return (
     <PageShell width="md">
       <PageHeader
-        title={`${device.brand} ${device.model}`}
+        title={`${device.brand} ${shownModel(device.model)}`}
         description={
           <>
             <span className="font-mono">{device.assetTag}</span> · {DEVICE_TYPE_LABELS[device.type]}
@@ -139,9 +140,8 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
             assetTag={device.assetTag}
             type={device.type}
             brand={device.brand}
-            model={device.model}
+            model={shownModel(device.model)}
             holder={device.holder}
-            stockTag={device.stockTag}
             className="rounded-md border border-zinc-200"
           />
           <div className="flex flex-wrap gap-2">
@@ -221,7 +221,7 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
       <Section title="Holder">
         {device.holder ? (
           <div className="flex items-center gap-3">
-            <EmployeeAvatar name={device.holder.name} avatarKey={device.holder.avatarBlobKey} />
+            <EmployeeAvatar name={device.holder.name} avatarKey={device.holder.avatarBlobKey} size="lg" />
             <div>
               <p className="font-medium">
                 {manage ? (

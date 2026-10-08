@@ -5,6 +5,7 @@ import {
   DEVICE_STATUS_LABELS,
   DEVICE_TYPE_LABELS,
 } from "@/lib/devices/devices";
+import { shownModel } from "@/lib/devices/devices";
 import { formatDay } from "@/lib/format-date";
 
 /**
@@ -81,7 +82,7 @@ export async function EmployeeDevices({
               >
                 <span className="min-w-0">
                   <span className="font-medium">
-                    {device.brand} {device.model}
+                    {device.brand} {shownModel(device.model)}
                   </span>
                   <span className="block text-xs text-zinc-500">
                     <span className="font-mono">{device.assetTag}</span> · {DEVICE_TYPE_LABELS[device.type]}
@@ -106,7 +107,7 @@ export async function EmployeeDevices({
             {past.map((row) => (
               <li key={row.id}>
                 <Link href={`/devices/${row.device.id}`} className="hover:underline">
-                  <span className="font-mono">{row.device.assetTag}</span> {row.device.brand} {row.device.model}
+                  <span className="font-mono">{row.device.assetTag}</span> {row.device.brand} {shownModel(row.device.model)}
                 </Link>
                 <span className="text-zinc-500">
                   {" "}· {formatDay(row.assignedAt)} → {formatDay(row.returnedAt)}

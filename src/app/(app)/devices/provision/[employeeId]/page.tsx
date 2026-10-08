@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
 import { DEVICE_STATUS_LABELS, DEVICE_TYPE_LABELS } from "@/lib/devices/devices";
+import { shownModel } from "@/lib/devices/devices";
 import { SALES_KINDS } from "@/lib/devices/vendors";
 import { vendorCatalog, vendorRecipients } from "@/lib/devices/purchase";
 import { DEVICE_OS_LABELS, osSuffix, recommendedOs } from "@/lib/devices/os";
@@ -142,7 +143,7 @@ export default async function ProvisionPage({
               <li key={device.id}>
                 <Link href={`/devices/${device.id}`} className="hover:underline">
                   <span className="font-mono">{device.assetTag}</span> {DEVICE_TYPE_LABELS[device.type]} · {device.brand}{" "}
-                  {device.model}
+                  {shownModel(device.model)}
                 </Link>
                 <span className="text-zinc-500"> · {DEVICE_STATUS_LABELS[device.status]}</span>
               </li>
@@ -162,7 +163,7 @@ export default async function ProvisionPage({
                 <span className="min-w-0">
                   <Link href={`/devices/${device.id}`} className="hover:underline">
                     <span className="font-mono">{device.assetTag}</span> {DEVICE_TYPE_LABELS[device.type]}
-                    {osSuffix(device.os)} · {device.brand} {device.model}
+                    {osSuffix(device.os)} · {device.brand} {shownModel(device.model)}
                   </Link>
                   {device.type === "LAPTOP" && wantOs && (
                     <span

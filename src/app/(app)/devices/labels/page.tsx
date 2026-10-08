@@ -7,6 +7,7 @@ import {
   DEVICE_TYPE_LABELS,
   deviceScanUrl,
 } from "@/lib/devices/devices";
+import { shownModel } from "@/lib/devices/devices";
 import { qrSvg } from "@/lib/devices/qr";
 import { PageHeader, PageShell } from "@/components/page";
 import { Button } from "@/components/ui/button";
@@ -55,7 +56,7 @@ export default async function LabelsPage({
             devices={devices.map((device) => ({
               id: device.id,
               assetTag: device.assetTag,
-              text: `${DEVICE_TYPE_LABELS[device.type]} · ${device.brand} ${device.model}`,
+              text: `${DEVICE_TYPE_LABELS[device.type]} · ${device.brand} ${shownModel(device.model)}`,
               who: device.holder?.name ?? DEVICE_STATUS_LABELS[device.status],
             }))}
           />
@@ -115,9 +116,8 @@ export default async function LabelsPage({
               assetTag={label.assetTag}
               type={label.type}
               brand={label.brand}
-              model={label.model}
+              model={shownModel(label.model)}
               holder={label.holder}
-              stockTag={label.stockTag}
             />
           ))}
         </div>

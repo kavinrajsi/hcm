@@ -19,6 +19,11 @@ export function LabelPicker({ devices }: { devices: PickerDevice[] }) {
 
   return (
     <form method="get" className="mt-6 flex flex-col gap-3">
+      <div>
+        <Button type="submit" disabled={picked.size === 0}>
+          {picked.size ? `Show sheet (${picked.size})` : "Show sheet"}
+        </Button>
+      </div>
       <label className="flex min-h-11 items-center gap-3 px-4 text-sm font-medium">
         <input
           type="checkbox"
@@ -51,11 +56,6 @@ export function LabelPicker({ devices }: { devices: PickerDevice[] }) {
           </li>
         ))}
       </ul>
-      <div>
-        <Button type="submit" disabled={picked.size === 0}>
-          {picked.size ? `Show sheet (${picked.size})` : "Show sheet"}
-        </Button>
-      </div>
     </form>
   );
 }
