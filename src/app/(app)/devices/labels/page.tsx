@@ -17,8 +17,9 @@ import { LabelPicker } from "./label-picker";
 
 export const metadata = { title: "Print labels" };
 
-// A4 sticker sheet: 3 across × 8 down of 70 × 37 mm labels.
-const PER_SHEET = 24;
+// A4 sticker sheet: 3 across × 7 down of 70 × 37 mm labels. Anything past
+// 21 starts a new printed page.
+const PER_SHEET = 21;
 
 export default async function LabelsPage({
   searchParams,
@@ -90,6 +91,10 @@ export default async function LabelsPage({
     })),
   );
 
+  const sheets = Array.from({ length: Math.ceil(labels.length / PER_SHEET) }, (_, index) =>
+    labels.slice(index * PER_SHEET, (index + 1) * PER_SHEET),
+  );
+
   return (
     <PageShell width="md">
       <PageHeader
@@ -109,18 +114,25 @@ export default async function LabelsPage({
         }
       />
       <div className="mt-6 overflow-x-auto rounded-md bg-zinc-100 p-4 dark:bg-zinc-900">
-        <div className="print-area mx-auto grid w-[210mm] grid-cols-[repeat(3,70mm)] content-start bg-white">
-          {labels.map((label) => (
-            <DeviceLabel
-              key={label.id}
-              svg={label.svg}
-              assetTag={label.assetTag}
-              type={label.type}
-              brand={label.brand}
-              model={shownModel(label.model)}
-              holder={label.holder}
-              vendorName={label.vendor?.name ?? null}
-            />
+        <div className="print-area mx-auto flex w-[210mm] flex-col gap-6 print:gap-0">
+          {sheets.map((sheet, sheetIndex) => (
+            <div
+              key={sheetIndex}
+              className="grid grid-cols-[repeat(3,70mm)] content-start bg-white break-after-page last:break-after-auto"
+            >
+              {sheet.map((label) => (
+                <DeviceLabel
+                  key={label.id}
+                  svg={label.svg}
+                  assetTag={label.assetTag}
+                  type={label.type}
+                  brand={label.brand}
+                  model={shownModel(label.model)}
+                  holder={label.holder}
+                  vendorName={label.vendor?.name ?? null}
+                />
+              ))}
+            </div>
           ))}
         </div>
       </div>
