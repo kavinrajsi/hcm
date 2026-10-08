@@ -28,7 +28,12 @@ export default async function ScannedDevicePage({
       model: true,
       status: true,
       vendor: { select: { name: true } },
-      ...DEVICE_ACCESS_SELECT,
+      holder: {
+        select: {
+          name: true,
+          ...DEVICE_ACCESS_SELECT.holder.select,
+        },
+      },
     },
   });
   if (!device) notFound();
@@ -49,6 +54,12 @@ export default async function ScannedDevicePage({
         <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
           <dt className="text-zinc-500">Asset tag</dt>
           <dd className="font-mono">{view.assetTag}</dd>
+          {view.holderName ? (
+            <>
+              <dt className="text-zinc-500">Assigned to</dt>
+              <dd>{view.holderName}</dd>
+            </>
+          ) : null}
         </dl>
         <p className="mt-6 rounded-md bg-muted px-3 py-2 text-sm">
           Property of {view.owner}. If you found it, please return it to the Madarth office
