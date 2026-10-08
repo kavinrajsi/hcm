@@ -27,6 +27,7 @@ export default async function ScannedDevicePage({
       brand: true,
       model: true,
       status: true,
+      vendor: { select: { name: true } },
       ...DEVICE_ACCESS_SELECT,
     },
   });
@@ -52,7 +53,7 @@ export default async function ScannedDevicePage({
           <dd>{DEVICE_TYPE_LABELS[view.type]}</dd>
         </dl>
         <p className="mt-6 rounded-md bg-muted px-3 py-2 text-sm">
-          This device belongs to Madarth. If you found it, please return it to the Madarth office
+          Property of {view.owner}. If you found it, please return it to the Madarth office
           {contact ? (
             <>
               {" "}or write to{" "}
