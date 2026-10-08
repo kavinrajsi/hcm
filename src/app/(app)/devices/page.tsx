@@ -144,8 +144,9 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
     device.holder ? (
       <span className="flex items-center gap-2">
         <EmployeeAvatar name={device.holder.name} avatarKey={device.holder.avatarBlobKey} />
-        <span className="min-w-0">
-          {device.holder.name} <span className="text-zinc-500">{device.holder.empId}</span>
+        <span className="min-w-0 leading-tight">
+          <span className="block truncate">{device.holder.name}</span>
+          <span className="block text-xs text-zinc-500">{device.holder.empId}</span>
         </span>
       </span>
     ) : (
