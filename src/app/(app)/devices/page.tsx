@@ -24,6 +24,7 @@ import { CountChips } from "@/components/data-table/count-chips";
 import { DEVICE_CHIPS } from "@/lib/chip-tones";
 import { TablePagination } from "@/components/data-table/pagination";
 import { ListCard } from "@/components/list-card";
+import { EmployeeAvatar } from "@/components/employee-avatar";
 import { Button } from "@/components/ui/button";
 import {
   DesktopTable,
@@ -107,7 +108,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
         os: true,
         ownership: true,
         status: true,
-        holder: { select: { name: true, empId: true, dateOfExit: true } },
+        holder: { select: { name: true, empId: true, dateOfExit: true, avatarBlobKey: true } },
         _count: { select: { tickets: { where: { status: { in: ["OPEN", "SENT_FOR_SERVICE"] } } } } },
       },
     }),
@@ -138,8 +139,18 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
   const typeCounts = new Map(typeGroups.map((group) => [group.type as string, group._count]));
   const statusCounts = new Map(statusGroups.map((group) => [group.status as string, group._count]));
 
+  // Photo on the left, name with the grey Emp ID on the right.
   const holderText = (device: (typeof devices)[number]) =>
-    device.holder ? `${device.holder.name} · ${device.holder.empId}` : "—";
+    device.holder ? (
+      <span className="flex items-center gap-2">
+        <EmployeeAvatar name={device.holder.name} avatarKey={device.holder.avatarBlobKey} />
+        <span className="min-w-0">
+          {device.holder.name} <span className="text-zinc-500">{device.holder.empId}</span>
+        </span>
+      </span>
+    ) : (
+      "—"
+    );
   // Assigned to someone who has left: still to be collected.
   const holderLeft = (device: (typeof devices)[number]) =>
     device.holder?.dateOfExit ? (
