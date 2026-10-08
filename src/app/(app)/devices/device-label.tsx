@@ -14,6 +14,7 @@ export function DeviceLabel({
   brand,
   model,
   holder = null,
+  vendorName = null,
   className,
 }: {
   svg: string;
@@ -22,6 +23,8 @@ export function DeviceLabel({
   brand: string;
   model: string;
   holder?: { name: string } | null;
+  /** The vendor the device belongs to; falls back to Madarth when none is set. */
+  vendorName?: string | null;
   className?: string;
 }) {
   const tag = assetTag;
@@ -53,7 +56,7 @@ export function DeviceLabel({
         </p>
         <p className="truncate text-[7pt]">{model}</p>
         <p className="mt-[1mm] text-[6pt] text-zinc-600">
-          Property of Madarth
+          Property of {vendorName ?? "Madarth"}
         </p>
       </div>
     </div>

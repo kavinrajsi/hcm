@@ -142,6 +142,7 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
             brand={device.brand}
             model={shownModel(device.model)}
             holder={device.holder}
+            vendorName={device.vendor?.name ?? null}
             className="rounded-md border border-zinc-200"
           />
           <div className="flex flex-wrap gap-2">

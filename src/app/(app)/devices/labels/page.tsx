@@ -77,6 +77,7 @@ export default async function LabelsPage({
       publicToken: true,
       stockTag: true,
       holder: { select: { name: true, empId: true } },
+      vendor: { select: { name: true } },
     },
   });
   const requestHeaders = await headers();
@@ -118,6 +119,7 @@ export default async function LabelsPage({
               brand={label.brand}
               model={shownModel(label.model)}
               holder={label.holder}
+              vendorName={label.vendor?.name ?? null}
             />
           ))}
         </div>
