@@ -12,7 +12,7 @@ const basecamp = vi.hoisted(() => ({
 vi.mock("@/lib/basecamp", () => basecamp);
 vi.mock("@/lib/leave-sync", () => ({ leaveSyncUserId: vi.fn(async () => "hr-1") }));
 
-const { syncChatLines, refreshChatIfStale, sendChatLine, BasecampNotConnectedError } = await import("./sync");
+const { syncAllChats, syncChatLines, refreshChatIfStale, sendChatLine, BasecampNotConnectedError } = await import("./sync");
 
 const LINES_URL = "https://3.basecampapi.com/1/chats/9/lines.json";
 const line = (id: number, at: string) => ({ id, created_at: at, content: `<div>Message ${id}</div>`, creator: { id: 77, name: "Ravi" } });
@@ -124,5 +124,20 @@ describe("sendChatLine", () => {
     fetchMock.mockResolvedValue(new Response("nope", { status: 403 }));
     await expect(sendChatLine("manager-1", "9", "Hi")).rejects.toThrow("(403)");
     expect(db.basecampChatLine.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("syncAllChats", () => {
+  it("adds up new lines across chats syncing in parallel", async () => {
+    db.basecampChat.findMany.mockResolvedValue(
+      [1, 2, 3, 4].map((id) => ({ basecampId: String(id), linesUrl: `https://3.basecampapi.com/1/chats/${id}/lines.json` })),
+    );
+    db.basecampChatLine.findMany.mockResolvedValue([]);
+    basecamp.eachPage.mockImplementation(async (_token, url: string, _agent, onPage) => {
+      if (url.endsWith("/chats.json")) return;
+      await new Promise((resolve) => setTimeout(resolve, Math.random() * 5));
+      await onPage([line(Number(url.match(/chats\/(\d+)/)![1]) * 10, "2026-10-13T04:00:00Z"), line(Number(url.match(/chats\/(\d+)/)![1]) * 10 + 1, "2026-10-13T03:00:00Z")]);
+    });
+    expect(await syncAllChats()).toEqual({ chats: 4, added: 8, failed: 0 });
   });
 });

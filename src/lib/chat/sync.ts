@@ -112,7 +112,10 @@ export async function syncAllChats(): Promise<ChatSyncResult> {
   // One chat's failure (removed from Basecamp, 404) doesn't stop the rest.
   await eachLimited(chats, 3, async (chat) => {
     try {
-      added += await syncChatLines(token, chat);
+      // Await first: `added += await …` would read `added` before the
+      // await and lose counts from chats syncing in parallel.
+      const count = await syncChatLines(token, chat);
+      added += count;
     } catch {
       failed++;
     }
