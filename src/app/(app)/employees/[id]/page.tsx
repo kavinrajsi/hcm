@@ -213,49 +213,49 @@ export default async function EmployeePage({
             )}
           </>
         )}
-        {tab === "basecamp" && (
-          <section>
-            <h2 className="text-lg font-medium">Basecamp</h2>
-            <div className="mt-3">
-              <BasecampAccess employeeId={employee.id} linked={Boolean(employee.basecampPersonId)} />
-            </div>
-          </section>
-        )}
         {tab === "login" && (
-          <section className="rounded-lg border border-zinc-200 p-5 text-sm dark:border-zinc-800">
-            <div className="flex items-center gap-2">
-              <h2 className="font-medium">Login</h2>
-              {employee.user && (
-                <span className="text-xs text-zinc-500">
-                  {employee.user.disabledAt
-                    ? "Disabled"
-                    : employee.user.passwordHash
-                      ? "Active"
-                      : "Invited — password not set yet"}
-                </span>
-              )}
-            </div>
-            {employee.user ? (
-              <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-start">
-                <RoleSelect userId={employee.user.id} role={employee.user.role} />
-                <UserActions
-                  userId={employee.user.id}
-                  disabled={!!employee.user.disabledAt}
-                  isSelf={employee.user.id === me.id}
-                />
-              </div>
-            ) : (
-              <div className="mt-3">
-                <p className="mb-2 text-zinc-500">
-                  No login yet — {employee.workEmail}
-                  {" can't sign in."}
-                </p>
-                {!employee.dateOfExit && (
-                  <CreateLoginButton employeeId={employee.id} />
+          <div className="flex flex-col gap-10">
+            <section className="rounded-lg border border-zinc-200 p-5 text-sm dark:border-zinc-800">
+              <div className="flex items-center gap-2">
+                <h2 className="font-medium">Login</h2>
+                {employee.user && (
+                  <span className="text-xs text-zinc-500">
+                    {employee.user.disabledAt
+                      ? "Disabled"
+                      : employee.user.passwordHash
+                        ? "Active"
+                        : "Invited — password not set yet"}
+                  </span>
                 )}
               </div>
-            )}
-          </section>
+              {employee.user ? (
+                <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-start">
+                  <RoleSelect userId={employee.user.id} role={employee.user.role} />
+                  <UserActions
+                    userId={employee.user.id}
+                    disabled={!!employee.user.disabledAt}
+                    isSelf={employee.user.id === me.id}
+                  />
+                </div>
+              ) : (
+                <div className="mt-3">
+                  <p className="mb-2 text-zinc-500">
+                    No login yet — {employee.workEmail}
+                    {" can't sign in."}
+                  </p>
+                  {!employee.dateOfExit && (
+                    <CreateLoginButton employeeId={employee.id} />
+                  )}
+                </div>
+              )}
+            </section>
+            <section>
+              <h2 className="text-lg font-medium">Basecamp</h2>
+              <div className="mt-3">
+                <BasecampAccess employeeId={employee.id} linked={Boolean(employee.basecampPersonId)} />
+              </div>
+            </section>
+          </div>
         )}
       </div>
     </PageShell>

@@ -8,6 +8,8 @@ describe("employee tabs", () => {
     expect(employeeTab("id-card")).toBe("id-card");
     expect(employeeTab("nonsense")).toBe("profile");
     expect(employeeTab(["leave"])).toBe("profile");
+    // Basecamp moved under Login; old links still land there.
+    expect(employeeTab("basecamp")).toBe("login");
   });
 
   it("builds tab links, Profile without a query", () => {

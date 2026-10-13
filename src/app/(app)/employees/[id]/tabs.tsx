@@ -9,14 +9,14 @@ export const EMPLOYEE_TABS = [
   { key: "leave", label: "Leave" },
   { key: "devices", label: "Devices" },
   { key: "id-card", label: "ID card" },
-  { key: "basecamp", label: "Basecamp" },
   { key: "login", label: "Login" },
 ] as const;
 
 export type EmployeeTab = (typeof EMPLOYEE_TABS)[number]["key"];
 
-/** The tab from ?tab=, falling back to Profile. */
+/** The tab from ?tab=, falling back to Profile. Basecamp now sits under Login. */
 export function employeeTab(value: unknown): EmployeeTab {
+  if (value === "basecamp") return "login";
   return EMPLOYEE_TABS.find((tab) => tab.key === value)?.key ?? "profile";
 }
 
