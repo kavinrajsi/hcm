@@ -9,7 +9,7 @@ Accounts are created by HR; there's no self sign-up. Sign in with email + passwo
 | Role | Sees |
 |---|---|
 | **Employee** | Dashboard, Staff, MadMax, Connect an AI, Learning, Sessions, Profile (own details, work, leave, security). Devices they hold. |
-| **Manager** | Everything an employee sees, plus their **direct reports** in Employees, Onboarding, Probation, Exit, Wish, Leave, Quantum; Assign, Freelancers, All devices, Session attendance, course authoring, Reviews. |
+| **Manager** | Everything an employee sees, plus their **direct reports** in Employees, Onboarding, Probation, Exit, Wish, Leave; Assign, Freelancers, All devices, Session attendance, course authoring, Reviews. |
 | **HR admin** | Everything, for everyone. Only HR sees Candidates, employee detail/new, ID cards, device requests/vendors/labels/settings, Letters and Admin. |
 
 The sidebar only shows what your role can open; the page itself also checks.
@@ -58,9 +58,6 @@ The sidebar only shows what your role can open; the page itself also checks.
 ### Leave
 `/leave` (HR, managers) — leave and WFH come from the Basecamp leave/WFH check-ins (live via webhook, plus a daily sync). AI classifies each post into a leave type; managers and HR approve or reject. Calendar, list and day views. Employees see their own under Profile → My leave.
 
-### Quantum
-`/quantum` — the Quantum Sheet work log: brand, work, link and time spent. Employees log their own under Profile → My work; managers see their team; HR can import.
-
 ### Assign
 `/assign` (HR, managers) — Assignment Intelligence: when a new design job comes in, shows which designers handled similar jobs and how those went, from Basecamp history. Includes belief capture, comment labelling and evaluation pages. See [docs/assignment-intelligence/](docs/assignment-intelligence/README.md).
 
@@ -87,7 +84,7 @@ The sidebar only shows what your role can open; the page itself also checks.
 
 ## Profile
 
-`/profile` — your own pages: details and contact info, **My work** (Quantum log, devices, sessions), **My leave**, and **Security** (password, passkeys, signed-in devices you can sign out, AI apps you've connected).
+`/profile` — your own pages: details and contact info, **My work** (devices, sessions), **My leave**, and **Security** (password, passkeys, signed-in devices you can sign out, AI apps you've connected).
 
 ## Admin (HR only)
 

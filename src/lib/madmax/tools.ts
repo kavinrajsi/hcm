@@ -20,7 +20,6 @@ import {
   addNoteToCandidate,
   confirmProbationRecord,
   contactSchema,
-  createQuantumEntry,
   extendProbationRecord,
   ProbationStateError,
   moveCandidate,
@@ -56,7 +55,6 @@ export type MadmaxContext = {
 /** Tools that change data; each needs the user's approval in the chat. */
 export const WRITE_TOOLS = [
   "updateMyContact",
-  "addMyQuantumEntry",
   "reviewLeave",
   "setCandidateStatus",
   "addCandidateNote",
@@ -69,11 +67,9 @@ const EVERYONE = [
   "getMyProfile",
   "listDevices",
   "getDevice",
-  "listMyQuantumEntries",
   "listMyLeave",
   "listMySessions",
   "updateMyContact",
-  "addMyQuantumEntry",
 ];
 const MANAGER = ["listMyReports", "getEmployee", "listLeave", "reviewLeave"];
 const HR = [
@@ -235,36 +231,6 @@ export function buildTools(context: MadmaxContext): ToolSet {
       },
     }),
 
-    listMyQuantumEntries: tool({
-      description:
-        "The signed-in user's Quantum Sheet work log, newest first. Dates are YYYY-MM-DD.",
-      inputSchema: z.object({
-        from: z.iso.date().optional(),
-        to: z.iso.date().optional(),
-        limit,
-      }),
-      execute: async ({ from, to, limit: take }) => {
-        const employeeId = requireOwnEmployee(context);
-        const entries = await db.quantumEntry.findMany({
-          where: {
-            employeeId,
-            date: {
-              gte: from ? new Date(`${from}T00:00:00Z`) : undefined,
-              lte: to ? new Date(`${to}T00:00:00Z`) : undefined,
-            },
-          },
-          orderBy: { date: "desc" },
-          take: take ?? CAP,
-        });
-        return entries.map((entry) => ({
-          date: formatDay(entry.date),
-          brand: entry.brand,
-          work: entry.workName,
-          minutes: entry.durationMins,
-        }));
-      },
-    }),
-
     listMyLeave: tool({
       description:
         "The signed-in user's leave and WFH posts for a year, with total leave days.",
@@ -381,34 +347,6 @@ export function buildTools(context: MadmaxContext): ToolSet {
         });
         await saveContact(employeeId, merged);
         return { updated: Object.keys(changes) };
-      },
-    }),
-
-    addMyQuantumEntry: tool({
-      description:
-        "Log work on the signed-in user's Quantum Sheet. Date is YYYY-MM-DD (default today).",
-      inputSchema: z.object({
-        date: z.iso.date().optional(),
-        brand: z.string().trim().min(1),
-        workName: z.string().trim().min(1),
-        durationMins: z
-          .number()
-          .int()
-          .min(0)
-          .max(24 * 60),
-        link: z.url().optional(),
-      }),
-      execute: async ({ date, brand, workName, durationMins, link }) => {
-        const employeeId = requireOwnEmployee(context);
-        await createQuantumEntry({
-          employeeId,
-          date: new Date(`${date ?? today}T00:00:00Z`),
-          brand,
-          workName,
-          durationMins,
-          link,
-        });
-        return { logged: true, date: formatDay(date ?? today) };
       },
     }),
 

@@ -37,7 +37,7 @@ Other scopes: devices (`src/lib/devices/access.ts`: HR manage; holder and holder
 | Domain | Models |
 |---|---|
 | Identity | `User` (role, optional `passwordHash`, `disabledAt`), `PasswordResetToken`, `AuthAttempt`, `Passkey`, `WebAuthnChallenge`, `LoginSession` |
-| Core HR | `Employee` (self-relation manager/reports; Basecamp link `basecampPersonId`, `avatarBlobKey`, `openTodosDated/Undated/Overdue/SyncedAt`; encrypted PII; blind indexes; document blob keys), `OnboardingRecord`, `IdCard` + `IdCardStatusChange`, `ProbationRecord`, `EmploymentReminder`, `QuantumEntry`, `Letter` + `LetterTemplate`, `PreviousEmployment`, `ReviewMeeting` (stub), `Freelancer` |
+| Core HR | `Employee` (self-relation manager/reports; Basecamp link `basecampPersonId`, `avatarBlobKey`, `openTodosDated/Undated/Overdue/SyncedAt`; encrypted PII; blind indexes; document blob keys), `OnboardingRecord`, `IdCard` + `IdCardStatusChange`, `ProbationRecord`, `EmploymentReminder`, `Letter` + `LetterTemplate`, `PreviousEmployment`, `ReviewMeeting` (stub), `Freelancer` |
 | Training | `TrainingSession`, `SessionRegistration`, `SessionAttendance` |
 | Leave | `LeaveEntry` (Basecamp answer, AI or manual classification, reviewer) |
 | Recruitment | `Candidate` → table `candidates`, `CandidateStatusChange` → `candidate_status_changes` (**owned by the website**, snake_case, don't rename), `CandidateScore` (1:1 AI score), `RoleCriteria` |
@@ -111,9 +111,6 @@ AES-256-GCM in `src/lib/crypto.ts`; values look like `k<keyId>:iv:tag:ct`. Encry
 - Daily: `/api/cron/leave-sync` (`src/lib/leave-sync.ts`) — full history first run, then 14-day re-read.
 - Classification: `src/lib/leave-classify.ts` (`LEAVE_AI_MODEL`, default `google/gemini-2.5-flash-lite`); optional second opinion `src/lib/leave-type-jev.ts` (`LEAVE_TYPE_MODEL`, `off` disables).
 - Config: `BASECAMP_LEAVE_ACCOUNT_ID`, `BASECAMP_LEAVE_BUCKET_ID`, `BASECAMP_LEAVE_QUESTION_ID`, `BASECAMP_WFH_QUESTION_ID`.
-
-### Quantum
-`/quantum` (HR+M), own entries under `/profile/work`. `src/app/(app)/quantum/`, model `QuantumEntry` (manual or from Basecamp, deduped on `employeeId` + `basecampId`). The Basecamp import uses the signed-in user's own Basecamp connection.
 
 ### Assign
 `/assign`, `/assign/beliefs`, `/assign/eval`, `/assign/labels` (HR+M). `src/lib/assign/` — `jobs-sync.ts` (incremental pull of completed to-dos and comments), `classify.ts` (`ASSIGN_AI_MODEL`, few-shot from coordinator labels), `suggest.ts` (counting, no model), `eval.ts`, `floor-manager.ts`, `todo.ts` (creates `[test]` to-dos for picks). Cron `/api/cron/basecamp-jobs` daily; manual `/api/basecamp/jobs-sync` (NDJSON stream); script `sync-basecamp-jobs.ts`. Full write-up: [docs/assignment-intelligence/README.md](docs/assignment-intelligence/README.md).

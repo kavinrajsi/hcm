@@ -2,8 +2,8 @@ import { db } from "@/lib/db";
 import { decryptField, encryptField } from "@/lib/crypto";
 import { parseNextLink } from "@/lib/leave";
 
-// Basecamp OAuth2 (launchpad.37signals.com) + minimal API client for the
-// Quantum Sheet import. Tokens are stored encrypted per user.
+// Basecamp OAuth2 (launchpad.37signals.com) + API client for leave sync,
+// people sync, onboarding and Assign. Tokens are stored encrypted per user.
 
 const LAUNCHPAD = "https://launchpad.37signals.com";
 
@@ -151,7 +151,7 @@ async function api<T>(
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        "User-Agent": "HCM Quantum Sheet (internal)",
+        "User-Agent": "HCM (internal)",
       },
     },
   );
@@ -166,40 +166,8 @@ export type BasecampProject = {
   dock: { name: string; id: number }[];
 };
 
-export type BasecampTodo = {
-  id: number;
-  title: string;
-  app_url: string;
-  updated_at: string;
-};
-
 export async function listProjects(accessToken: string, accountId: string) {
   return api<BasecampProject[]>(accessToken, accountId, "/projects.json");
-}
-
-/** Flattens a project's todoset → todolists → todos. */
-export async function listProjectTodos(
-  accessToken: string,
-  accountId: string,
-  project: BasecampProject,
-): Promise<BasecampTodo[]> {
-  const todoset = project.dock.find((dockItem) => dockItem.name === "todoset");
-  if (!todoset) return [];
-  const lists = await api<{ id: number }[]>(
-    accessToken,
-    accountId,
-    `/buckets/${project.id}/todosets/${todoset.id}/todolists.json`,
-  );
-  const todos: BasecampTodo[] = [];
-  for (const list of lists) {
-    const items = await api<BasecampTodo[]>(
-      accessToken,
-      accountId,
-      `/buckets/${project.id}/todolists/${list.id}/todos.json`,
-    );
-    todos.push(...items);
-  }
-  return todos;
 }
 
 // --- Leave check-ins ("Post your leave here", "Post your WFH here") ---

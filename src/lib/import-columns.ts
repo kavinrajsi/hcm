@@ -58,12 +58,3 @@ export const ATTENDANCE_IMPORT_COLUMNS = [
   "trainer",
   "notes",
 ] as const;
-
-export const QUANTUM_IMPORT_COLUMNS = [
-  "empId",
-  "date",
-  "brand",
-  "workName",
-  "link",
-  "durationMins",
-] as const;

@@ -43,7 +43,6 @@ type Thread = { id: string; title: string };
 // Lookups shown as a quiet status row while they run.
 const TOOL_LABELS: Record<string, string> = {
   getMyProfile: "your profile",
-  listMyQuantumEntries: "your Quantum log",
   listMyLeave: "your leave",
   listMySessions: "your sessions",
   listMyReports: "your team",
@@ -73,7 +72,6 @@ const PROMPT_GROUPS: PromptGroup[] = [
       { text: "Show my profile" },
       { text: "Show my leave this year" },
       { text: "How many leave days have I taken this year?" },
-      { text: "What have I logged on Quantum this week?" },
       { text: "My upcoming sessions and the ones I attended" },
     ],
   },
@@ -83,7 +81,6 @@ const PROMPT_GROUPS: PromptGroup[] = [
     prompts: [
       { text: "Update my phone number to [number]", change: true },
       { text: "Change my address to [address], [city]", change: true },
-      { text: "Log [2] hours on [brand] — [work] for today", change: true },
     ],
   },
   {
@@ -139,10 +136,6 @@ function describeChange(toolName: string, input: Record<string, unknown>) {
       return `Update your contact details: ${Object.entries(input)
         .map(([key, field]) => `${key} → ${String(field)}`)
         .join(", ")}`;
-    case "addMyQuantumEntry":
-      return `Log ${value("durationMins")} min on ${value("brand")} — ${value("workName")}${
-        input.date ? ` (${formatDay(value("date"))})` : " (today)"
-      }`;
     case "reviewLeave":
       return `Mark leave post as ${value("decision").toLowerCase()}`;
     case "setCandidateStatus":

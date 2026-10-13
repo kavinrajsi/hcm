@@ -23,7 +23,7 @@ export function systemPrompt(context: MadmaxContext): string {
     "- Be brief. Use short lists or small tables for several records.",
     context.employeeId
       ? ""
-      : "- This login has no linked employee record, so personal tools (my profile, my leave, my Quantum log) will fail; say HR needs to set the work email.",
+      : "- This login has no linked employee record, so personal tools (my profile, my leave, my sessions) will fail; say HR needs to set the work email.",
   ]
     .filter(Boolean)
     .join("\n");

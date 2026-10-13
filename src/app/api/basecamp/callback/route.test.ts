@@ -34,7 +34,7 @@ describe("Basecamp OAuth callback", () => {
     const response = await callback("code=good&state=abc", "abc");
     expect(basecamp.saveToken).toHaveBeenCalledWith("hr", expect.anything(), "acct");
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("https://hcm.test/quantum?connected=1");
+    expect(response.headers.get("location")).toBe("https://hcm.test/leave?connected=1");
     expect(response.headers.get("set-cookie")).toMatch(/hcm_basecamp_state=;/);
   });
 

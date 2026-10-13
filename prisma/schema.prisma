@@ -54,11 +54,6 @@ enum SessionMode {
   VIRTUAL
 }
 
-enum QuantumSource {
-  MANUAL
-  BASECAMP
-}
-
 enum Availability {
   AVAILABLE
   BUSY
@@ -231,7 +226,6 @@ model Employee {
   onboarding          OnboardingRecord?
   idCard              IdCard?
   probation           ProbationRecord?
-  quantumEntries      QuantumEntry[]
   registrations       SessionRegistration[]
   attendance          SessionAttendance[]
   letters             Letter[]
@@ -307,24 +301,6 @@ model ProbationRecord {
 
   @@index([dueDate])
   @@index([status])
-}
-
-// Per-employee work log (Quantum Sheet). Manual entries or Basecamp import.
-model QuantumEntry {
-  id           String        @id @default(cuid())
-  employee     Employee      @relation(fields: [employeeId], references: [id])
-  employeeId   String
-  date         DateTime      @db.Date
-  brand        String
-  workName     String
-  link         String? // Basecamp/Figma URL
-  durationMins Int
-  source       QuantumSource @default(MANUAL)
-  basecampId   String? // dedupe key for imported todos
-  createdAt    DateTime      @default(now())
-
-  @@unique([employeeId, basecampId])
-  @@index([employeeId, date])
 }
 
 model TrainingSession {

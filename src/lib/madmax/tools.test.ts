@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const db = vi.hoisted(() => ({
   employee: { findFirst: vi.fn(), findUniqueOrThrow: vi.fn() },
   leaveEntry: { findUnique: vi.fn(), update: vi.fn() },
-  quantumEntry: { create: vi.fn(), findMany: vi.fn() },
 }));
 vi.mock("@/lib/db", () => ({ db }));
 
@@ -100,23 +99,9 @@ describe("scope checks in execute", () => {
     );
   });
 
-  it("always logs Quantum work for the signed-in user", async () => {
-    db.quantumEntry.create.mockResolvedValue({ id: "q1" });
-    const tools = buildTools(context("EMPLOYEE"));
-    await run(tools, "addMyQuantumEntry", {
-      date: "2026-09-28",
-      brand: "Madarth",
-      workName: "Website",
-      durationMins: 120,
-    });
-    expect(db.quantumEntry.create.mock.calls[0][0].data.employeeId).toBe(
-      "emp-self",
-    );
-  });
-
   it("refuses personal tools without a linked employee", async () => {
     const tools = buildTools(context("EMPLOYEE", null));
-    await expect(run(tools, "listMyQuantumEntries", {})).rejects.toThrow(
+    await expect(run(tools, "listMyLeave", {})).rejects.toThrow(
       "No employee record",
     );
   });

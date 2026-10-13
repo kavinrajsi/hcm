@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     return new Response("Couldn't connect Basecamp. Try again.", { status: 502 });
   }
 
-  const response = NextResponse.redirect(new URL("/quantum?connected=1", request.url));
+  const response = NextResponse.redirect(new URL("/leave?connected=1", request.url));
   // One use only.
   response.cookies.delete({ name: STATE_COOKIE, path: "/api/basecamp/callback" });
   return response;

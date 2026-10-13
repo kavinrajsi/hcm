@@ -231,7 +231,7 @@ export default async function McpInstructionsPage() {
               {
                 text: (
                   <>
-                    Ask your question. When ChatGPT wants to change something in HCM (log Quantum work, approve leave),
+                    Ask your question. When ChatGPT wants to change something in HCM (update your contact details, approve leave),
                     it shows the details and asks you to confirm first.
                   </>
                 ),

@@ -41,17 +41,6 @@ export async function saveContact(employeeId: string, input: ContactInput) {
   });
 }
 
-export async function createQuantumEntry(entry: {
-  employeeId: string;
-  date: Date;
-  brand: string;
-  workName: string;
-  link?: string;
-  durationMins: number;
-}) {
-  return db.quantumEntry.create({ data: entry, select: { id: true } });
-}
-
 /**
  * Sets a candidate's status and logs the move (skipped when unchanged).
  * Reads the old value inside the transaction so concurrent moves each log
