@@ -58,7 +58,7 @@ export default async function ChatThreadPage({ params, searchParams }: PageProps
       showConversationOnPhone
     >
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b bg-[var(--chat-pill)] px-3 py-2 md:px-4">
+        <header className="flex shrink-0 items-center gap-3 border-b bg-[var(--chat-pill)] px-3 py-2 md:px-4">
           <Link
             href={`/chat${q ? `?q=${encodeURIComponent(q)}` : ""}`}
             aria-label="Back to chats"

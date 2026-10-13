@@ -1,41 +1,63 @@
 "use client";
 
-// Chat: the message box, WhatsApp-style. "+" picks a file (up to 4 MB), ☺
-// opens the emoji panel, Enter sends (Shift+Enter for a new line). A file
-// goes first, then the text, as two Basecamp lines like Basecamp's own box.
-// Both post under the sender's own Basecamp connection.
+// Chat: the message box, WhatsApp-style, always pinned under the messages.
+// "+" picks a file (up to 4 MB), ☺ opens the emoji panel, Enter sends
+// (Shift+Enter for a new line). A file goes first, then the text, as two
+// Basecamp lines like Basecamp's own box. Both post under the sender's own
+// Basecamp connection; without one, Send offers to connect (the typed text
+// is kept for this tab and comes back afterwards).
 
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { LoaderCircle, Paperclip, Plus, SendHorizontal, X } from "lucide-react";
 import type { ChatMessage } from "@/lib/chat/messages";
+import { clearDraft, loadDraft, saveDraft } from "@/lib/chat/draft";
 import { EmojiPicker } from "./emoji-picker";
 
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
+
+// The draft is only read on render; nothing outside this box changes it.
+const noSubscription = () => () => {};
 
 type SendResult = { message?: ChatMessage; error?: string; notConnected?: boolean };
 
 export function Composer({
   chatId,
+  connected,
   onSent,
-  onNotConnected,
 }: {
   chatId: string;
+  connected: boolean;
   onSent: (message: ChatMessage) => void;
-  onNotConnected: () => void;
 }) {
-  const [text, setText] = useState("");
+  // This chat's unsent text from earlier in the tab (after switching chats or
+  // connecting Basecamp): empty on the server, the saved draft in the browser.
+  const savedDraft = useSyncExternalStore(
+    noSubscription,
+    () => loadDraft(chatId),
+    () => "",
+  );
+  // null until the person types, so the saved draft shows until then.
+  const [typed, setTyped] = useState<string | null>(null);
+  const text = typed ?? savedDraft;
+  // Shown instead of posting when the sender has no Basecamp connection.
+  const [needsConnect, setNeedsConnect] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
   const picker = useRef<HTMLInputElement>(null);
 
+  function changeText(next: string) {
+    setTyped(next);
+    saveDraft(chatId, next);
+  }
+
   function insertEmoji(emoji: string) {
     const element = box.current;
-    if (!element) return setText((current) => current + emoji);
+    if (!element) return changeText(text + emoji);
     const start = element.selectionStart ?? text.length;
     const end = element.selectionEnd ?? text.length;
-    setText(text.slice(0, start) + emoji + text.slice(end));
+    changeText(text.slice(0, start) + emoji + text.slice(end));
     // Put the cursor after the emoji once React has updated the box.
     requestAnimationFrame(() => {
       element.focus();
@@ -47,8 +69,8 @@ export function Composer({
     const response = await request;
     const body = (await response.json().catch(() => ({}))) as SendResult;
     if (!response.ok || !body.message) {
-      if (body.notConnected) onNotConnected();
-      setError(body.error ?? "Couldn't send. Try again.");
+      if (body.notConnected) setNeedsConnect(true);
+      else setError(body.error ?? "Couldn't send. Try again.");
       return false;
     }
     onSent(body.message);
@@ -58,6 +80,10 @@ export function Composer({
   async function send() {
     const message = text.trim();
     if ((!message && !file) || sending) return;
+    if (!connected) {
+      setNeedsConnect(true);
+      return;
+    }
     setSending(true);
     setError(null);
     try {
@@ -75,7 +101,10 @@ export function Composer({
             body: JSON.stringify({ text: message }),
           }),
         );
-        if (sent) setText("");
+        if (sent) {
+          setTyped("");
+          clearDraft(chatId);
+        }
       }
     } catch {
       setError("Couldn't send. Check your connection and try again.");
@@ -86,7 +115,30 @@ export function Composer({
 
   const canSend = Boolean(text.trim() || file) && !sending;
   return (
-    <div className="bg-[var(--chat-pill)] px-2 py-2 md:px-4">
+    <div className="shrink-0 bg-[var(--chat-pill)] px-2 py-2 md:px-4">
+      {needsConnect && (
+        <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-[var(--chat-composer)] px-3 py-2 text-sm">
+          <p className="min-w-0 flex-1">
+            Connect your Basecamp to send messages under your name.
+            {file && <span className="text-[var(--chat-meta)]"> Pick the file again after connecting.</span>}
+          </p>
+          <a
+            href={`/api/basecamp/connect?returnTo=${encodeURIComponent(`/chat/${chatId}`)}`}
+            onClick={() => saveDraft(chatId, text)}
+            className="inline-flex h-9 items-center rounded-full bg-[var(--chat-accent)] px-4 font-medium text-white"
+          >
+            Connect
+          </a>
+          <button
+            type="button"
+            aria-label="Not now"
+            onClick={() => setNeedsConnect(false)}
+            className="flex size-8 items-center justify-center rounded-full text-[var(--chat-meta)] hover:bg-black/5 dark:hover:bg-white/10"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
       {error && <p className="mb-2 px-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
       {file && (
         <div className="mb-2 flex items-center gap-2 rounded-lg bg-[var(--chat-composer)] px-3 py-2 text-sm">
@@ -136,7 +188,7 @@ export function Composer({
           <textarea
             ref={box}
             value={text}
-            onChange={(event) => setText(event.target.value)}
+            onChange={(event) => changeText(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
                 event.preventDefault();

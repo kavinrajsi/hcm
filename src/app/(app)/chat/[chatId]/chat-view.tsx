@@ -33,7 +33,7 @@ export function ChatView({
   initialMessages,
   initialHasEarlier,
   myPersonId,
-  connected: initiallyConnected,
+  connected,
 }: {
   chatId: string;
   initialMessages: ChatMessage[];
@@ -45,7 +45,6 @@ export function ChatView({
   const [hasEarlier, setHasEarlier] = useState(initialHasEarlier);
   const [loadingEarlier, setLoadingEarlier] = useState(false);
   const [earlierError, setEarlierError] = useState(false);
-  const [connected, setConnected] = useState(initiallyConnected);
   const scroller = useRef<HTMLDivElement>(null);
   // Stick to the bottom for new messages only when the reader is already
   // there; keep the position when older ones load above.
@@ -177,26 +176,14 @@ export function ChatView({
         </ol>
       </div>
 
-      {connected ? (
-        <Composer
-          chatId={chatId}
-          onSent={(message) => {
-            stickToBottom.current = true;
-            setMessages((current) => mergeMessages(current, [message]));
-          }}
-          onNotConnected={() => setConnected(false)}
-        />
-      ) : (
-        <p className="bg-[var(--chat-pill)] px-4 py-3 text-sm text-[var(--chat-meta)]">
-          <a
-            href={`/api/basecamp/connect?returnTo=${encodeURIComponent(`/chat/${chatId}`)}`}
-            className="font-medium text-[var(--chat-accent)] underline underline-offset-4"
-          >
-            Connect your Basecamp
-          </a>{" "}
-          to reply here. Messages and files post under your own name.
-        </p>
-      )}
+      <Composer
+        chatId={chatId}
+        connected={connected}
+        onSent={(message) => {
+          stickToBottom.current = true;
+          setMessages((current) => mergeMessages(current, [message]));
+        }}
+      />
     </div>
   );
 }
