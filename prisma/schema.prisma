@@ -304,13 +304,15 @@ model ProbationRecord {
   @@index([status])
 }
 
-// Quantum Sheet: Basecamp to-dos from the last 12 months, copied locally by
-// an incremental sync (src/lib/quantum/sync.ts) so the page never calls
-// Basecamp. `data` keeps a trimmed copy of the Basecamp payload; the columns
+// Quantum Sheet: Basecamp to-dos, Card Table cards and steps from the last
+// 12 months, copied locally by an incremental sync (src/lib/quantum/sync.ts)
+// so the page never calls Basecamp. `data` keeps a trimmed copy of the Basecamp payload; the columns
 // are the parts the page filters and sorts on.
 model QuantumTodo {
   id                String    @id @default(cuid())
   basecampId        String    @unique
+  // Basecamp type: Todo, Kanban::Card (Card Table card) or Kanban::Step (a step on a to-do or card)
+  kind              String    @default("Todo")
   projectId         String
   projectName       String
   listName          String?
@@ -329,6 +331,7 @@ model QuantumTodo {
   syncedAt          DateTime  @updatedAt
 
   @@index([projectId])
+  @@index([kind])
   @@index([sheetDay])
   @@index([basecampUpdatedAt])
   @@index([assigneeIds], type: Gin)
@@ -352,6 +355,39 @@ model QuantumHours {
 
   @@unique([todoBasecampId, employeeId])
   @@index([todoBasecampId])
+}
+
+// Chat page: Basecamp project chats (Campfires) and their lines, copied
+// locally by src/lib/chat/sync.ts. Basecamp has no webhooks for chat, so the
+// copy is kept fresh by polling (a cron, plus the open chat every few seconds).
+model BasecampChat {
+  basecampId      String    @id
+  projectId       String
+  projectName     String
+  title           String
+  linesUrl        String
+  appUrl          String
+  lastLineAt      DateTime?
+  lastLinePreview String?
+  // When this chat's lines were last checked against Basecamp.
+  lastCheckedAt   DateTime?
+  data            Json
+  updatedAt       DateTime  @updatedAt
+
+  @@index([lastLineAt])
+}
+
+model BasecampChatLine {
+  basecampId      String   @id
+  chatBasecampId  String
+  creatorPersonId String?
+  creatorName     String
+  contentHtml     String // sanitized
+  attachments     Json?
+  createdAt       DateTime
+  data            Json
+
+  @@index([chatBasecampId, createdAt])
 }
 
 model TrainingSession {

@@ -43,18 +43,6 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
-    title: "Work",
-    items: [
-      { title: "Leave", url: "/leave", roles: HR_OR_MANAGER },
-      // Basecamp to-dos by day, like Basecamp's timesheet; everyone logs
-      // hours on their own to-dos, HR and managers see all.
-      { title: "Quantum Sheet", url: "/quantum" },
-      // Assignment Intelligence: who should take a design job.
-      { title: "Assign", url: "/assign", roles: HR_OR_MANAGER },
-      { title: "Freelancers", url: "/freelancers", roles: HR_OR_MANAGER },
-    ],
-  },
-  {
     title: "Devices",
     items: [
       { title: "All devices", url: "/devices", roles: HR_OR_MANAGER },
@@ -62,6 +50,20 @@ export const NAV: NavGroup[] = [
       { title: "Vendors", url: "/devices/vendors", roles: HR },
       { title: "Print labels", url: "/devices/labels", roles: HR },
       { title: "Settings", url: "/devices/settings", roles: HR },
+    ],
+  },
+  {
+    title: "Work",
+    items: [
+      { title: "Leave", url: "/leave", roles: HR_OR_MANAGER },
+      // Basecamp to-dos by day, like Basecamp's timesheet; everyone logs
+      // hours on their own to-dos, HR and managers see all.
+      { title: "Quantum Sheet", url: "/quantum" },
+      // Basecamp project chats, WhatsApp-style; HR and managers.
+      { title: "Chat", url: "/chat", roles: HR_OR_MANAGER },
+      // Assignment Intelligence: who should take a design job.
+      { title: "Assign", url: "/assign", roles: HR_OR_MANAGER },
+      { title: "Freelancers", url: "/freelancers", roles: HR_OR_MANAGER },
     ],
   },
   {

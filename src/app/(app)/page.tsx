@@ -8,21 +8,6 @@ import type { Role } from "@/generated/prisma/enums";
 
 export const metadata = { title: "Dashboard" };
 
-const modules = [
-  { href: "/employees", title: "Employee Master" },
-  { href: "/onboarding", title: "Onboarding" },
-  { href: "/exit", title: "Exit / Offboarding" },
-  { href: "/id-cards", title: "ID Cards" },
-  { href: "/probation", title: "Probation" },
-  { href: "/quantum", title: "Quantum Sheet" },
-  { href: "/sessions", title: "Session Calendar" },
-  { href: "/sessions/attended", title: "Session Attended" },
-  { href: "/freelancers", title: "Freelance Pool" },
-  { href: "/letters", title: "Letters" },
-  { href: "/reviews", title: "Review Meetings" },
-  { href: "/profile", title: "My Profile" },
-] as const;
-
 const NAV_ITEMS = NAV.flatMap((group) => group.items);
 
 /** Same role rule as the sidebar, so the dashboard never links to a page the user can't open. */
@@ -111,21 +96,6 @@ export default async function Home() {
       </div>
 
       {recruitment && <RecruitmentSection stats={recruitment} />}
-
-      <h2 className="mt-12 text-lg font-medium">Modules</h2>
-      <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {modules
-          .filter((moduleLink) => canOpen(moduleLink.href, user.role))
-          .map((moduleLink) => (
-            <Link
-              key={moduleLink.href}
-              href={moduleLink.href}
-              className="rounded-lg border border-zinc-200 px-4 py-3 text-sm font-medium transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
-            >
-              {moduleLink.title}
-            </Link>
-          ))}
-      </div>
     </main>
   );
 }

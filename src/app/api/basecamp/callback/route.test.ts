@@ -12,10 +12,12 @@ vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
 const { GET } = await import("./route");
 
-const callback = (query: string, cookie?: string) =>
+const callback = (query: string, cookie?: string, returnTo?: string) =>
   GET(
     new NextRequest(`https://hcm.test/api/basecamp/callback?${query}`, {
-      headers: cookie ? { cookie: `hcm_basecamp_state=${cookie}` } : {},
+      headers: cookie
+        ? { cookie: `hcm_basecamp_state=${cookie}${returnTo ? `; hcm_basecamp_return=${returnTo}` : ""}` }
+        : {},
     }),
   );
 
@@ -36,6 +38,16 @@ describe("Basecamp OAuth callback", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("https://hcm.test/leave?connected=1");
     expect(response.headers.get("set-cookie")).toMatch(/hcm_basecamp_state=;/);
+  });
+
+  it("returns to the page that started the connect (Chat)", async () => {
+    const response = await callback("code=good&state=abc", "abc", "/chat/42");
+    expect(response.headers.get("location")).toBe("https://hcm.test/chat/42?connected=1");
+  });
+
+  it("ignores a return path that isn't one of ours", async () => {
+    const response = await callback("code=good&state=abc", "abc", "//evil.example");
+    expect(response.headers.get("location")).toBe("https://hcm.test/leave?connected=1");
   });
 
   it("reports a failed token exchange instead of crashing", async () => {

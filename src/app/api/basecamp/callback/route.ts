@@ -2,13 +2,18 @@ import { NextResponse, type NextRequest } from "next/server";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/rbac";
 import { exchangeCode, fetchAccountId, saveToken } from "@/lib/basecamp";
-import { STATE_COOKIE, stateMatches } from "@/lib/basecamp-oauth-state";
+import {
+  RETURN_COOKIE,
+  safeReturnPath,
+  STATE_COOKIE,
+  stateMatches,
+} from "@/lib/basecamp-oauth-state";
 
 export async function GET(request: NextRequest) {
-  // Signed out → login page; signed in without HR → 403 (not a 500).
+  // Signed out → login page; employees → 403 (not a 500).
   const user = await currentUser();
   if (!user) redirect("/login");
-  if (user.role !== "HR_ADMIN")
+  if (user.role !== "HR_ADMIN" && user.role !== "MANAGER")
     return new Response("Forbidden", { status: 403 });
 
   // Only a code from the round trip this browser started (see connect).
@@ -30,8 +35,10 @@ export async function GET(request: NextRequest) {
     return new Response("Couldn't connect Basecamp. Try again.", { status: 502 });
   }
 
-  const response = NextResponse.redirect(new URL("/leave?connected=1", request.url));
+  const returnTo = safeReturnPath(request.cookies.get(RETURN_COOKIE)?.value);
+  const response = NextResponse.redirect(new URL(`${returnTo}?connected=1`, request.url));
   // One use only.
   response.cookies.delete({ name: STATE_COOKIE, path: "/api/basecamp/callback" });
+  response.cookies.delete({ name: RETURN_COOKIE, path: "/api/basecamp/callback" });
   return response;
 }

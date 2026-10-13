@@ -49,19 +49,34 @@ describe("syncQuantumTodos", () => {
     const stops: unknown[] = [];
     basecamp.eachPage.mockImplementation(async (_token, url: string, _agent, onPage) => {
       if (url.includes("timesheet")) return;
-      if (!url.includes("status=active")) return stops.push(await onPage([]));
+      if (!url.includes("type=Todo&status=active")) return stops.push(await onPage([]));
       stops.push(await onPage([todo(1, "2026-10-12T09:00:00.000Z"), todo(2, "2026-10-11T00:00:00.000Z")]));
     });
 
     const result = await syncQuantumTodos({ updatedById: "u1" });
 
-    expect(result).toMatchObject({ since: "2026-10-12T00:00:00.000Z", saved: 1, pages: 3 });
+    expect(result).toMatchObject({ since: "2026-10-12T00:00:00.000Z", saved: 1, pages: 9 });
     expect(db.quantumTodo.upsert).toHaveBeenCalledTimes(1);
-    expect(db.quantumTodo.upsert.mock.calls[0][0]).toMatchObject({ where: { basecampId: "1" } });
-    expect(stops).toEqual([true, true, false]);
+    expect(db.quantumTodo.upsert.mock.calls[0][0]).toMatchObject({ where: { basecampId: "1" }, create: { kind: "Todo" } });
+    // Each type: active and archived stop at `since`, the trash is read in full.
+    expect(stops).toEqual([true, true, false, true, true, false, true, true, false]);
     expect(
-      basecamp.eachPage.mock.calls.map((call) => /status=(\w+)/.exec(call[1])?.[1] ?? "timesheet"),
-    ).toEqual(["active", "archived", "trashed", "timesheet"]);
+      basecamp.eachPage.mock.calls.map((call) => {
+        const match = /type=([^&]+)&status=(\w+)/.exec(call[1]);
+        return match ? `${decodeURIComponent(match[1])}/${match[2]}` : "timesheet";
+      }),
+    ).toEqual([
+      "Todo/active",
+      "Todo/archived",
+      "Todo/trashed",
+      "Kanban::Card/active",
+      "Kanban::Card/archived",
+      "Kanban::Card/trashed",
+      "Kanban::Step/active",
+      "Kanban::Step/archived",
+      "Kanban::Step/trashed",
+      "timesheet",
+    ]);
     expect(db.appSetting.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { key: "quantum.sync" } }),
     );
@@ -75,7 +90,32 @@ describe("syncQuantumTodos", () => {
       stops.push(await onPage([todo(1, "2026-10-12T09:00:00.000Z")]));
     });
     await syncQuantumTodos();
-    expect(stops).toEqual([false, false, false]);
+    expect(stops).toEqual(Array(9).fill(false));
+  });
+
+  it("stores cards and steps with their kind", async () => {
+    db.appSetting.findUnique.mockResolvedValue({ value: { syncedThrough: "2026-10-12T00:10:00.000Z" } });
+    basecamp.eachPage.mockImplementation(async (_token, url: string, _agent, onPage) => {
+      if (url.includes("type=Kanban%3A%3ACard&status=active"))
+        await onPage([
+          { ...todo(7, "2026-10-12T09:00:00.000Z"), type: "Kanban::Card", parent: { id: 3, title: "In progress", type: "Kanban::Column" } },
+        ]);
+    });
+    await syncQuantumTodos();
+    expect(db.quantumTodo.upsert.mock.calls[0][0]).toMatchObject({
+      where: { basecampId: "7" },
+      create: { kind: "Kanban::Card", listName: "In progress" },
+    });
+  });
+
+  it("loads only the asked-for types and leaves the high-water mark alone", async () => {
+    db.appSetting.findUnique.mockResolvedValue({ value: { syncedThrough: "2026-10-12T00:10:00.000Z" } });
+    basecamp.eachPage.mockImplementation(async () => {});
+    await syncQuantumTodos({ full: true, kinds: ["Kanban::Card", "Kanban::Step"] });
+    const urls = basecamp.eachPage.mock.calls.map((call) => call[1] as string);
+    expect(urls.some((url) => url.includes("type=Todo&"))).toBe(false);
+    expect(urls.filter((url) => url.includes("recordings")).length).toBe(6);
+    expect(db.appSetting.upsert).not.toHaveBeenCalled();
   });
 
   it("reads the whole trash, however old", async () => {
@@ -89,6 +129,29 @@ describe("syncQuantumTodos", () => {
       where: { basecampId: "3" },
       update: { status: "trashed" },
     });
+  });
+
+  it("reports progress per step and page", async () => {
+    db.appSetting.findUnique.mockResolvedValue({ value: { syncedThrough: "2026-10-12T00:10:00.000Z" } });
+    basecamp.eachPage.mockImplementation(async (_token, url: string, _agent, onPage) => {
+      if (url.includes("type=Todo&status=active")) await onPage([todo(1, "2026-10-12T09:00:00.000Z")]);
+    });
+    const progress: unknown[] = [];
+    await syncQuantumTodos({ onProgress: (step) => progress.push(step) });
+    expect(progress).toEqual([
+      { stage: "todos", status: "active", pages: 0, saved: 0 },
+      { stage: "todos", status: "active", pages: 1, saved: 1 },
+      { stage: "todos", status: "archived", pages: 1, saved: 1 },
+      { stage: "todos", status: "trashed", pages: 1, saved: 1 },
+      { stage: "cards", status: "active", pages: 0, saved: 0 },
+      { stage: "cards", status: "archived", pages: 0, saved: 0 },
+      { stage: "cards", status: "trashed", pages: 0, saved: 0 },
+      { stage: "steps", status: "active", pages: 0, saved: 0 },
+      { stage: "steps", status: "archived", pages: 0, saved: 0 },
+      { stage: "steps", status: "trashed", pages: 0, saved: 0 },
+      { stage: "hours", hourEntries: null },
+      { stage: "hours", hourEntries: 0 },
+    ]);
   });
 
   it("doesn't move the high-water mark when Basecamp fails", async () => {
@@ -105,19 +168,23 @@ describe("syncQuantumTodos", () => {
 });
 
 describe("syncTimesheetHours", () => {
-  it("keeps hours logged on to-dos and drops entries deleted in Basecamp", async () => {
+  it("keeps hours logged on to-dos and cards and drops entries deleted in Basecamp", async () => {
     basecamp.eachPage.mockImplementation(async (_token, url: string, _agent, onPage) => {
       expect(url).toContain("start_date=2025-10-13&end_date=2026-10-13");
       await onPage([
         { id: 1, status: "active", date: "2026-10-07", hours: "1.5", parent: { id: 42, type: "Todo" }, person: { id: 5, name: "Ravi" } },
         { id: 2, status: "active", date: "2026-10-07", hours: "2.0", parent: { id: 9, type: "Message" } },
+        { id: 4, status: "active", date: "2026-10-08", hours: "0.5", parent: { id: 77, type: "Kanban::Card" } },
         { id: 3, status: "trashed", date: "2026-10-07", hours: "1.0", parent: { id: 43, type: "Todo" } },
       ]);
     });
 
     const saved = await syncTimesheetHours({ accessToken: "t", accountId: "1" }, new Date("2026-10-13T06:00:00Z"));
 
-    expect(saved).toBe(1);
+    expect(saved).toBe(2); // the to-do and the card
+    expect(db.quantumHours.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.objectContaining({ todoBasecampId: "77", minutes: 30 }) }),
+    );
     expect(db.quantumHours.upsert).toHaveBeenCalledWith({
       where: { basecampEntryId: "1" },
       create: expect.objectContaining({ todoBasecampId: "42", minutes: 90, source: "basecamp", basecampEntryId: "1" }),
@@ -125,7 +192,7 @@ describe("syncTimesheetHours", () => {
     });
     expect(db.quantumHours.deleteMany.mock.calls[0][0].where).toMatchObject({
       source: "basecamp",
-      basecampEntryId: { notIn: ["1"] },
+      basecampEntryId: { notIn: ["1", "4"] },
     });
   });
 });

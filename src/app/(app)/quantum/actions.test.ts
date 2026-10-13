@@ -1,10 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const sync = vi.hoisted(() => ({
-  lastQuantumSync: vi.fn(),
-  syncQuantumTodos: vi.fn(),
-}));
-vi.mock("@/lib/quantum/sync", () => sync);
 const db = vi.hoisted(() => ({
   employee: { findUnique: vi.fn() },
   quantumTodo: { findUnique: vi.fn() },
@@ -12,13 +7,12 @@ const db = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/db", () => ({ db }));
 vi.mock("@/lib/rbac", () => ({
-  requireRole: vi.fn(async () => ({ id: "u1", role: "MANAGER" })),
   requireUser: vi.fn(async () => ({ id: "u2", role: "EMPLOYEE", email: "ravi@madarth.com" })),
 }));
 vi.mock("@/lib/my-employee", () => ({ myEmployeeId: vi.fn(async () => "emp-1") }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-const { syncQuantum, logQuantumHours } = await import("./actions");
+const { logQuantumHours } = await import("./actions");
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -32,27 +26,6 @@ const form = (fields: Record<string, string>) => {
   for (const [key, value] of Object.entries(fields)) data.set(key, value);
   return data;
 };
-
-describe("syncQuantum", () => {
-  it("won't run the first 12-month load from the button", async () => {
-    sync.lastQuantumSync.mockResolvedValue(null);
-    expect(await syncQuantum()).toEqual({ error: "The first load from Basecamp hasn't run yet." });
-    expect(sync.syncQuantumTodos).not.toHaveBeenCalled();
-  });
-
-  it("reports how many to-dos changed", async () => {
-    sync.lastQuantumSync.mockResolvedValue(new Date());
-    sync.syncQuantumTodos.mockResolvedValue({ since: "", pages: 1, saved: 3, hourEntries: 0 });
-    expect(await syncQuantum()).toEqual({ ok: "Updated 3 to-dos." });
-    expect(sync.syncQuantumTodos).toHaveBeenCalledWith({ updatedById: "u1" });
-  });
-
-  it("shows the Basecamp error", async () => {
-    sync.lastQuantumSync.mockResolvedValue(new Date());
-    sync.syncQuantumTodos.mockRejectedValue(new Error("No HR admin has connected Basecamp"));
-    expect(await syncQuantum()).toEqual({ error: "No HR admin has connected Basecamp" });
-  });
-});
 
 describe("logQuantumHours", () => {
   it("saves your hours on your own to-do", async () => {

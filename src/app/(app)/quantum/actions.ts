@@ -1,40 +1,16 @@
 "use server";
 
-// Quantum Sheet: "Sync from Basecamp" pulls to-dos changed since the last
-// sync; "Your hours" logs time on a to-do assigned to you.
+// Quantum Sheet: "Your hours" logs time on a to-do assigned to you. (Sync
+// from Basecamp streams through /api/quantum/sync.)
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { fieldError, invalid, type FormState } from "@/lib/form-state";
-import { requireRole, requireUser } from "@/lib/rbac";
+import { requireUser } from "@/lib/rbac";
 import { myEmployeeId } from "@/lib/my-employee";
 import { istDay } from "@/lib/date-filter";
-import { lastQuantumSync, syncQuantumTodos } from "@/lib/quantum/sync";
 import { hoursToMinutes } from "@/lib/quantum/todos";
-
-export type QuantumSyncState = { error?: string; ok?: string };
-
-export async function syncQuantum(): Promise<QuantumSyncState> {
-  const user = await requireRole("HR_ADMIN", "MANAGER");
-  // The first 12-month load is thousands of Basecamp calls; it runs as a
-  // one-off script, never from a button.
-  if (!(await lastQuantumSync())) {
-    return { error: "The first load from Basecamp hasn't run yet." };
-  }
-  try {
-    const result = await syncQuantumTodos({ updatedById: user.id });
-    revalidatePath("/quantum");
-    return {
-      ok:
-        result.saved === 0
-          ? "Up to date."
-          : `Updated ${result.saved} to-do${result.saved === 1 ? "" : "s"}.`,
-    };
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : "Sync failed" };
-  }
-}
 
 const hoursSchema = z.object({
   todoId: z.string().min(1),

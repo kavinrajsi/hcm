@@ -1,6 +1,7 @@
 import type { VercelConfig } from "@vercel/config/v1";
 
-// Every job runs overnight, between 02:00 and 08:00 IST (20:30–02:30 UTC),
+// Every job runs overnight, between 02:00 and 08:00 IST (20:30–02:30 UTC)
+// — except chat-sync, which keeps the Chat page live during the day —
 // so syncs, AI calls and emails are done before the working day. Daily jobs
 // are spaced out so the AI Gateway's per-minute limit isn't shared by two
 // at once. The frequent jobs are scheduled 20:00–02:59 UTC and skip any run
@@ -33,5 +34,9 @@ export const config: VercelConfig = {
     // Every 30 minutes, 02:00–07:30 IST — each employee's open Basecamp
     // to-dos for Staff.
     { path: "/api/cron/basecamp-todo-counts", schedule: "0,30 20-23,0-2 * * *" },
+    // Every 5 minutes, all day — the one daytime job: new Basecamp chat lines
+    // for the Chat page (Basecamp has no webhooks for chat; the open chat
+    // also refreshes itself every few seconds).
+    { path: "/api/cron/chat-sync", schedule: "*/5 * * * *" },
   ],
 };

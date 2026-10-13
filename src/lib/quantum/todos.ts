@@ -1,12 +1,28 @@
-// Quantum Sheet: turns a Basecamp to-do (from the account-wide recordings
-// list) into a QuantumTodo row, and builds the page's status filter.
+// Quantum Sheet: turns a Basecamp to-do, Card Table card or step (from the
+// account-wide recordings list) into a QuantumTodo row, and builds the
+// page's filters.
 
 import type { Prisma } from "@/generated/prisma/client";
 import { istDayKey } from "@/lib/format-date";
 
-/** A to-do as `/projects/recordings.json?type=Todo` returns it (fields we use). */
+/** What a QuantumTodo row holds, as Basecamp names the recording type. */
+export const QUANTUM_KINDS = [
+  { value: "Todo", label: "To-do" },
+  { value: "Kanban::Card", label: "Card" },
+  { value: "Kanban::Step", label: "Step" },
+] as const;
+export type QuantumKind = (typeof QUANTUM_KINDS)[number]["value"];
+
+// Where an item sits: a to-do's list, a card's column, a step's to-do or card.
+const PARENT_TYPES = new Set(["Todolist", "Kanban::Column", "Todo", "Kanban::Card"]);
+
+/**
+ * A to-do, card or step as `/projects/recordings.json?type=…` returns it
+ * (fields we use; cards and steps lack completion and starts_on).
+ */
 export type BasecampTodoRecording = {
   id: number;
+  type?: string;
   status: string; // active | archived | trashed
   title: string;
   app_url: string;
@@ -15,7 +31,7 @@ export type BasecampTodoRecording = {
   completed: boolean;
   completion?: { created_at: string; creator?: { id: number; name: string } | null } | null;
   due_on: string | null;
-  starts_on: string | null;
+  starts_on?: string | null;
   comments_count?: number;
   parent: { id: number; title: string; type: string };
   bucket: { id: number; name: string };
@@ -26,6 +42,7 @@ export type BasecampTodoRecording = {
 /** The trimmed copy kept in QuantumTodo.data (no descriptions or avatars). */
 export type QuantumTodoData = {
   id: number;
+  kind: string;
   title: string;
   status: string;
   completed: boolean;
@@ -33,7 +50,7 @@ export type QuantumTodoData = {
   dueOn: string | null;
   startsOn: string | null;
   project: { id: number; name: string };
-  list: { id: number; title: string } | null;
+  list: { id: number; title: string; type: string } | null;
   assignees: { id: number; name: string }[];
   creator: { id: number; name: string } | null;
   commentsCount: number;
@@ -55,9 +72,14 @@ export function toQuantumRow(todo: BasecampTodoRecording) {
     : null;
   // Completed to-dos sit under the IST day they were done; open ones under their due date.
   const sheetDay = completedAt ? istDayKey(completedAt) : todo.due_on;
-  const list = todo.parent?.type === "Todolist" ? { id: todo.parent.id, title: todo.parent.title } : null;
+  const list =
+    todo.parent && PARENT_TYPES.has(todo.parent.type)
+      ? { id: todo.parent.id, title: todo.parent.title, type: todo.parent.type }
+      : null;
+  const kind = todo.type ?? "Todo";
   const data: QuantumTodoData = {
     id: todo.id,
+    kind,
     title: todo.title,
     status: todo.status,
     completed: todo.completed,
@@ -65,7 +87,7 @@ export function toQuantumRow(todo: BasecampTodoRecording) {
       ? { at: completedAt.toISOString(), by: person(todo.completion?.creator) }
       : null,
     dueOn: todo.due_on,
-    startsOn: todo.starts_on,
+    startsOn: todo.starts_on ?? null,
     project: { id: todo.bucket.id, name: todo.bucket.name },
     list,
     assignees: todo.assignees.map((assignee) => ({ id: assignee.id, name: assignee.name })),
@@ -77,6 +99,7 @@ export function toQuantumRow(todo: BasecampTodoRecording) {
   };
   return {
     basecampId: String(todo.id),
+    kind,
     projectId: String(todo.bucket.id),
     projectName: todo.bucket.name,
     listName: list?.title ?? null,

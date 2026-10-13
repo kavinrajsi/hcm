@@ -17,3 +17,14 @@ export function stateMatches(fromCookie: string | undefined, fromQuery: string |
   const right = Buffer.from(fromQuery);
   return left.length === right.length && timingSafeEqual(left, right);
 }
+
+/** Where the callback sends people back to (only these pages start a connect). */
+export const RETURN_COOKIE = "hcm_basecamp_return";
+const RETURN_PATHS = ["/leave", "/chat"];
+
+export function safeReturnPath(value: string | null | undefined): string {
+  if (!value) return "/leave";
+  // Only our own pages: "/chat" or "/chat/123", never "//evil.example" or a full URL.
+  const match = RETURN_PATHS.find((path) => value === path || value.startsWith(`${path}/`));
+  return match && /^\/[\w/-]*$/.test(value) ? value : "/leave";
+}

@@ -255,3 +255,32 @@ export function LeaveSkeleton() {
     </Loading>
   );
 }
+
+/** Chat: the list pane and an empty conversation, at the chat frame's height. */
+export function ChatSkeleton() {
+  return (
+    <main
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+      className="flex h-[calc(100dvh-7rem-env(safe-area-inset-bottom))] w-full md:h-[calc(100dvh-4rem)]"
+    >
+      <span className="sr-only">Loading…</span>
+      <div className="w-full border-r p-3 md:w-80 lg:w-96">
+        <Skeleton className="h-9 w-full" />
+        <div className="mt-3 flex flex-col gap-4">
+          {Array.from({ length: 7 }, (_, index) => (
+            <div key={index} className="flex items-center gap-3">
+              <Skeleton className="size-10 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="hidden flex-1 bg-muted/30 md:block" />
+    </main>
+  );
+}

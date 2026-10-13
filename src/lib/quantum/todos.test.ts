@@ -57,6 +57,23 @@ describe("toQuantumRow", () => {
     expect(toQuantumRow({ ...base, due_on: null }).sheetDay).toBeNull();
   });
 
+  it("maps a step under the to-do or card it belongs to", () => {
+    const row = toQuantumRow({
+      ...base,
+      type: "Kanban::Step",
+      starts_on: undefined,
+      parent: { id: 77, title: "Launch video", type: "Kanban::Card" },
+    });
+    expect(row.kind).toBe("Kanban::Step");
+    expect(row.listName).toBe("Launch video");
+    expect(row.data.list).toEqual({ id: 77, title: "Launch video", type: "Kanban::Card" });
+    expect(row.data.startsOn).toBeNull();
+  });
+
+  it("treats a recording without a type as a to-do", () => {
+    expect(toQuantumRow(base).kind).toBe("Todo");
+  });
+
   it("keeps only the trimmed fields in data", () => {
     const row = toQuantumRow({
       ...base,

@@ -23,11 +23,12 @@ import {
   PageHeader,
   PageShell,
 } from "@/components/page";
-import { EmployeeAvatar } from "@/components/employee-avatar";
+import { AvatarStack } from "@/components/avatar-stack";
 import { ArrowOutwardIcon } from "@/components/icons";
 import { Prisma } from "@/generated/prisma/client";
 import { formatDateTime, formatDay, formatWeekdayDay } from "@/lib/format-date";
 import {
+  QUANTUM_KINDS,
   QUANTUM_STATUSES,
   effectiveMinutes,
   formatHours,
@@ -69,6 +70,8 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
 
   const projects = listParam(raw.project);
   const people = listParam(raw.person);
+  const kindParam = listParam(raw.type);
+  const kinds = QUANTUM_KINDS.map((kind) => kind.value).filter((value) => kindParam.includes(value));
   const statusParam = listParam(raw.status);
   const statuses = QUANTUM_STATUSES.map((status) => status.value).filter((value) =>
     statusParam.includes(value),
@@ -115,6 +118,7 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
       ],
     });
   if (projects.length) and.push({ projectId: { in: projects } });
+  if (kinds.length) and.push({ kind: { in: kinds } });
   if (isTeamView && people.length) and.push({ assigneeIds: { hasSome: people } });
   const byStatus = statusWhere(statuses, today);
   if (byStatus) and.push(byStatus);
@@ -125,7 +129,7 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
   const projectSql = projects.length
     ? Prisma.sql`AND "projectId" IN (${Prisma.join(projects)})`
     : Prisma.empty;
-  const [todos, total, projectGroups, assigneeRows, lastSync] = await Promise.all([
+  const [todos, total, projectGroups, kindGroups, assigneeRows, lastSync] = await Promise.all([
     db.quantumTodo.findMany({
       where,
       orderBy: [
@@ -142,6 +146,7 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
       where: visible,
       _count: true,
     }),
+    db.quantumTodo.groupBy({ by: ["kind"], where: visible, _count: true }),
     isTeamView
       ? db.$queryRaw<{ id: string; name: string; count: number }[]>`
           SELECT assignee->>'id' AS id, MAX(assignee->>'name') AS name, COUNT(*)::int AS count
@@ -276,7 +281,7 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
       />
 
       <div className="mt-5 flex flex-col gap-3 md:mt-6">
-        <FilterSearch placeholder="Search to-do, project or list" />
+        <FilterSearch placeholder="Search to-do, card, project or list" />
         <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:items-center [&>*]:md:min-w-0 [&>*]:md:flex-1">
           <FilterMultiSelect
             param="project"
@@ -303,6 +308,16 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
             />
           )}
           <FilterMultiSelect
+            param="type"
+            label="Type"
+            plural="Types"
+            options={QUANTUM_KINDS.map((kind) => ({
+              value: kind.value,
+              label: kind.label,
+              count: kindGroups.find((group) => group.kind === kind.value)?._count ?? 0,
+            }))}
+          />
+          <FilterMultiSelect
             param="status"
             label="Status"
             plural="Statuses"
@@ -328,7 +343,13 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
                   <ListCard
                     key={todo.id}
                     href={todo.appUrl}
-                    title={todo.title}
+                    leading={assignees.length > 0 ? <AvatarStack people={assignees} max={3} /> : undefined}
+                    title={
+                      <>
+                        <KindTag kind={todo.kind} />
+                        {todo.title}
+                      </>
+                    }
                     subtitle={[todo.projectName, todo.listName].filter(Boolean).join(" › ")}
                     badge={<StatusPill status={status} />}
                     meta={
@@ -381,14 +402,11 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
                         {assignees.length === 0 ? (
                           <span className="text-zinc-500">Unassigned</span>
                         ) : (
-                          <ul className="flex flex-col gap-1.5">
-                            {assignees.map((person) => (
-                              <li key={person.id} className="flex items-center gap-2">
-                                <EmployeeAvatar name={person.name} avatarKey={person.avatarKey} />
-                                <span className="truncate">{person.name}</span>
-                              </li>
-                            ))}
-                          </ul>
+                          <div className="flex items-center gap-2">
+                            <AvatarStack people={assignees} />
+                            {/* One person: their name too; more show names on hover. */}
+                            {assignees.length === 1 && <span className="truncate">{assignees[0].name}</span>}
+                          </div>
                         )}
                       </TableCell>
                       <TableCell className="w-36 py-3">{hoursCell(todo)}</TableCell>
@@ -405,6 +423,7 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
                           rel="noreferrer"
                           className="inline-flex items-start gap-1 font-medium underline-offset-4 hover:underline"
                         >
+                          <KindTag kind={todo.kind} />
                           {todo.title}
                           <ArrowOutwardIcon className="mt-0.5 size-3.5 shrink-0 text-zinc-400" />
                         </a>
@@ -433,6 +452,20 @@ function StatusPill({ status }: { status: QuantumStatus }) {
   return (
     <span className={cn("rounded px-1.5 py-0.5 text-xs font-medium", STATUS_STYLES[status])}>
       {STATUS_LABELS[status]}
+    </span>
+  );
+}
+
+const KIND_LABELS: Record<string, string> = Object.fromEntries(
+  QUANTUM_KINDS.map((kind) => [kind.value, kind.label]),
+);
+
+/** "Card" / "Step" before the title; plain to-dos get no tag. */
+function KindTag({ kind }: { kind: string }) {
+  if (kind === "Todo") return null;
+  return (
+    <span className="mr-1.5 inline-block rounded border border-zinc-300 px-1 py-px align-middle text-[11px] font-medium text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
+      {KIND_LABELS[kind] ?? kind}
     </span>
   );
 }
