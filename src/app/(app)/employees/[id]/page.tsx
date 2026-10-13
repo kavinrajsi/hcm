@@ -5,10 +5,6 @@ import { PageShell } from "@/components/page";
 import { requirePageRole } from "@/lib/rbac";
 import { decryptField, maskValue } from "@/lib/crypto";
 import { readPii } from "@/lib/employee-pii";
-import {
-  EMPLOYEE_DOCUMENTS,
-  previousEmploymentLinks,
-} from "@/lib/employee-documents";
 import { updateEmployee } from "../actions";
 import { EmployeeForm, type SensitiveMasks } from "../employee-form";
 import { IdCardHistory } from "./id-card-history";
@@ -20,13 +16,9 @@ import {
   RoleSelect,
   UserActions,
 } from "../../users/user-controls";
-import { idCardStatusLabel } from "@/lib/id-card-status";
-import { formatDay, formatInstantDay } from "@/lib/format-date";
 import { EmployeeAvatar } from "@/components/employee-avatar";
 
 export const metadata = { title: "Employee" };
-
-const DOCUMENTS = EMPLOYEE_DOCUMENTS;
 
 function mask(enc: string | null): string | undefined {
   if (!enc) return undefined;
@@ -55,7 +47,6 @@ export default async function EmployeePage({
           },
         },
         probation: true,
-        onboarding: true,
         previousEmployments: { orderBy: { position: "asc" } },
         user: {
           select: {
@@ -103,7 +94,6 @@ export default async function EmployeePage({
 
   const update = updateEmployee.bind(null, employee.id);
   const pii = readPii(employee);
-  const letters = previousEmploymentLinks(employee.previousEmployments);
 
   return (
     <PageShell>
@@ -129,68 +119,6 @@ export default async function EmployeePage({
         </Link>
       </div>
 
-      <dl className="mt-6 grid grid-cols-2 gap-4 rounded-lg border border-zinc-200 p-5 text-sm sm:grid-cols-4 dark:border-zinc-800">
-        <div>
-          <dt className="text-zinc-500">ID card</dt>
-          <dd className="mt-0.5 font-medium">
-            {employee.idCard ? idCardStatusLabel(employee.idCard.status) : "—"}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-zinc-500">Probation</dt>
-          <dd className="mt-0.5 font-medium">
-            {employee.probation
-              ? `${employee.probation.status} · due ${formatDay(employee.probation.dueDate)}`
-              : "—"}
-          </dd>
-        </div>
-        {(employee.empType === "INTERN" || employee.empType === "CONTRACT") && (
-          <div>
-            <dt className="text-zinc-500">
-              {employee.empType === "INTERN"
-                ? "Internship ends"
-                : "Contract ends"}
-            </dt>
-            <dd className="mt-0.5 font-medium">
-              {formatDay(employee.empTypeEndsOn) || "—"}
-            </dd>
-          </div>
-        )}
-        <div>
-          <dt className="text-zinc-500">Onboarded</dt>
-          <dd className="mt-0.5 font-medium">
-            {employee.onboarding
-              ? formatInstantDay(employee.onboarding.completedAt)
-              : "—"}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-zinc-500">Documents</dt>
-          <dd className="mt-0.5 flex flex-wrap gap-x-2 font-medium">
-            {DOCUMENTS.filter(([key]) => employee[key]).map(([key, label]) => (
-              <a
-                key={key}
-                href={`/api/files/${employee[key]}`}
-                className="underline underline-offset-4"
-              >
-                {label}
-              </a>
-            ))}
-            {letters.map((link) => (
-              <a
-                key={link.key}
-                href={`/api/files/${link.key}`}
-                className="underline underline-offset-4"
-              >
-                {link.label}
-              </a>
-            ))}
-            {DOCUMENTS.every(([key]) => !employee[key]) &&
-              letters.length === 0 &&
-              "—"}
-          </dd>
-        </div>
-      </dl>
 
       <div className="mt-8">
         <EmployeeForm
