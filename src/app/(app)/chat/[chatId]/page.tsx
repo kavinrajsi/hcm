@@ -9,12 +9,12 @@ import { myBasecampPersonId } from "@/lib/chat/viewer";
 import { chatAvatarColor } from "@/lib/chat/format";
 import { ArrowOutwardIcon, ChevronRightIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
-import { ChatFrame } from "../chat-frame";
-import { ChatList } from "../chat-list";
 import { ChatView } from "./chat-view";
 
-// Chat: one Basecamp project chat. The server renders the newest messages
-// and marks the chat read; ChatView then polls for new ones and sends.
+// Chat: one Basecamp project chat — the right-hand pane only (the list comes
+// from the Chat layout, so switching chats leaves it in place). The server
+// renders the newest messages and marks the chat read; ChatView then polls
+// for new ones and sends.
 
 export const metadata = { title: "Chat" };
 
@@ -52,11 +52,7 @@ export default async function ChatThreadPage({ params, searchParams }: PageProps
   const subtitle = names.length > 0 ? names.join(", ") : chat.title !== "Chat" ? chat.title : "Basecamp project chat";
 
   return (
-    <ChatFrame
-      list={<ChatList activeId={chat.basecampId} q={q} userId={user.id} myPersonId={myPersonId} />}
-      showConversationOnPhone
-    >
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex shrink-0 items-center gap-3 border-b bg-[var(--chat-pill)] px-3 py-2 md:px-4">
           <Link
             href={`/chat${q ? `?q=${encodeURIComponent(q)}` : ""}`}
@@ -97,7 +93,6 @@ export default async function ChatThreadPage({ params, searchParams }: PageProps
           myPersonId={myPersonId}
           connected={Boolean(connection)}
         />
-      </div>
-    </ChatFrame>
+    </div>
   );
 }

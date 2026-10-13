@@ -284,3 +284,28 @@ export function ChatSkeleton() {
     </main>
   );
 }
+
+/** Chat: the right-hand pane while a conversation loads (the list stays). */
+export function ChatPaneSkeleton() {
+  return (
+    <div role="status" aria-busy="true" aria-live="polite" className="flex min-h-0 flex-1 flex-col">
+      <span className="sr-only">Loading…</span>
+      <div className="flex items-center gap-3 border-b px-4 py-2.5">
+        <Skeleton className="size-10 rounded-full" />
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-3 w-72 max-w-full" />
+        </div>
+      </div>
+      <div
+        style={{ backgroundImage: "var(--chat-wallpaper)" }}
+        className="flex min-h-0 flex-1 flex-col justify-end gap-3 bg-[var(--chat-wallpaper-bg)] bg-repeat p-6"
+      >
+        <Skeleton className="h-12 w-2/3 max-w-md rounded-lg" />
+        <Skeleton className="h-10 w-1/2 max-w-sm self-end rounded-lg" />
+        <Skeleton className="h-16 w-3/5 max-w-md rounded-lg" />
+      </div>
+      <div className="h-[60px] border-t bg-[var(--chat-pill)]" />
+    </div>
+  );
+}

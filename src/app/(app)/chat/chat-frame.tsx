@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef } from "react";
+import { useSelectedLayoutSegment } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 // Chat page: the two-pane frame (list | conversation). On phones only one
@@ -15,16 +16,10 @@ export function frameHeight(top: number, viewportHeight: number, tabBarHeight: n
   return Math.max(240, Math.floor(viewportHeight - top - tabBarHeight));
 }
 
-export function ChatFrame({
-  list,
-  children,
-  showConversationOnPhone,
-}: {
-  list: React.ReactNode;
-  children: React.ReactNode;
-  showConversationOnPhone: boolean;
-}) {
+export function ChatFrame({ list, children }: { list: React.ReactNode; children: React.ReactNode }) {
   const frame = useRef<HTMLElement>(null);
+  // Phones show the conversation when a chat is open, else the list.
+  const showConversationOnPhone = useSelectedLayoutSegment() !== null;
 
   useLayoutEffect(() => {
     const element = frame.current;
