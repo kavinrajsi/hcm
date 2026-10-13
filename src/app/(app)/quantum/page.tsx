@@ -207,6 +207,27 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
     select: { todoBasecampId: true, source: true, minutes: true, employeeId: true },
   });
   const hoursByTodo = effectiveMinutes(hourRows);
+
+  // Totals for everything the filters match, not just this page. Few to-dos
+  // have hours, so start from those and keep the ones the filters match.
+  const allHourRows = await db.quantumHours.findMany({
+    select: { todoBasecampId: true, source: true, minutes: true },
+  });
+  const todosWithHours = [...new Set(allHourRows.map((row) => row.todoBasecampId))];
+  const [matchingWithHours, completedCount] = await Promise.all([
+    todosWithHours.length
+      ? db.quantumTodo.findMany({
+          where: { AND: [...and, { basecampId: { in: todosWithHours } }] },
+          select: { basecampId: true },
+        })
+      : [],
+    db.quantumTodo.count({ where: { AND: [...and, { completed: true }] } }),
+  ]);
+  const allHours = effectiveMinutes(allHourRows);
+  const totalMinutes = matchingWithHours.reduce(
+    (sum, todo) => sum + (allHours.get(todo.basecampId)?.minutes ?? 0),
+    0,
+  );
   const myHours = new Map(
     hourRows
       .filter((row) => row.source === "hcm" && me && row.employeeId === me.id)
@@ -279,6 +300,23 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
         }
         actions={isTeamView ? <QuantumSyncForm /> : undefined}
       />
+
+      {/* Totals for the current filters (all pages). */}
+      <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 md:mt-6">
+        {[
+          { label: "Total hours", value: totalMinutes ? formatHours(totalMinutes) : "0h", strong: true },
+          { label: "To-dos", value: total.toLocaleString("en-IN") },
+          { label: "Completed", value: completedCount.toLocaleString("en-IN") },
+          { label: "With hours logged", value: matchingWithHours.length.toLocaleString("en-IN") },
+        ].map((stat) => (
+          <div key={stat.label} className="rounded-lg border border-zinc-200 px-4 py-3 dark:border-zinc-800">
+            <dt className="text-xs text-zinc-500">{stat.label}</dt>
+            <dd className={cn("mt-0.5 text-xl font-semibold tabular-nums", stat.strong && "text-2xl")}>
+              {stat.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
 
       <div className="mt-5 flex flex-col gap-3 md:mt-6">
         <FilterSearch placeholder="Search to-do, card, project or list" />
