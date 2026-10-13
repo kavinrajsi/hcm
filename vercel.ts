@@ -17,6 +17,9 @@ export const config: VercelConfig = {
     // Daily 04:00 IST (22:30 UTC) — completed Basecamp to-dos and comments
     // for Assignment Intelligence, then AI classification of what's new.
     { path: "/api/cron/basecamp-jobs", schedule: "30 22 * * *" },
+    // Daily 04:45 IST (23:15 UTC) — Basecamp to-dos changed since the last
+    // run, for the Quantum Sheet.
+    { path: "/api/cron/quantum-sync", schedule: "15 23 * * *" },
     // Mondays 06:00 IST (00:30 UTC Monday) — overdue probation
     // confirmations, to hr@madarth.com (upcoming ones come in the reminder
     // below).

@@ -14,6 +14,7 @@ const modules = [
   { href: "/exit", title: "Exit / Offboarding" },
   { href: "/id-cards", title: "ID Cards" },
   { href: "/probation", title: "Probation" },
+  { href: "/quantum", title: "Quantum Sheet" },
   { href: "/sessions", title: "Session Calendar" },
   { href: "/sessions/attended", title: "Session Attended" },
   { href: "/freelancers", title: "Freelance Pool" },

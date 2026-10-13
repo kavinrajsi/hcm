@@ -219,21 +219,15 @@ export type BasecampAnswer = {
 };
 
 /**
- * Pages through a check-in question's answers. Basecamp orders them by
- * check-in day (group_on) desc, so with `sinceDay` (YYYY-MM-DD) paging stops
- * once a whole page is older — incremental syncs fetch only a page or two.
+ * Walks a Basecamp list endpoint page by page (follows the Link header, waits
+ * out 429s). `onPage` returns true to stop early.
  */
-/**
- * Every page of a Basecamp list endpoint (follows the Link header, waits
- * out 429s). `stop` ends early once a page makes the rest irrelevant.
- */
-async function fetchAllPages<T>(
+export async function eachPage<T>(
   accessToken: string,
   firstUrl: string,
   userAgent: string,
-  stop?: (page: T[]) => boolean,
-): Promise<T[]> {
-  const items: T[] = [];
+  onPage: (page: T[]) => boolean | void | Promise<boolean | void>,
+): Promise<void> {
   let url: string | null = firstUrl;
   while (url) {
     const response: Response = await fetch(url, {
@@ -249,14 +243,31 @@ async function fetchAllPages<T>(
     }
     if (!response.ok)
       throw new Error(`Basecamp fetch failed: ${response.status} ${firstUrl}`);
-    const page = (await response.json()) as T[];
-    items.push(...page);
-    if (stop?.(page)) break;
+    if (await onPage((await response.json()) as T[])) break;
     url = parseNextLink(response.headers.get("Link"));
   }
+}
+
+/** Every page of a list endpoint; `stop` ends early once a page makes the rest irrelevant. */
+async function fetchAllPages<T>(
+  accessToken: string,
+  firstUrl: string,
+  userAgent: string,
+  stop?: (page: T[]) => boolean,
+): Promise<T[]> {
+  const items: T[] = [];
+  await eachPage<T>(accessToken, firstUrl, userAgent, (page) => {
+    items.push(...page);
+    return stop?.(page);
+  });
   return items;
 }
 
+/**
+ * Pages through a check-in question's answers. Basecamp orders them by
+ * check-in day (group_on) desc, so with `sinceDay` (YYYY-MM-DD) paging stops
+ * once a whole page is older — incremental syncs fetch only a page or two.
+ */
 export async function listCheckinAnswers(
   accessToken: string,
   accountId: string,

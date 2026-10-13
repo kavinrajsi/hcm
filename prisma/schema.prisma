@@ -303,6 +303,36 @@ model ProbationRecord {
   @@index([status])
 }
 
+// Quantum Sheet: Basecamp to-dos from the last 12 months, copied locally by
+// an incremental sync (src/lib/quantum/sync.ts) so the page never calls
+// Basecamp. `data` keeps a trimmed copy of the Basecamp payload; the columns
+// are the parts the page filters and sorts on.
+model QuantumTodo {
+  id                String    @id @default(cuid())
+  basecampId        String    @unique
+  projectId         String
+  projectName       String
+  listName          String?
+  title             String
+  status            String // Basecamp status: active, archived or trashed
+  completed         Boolean   @default(false)
+  completedAt       DateTime?
+  dueOn             DateTime? @db.Date
+  // The day the row sits under: completed date (IST), else due date; null = no due date.
+  sheetDay          DateTime? @db.Date
+  assigneeIds       String[]  @default([]) // Basecamp person ids
+  appUrl            String
+  basecampCreatedAt DateTime
+  basecampUpdatedAt DateTime
+  data              Json
+  syncedAt          DateTime  @updatedAt
+
+  @@index([projectId])
+  @@index([sheetDay])
+  @@index([basecampUpdatedAt])
+  @@index([assigneeIds], type: Gin)
+}
+
 model TrainingSession {
   id            String                @id @default(cuid())
   name          String

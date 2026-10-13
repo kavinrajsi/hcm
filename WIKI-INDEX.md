@@ -18,6 +18,7 @@ Every module, page and integration, with links into the [overview](WIKI.md) and 
 | ID cards | `/id-cards` | HR | [→](WIKI.md#id-cards) | [→](WIKI-DETAILED.md#id-cards) | `src/app/(app)/id-cards/` |
 | Wish | `/birthdays` | HR, managers | [→](WIKI.md#wish-birthdays-and-anniversaries) | [→](WIKI-DETAILED.md#wish) | `src/app/(app)/birthdays/` |
 | Leave | `/leave` | HR, managers | [→](WIKI.md#leave) | [→](WIKI-DETAILED.md#leave) | `src/app/(app)/leave/`, `src/lib/leave-sync.ts` |
+| Quantum Sheet | `/quantum` | HR, managers | [→](WIKI.md#quantum-sheet) | [→](WIKI-DETAILED.md#quantum-sheet) | `src/lib/quantum/` |
 | Assign | `/assign` | HR, managers | [→](WIKI.md#assign) | [→](WIKI-DETAILED.md#assign) | `src/lib/assign/` |
 | Freelancers | `/freelancers` | HR, managers | [→](WIKI.md#freelancers) | [→](WIKI-DETAILED.md#freelancers) | `src/app/(app)/freelancers/` |
 | Devices | `/devices` | HR, managers, holders | [→](WIKI.md#devices) | [→](WIKI-DETAILED.md#devices) | `src/app/(app)/devices/`, `src/lib/devices/` |

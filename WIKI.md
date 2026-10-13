@@ -58,6 +58,9 @@ The sidebar only shows what your role can open; the page itself also checks.
 ### Leave
 `/leave` (HR, managers) — leave and WFH come from the Basecamp leave/WFH check-ins (live via webhook, plus a daily sync). AI classifies each post into a leave type; managers and HR approve or reject. Calendar, list and day views. Employees see their own under Profile → My leave.
 
+### Quantum Sheet
+`/quantum` (HR, managers) — Basecamp to-dos from the last 12 months, laid out like Basecamp's timesheet: one block per day, completed to-dos under the day they were done, open ones under their due date ("No due date" last). Filter by project, person, status (completed, open, overdue) and date. The page reads HCM's own copy; it syncs nightly and with **Sync from Basecamp**.
+
 ### Assign
 `/assign` (HR, managers) — Assignment Intelligence: when a new design job comes in, shows which designers handled similar jobs and how those went, from Basecamp history. Includes belief capture, comment labelling and evaluation pages. See [docs/assignment-intelligence/](docs/assignment-intelligence/README.md).
 
