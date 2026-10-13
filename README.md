@@ -5,7 +5,7 @@ Madarth's internal HR system, live at **https://connect.madarth.com**. It runs t
 | Who | What they get |
 |---|---|
 | **HR admins** | Everything: candidates, employee records, letters, devices, admin (users, AI usage and caps, Basecamp sync, MCP access, email log) |
-| **Managers** | Their direct reports: leave approvals, probation, onboarding, exits, Quantum Sheet (Basecamp to-dos by day), Assign, devices, learning authoring |
+| **Managers** | Their direct reports: leave approvals, probation, exits, Quantum Sheet (Basecamp to-dos by day), Assign, devices, learning authoring |
 | **Employees** | Their own profile, leave, work log, devices, learning and sessions, the Staff directory and MadMax |
 
 ## Docs

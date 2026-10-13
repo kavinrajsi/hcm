@@ -93,7 +93,7 @@ AES-256-GCM in `src/lib/crypto.ts`; values look like `k<keyId>:iv:tag:ct`. Encry
 `/employees` (HR+M), `/employees/new` and `/employees/[id]` (HR). `src/app/(app)/employees/` — `actions.ts`, `employee-form.tsx`, CSV import (`src/lib/csv-import.ts`, `src/lib/import-columns.ts`), employment type/end logic (`type-end.ts`, `src/lib/emp-type.ts`), previous employments, documents (`src/lib/employee-documents.ts`). Converting a candidate creates an employee with `candidateId`.
 
 ### Onboarding
-`/onboarding` (HR+M). `src/app/(app)/onboarding/page.tsx`; Basecamp invite to the General project (`src/lib/basecamp-onboard.ts`, `BASECAMP_GENERAL_PROJECT_ID`); laptop provisioning at `/devices/provision/[employeeId]`.
+The `/onboarding` page was removed (14/10/2026); `OnboardingRecord` data stays and is still written when HR adds a joiner. Joiners this month: Employees filtered by join date (Dashboard tile).
 
 ### Probation
 `/probation` (HR+M). `src/app/(app)/probation/`. Crons: `/api/cron/probation-reminders` (Mondays, overdue digest to HR) and `/api/cron/employment-end-reminders` (daily, once per end via `EmploymentReminder`, `?dryRun=1`). Emails in `src/lib/employment-emails.ts`.

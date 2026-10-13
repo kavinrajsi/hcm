@@ -9,7 +9,7 @@ Accounts are created by HR; there's no self sign-up. Sign in with email + passwo
 | Role | Sees |
 |---|---|
 | **Employee** | Dashboard, Staff, MadMax, Connect an AI, Learning, Sessions, Profile (own details, work, leave, security). Devices they hold. |
-| **Manager** | Everything an employee sees, plus their **direct reports** in Employees, Onboarding, Probation, Exit, Wish, Leave; Assign, Freelancers, All devices, Session attendance, course authoring, Reviews. |
+| **Manager** | Everything an employee sees, plus their **direct reports** in Employees, Probation, Exit, Wish, Leave; Assign, Freelancers, All devices, Session attendance, course authoring, Reviews. |
 | **HR admin** | Everything, for everyone. Only HR sees Candidates, employee detail/new, ID cards, device requests/vendors/labels/settings, Letters and Admin. |
 
 The sidebar only shows what your role can open; the page itself also checks.
@@ -37,9 +37,6 @@ The sidebar only shows what your role can open; the page itself also checks.
 
 ### Employees
 `/employees` (HR, managers see their reports) — the employee directory and records: job details, employment type and end dates, manager, documents, previous employments, personal details (encrypted). HR adds people one at a time or by CSV import.
-
-### Onboarding
-`/onboarding` — new joiners and what's set up for them, including provisioning a laptop.
 
 ### Probation
 `/probation` — probations coming due: confirm (becomes permanent) or extend. HR gets a weekly email of overdue confirmations and a one-week heads-up for probation, contract and internship ends.

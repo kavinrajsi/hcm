@@ -12,7 +12,8 @@ const NAV_ITEMS = NAV.flatMap((group) => group.items);
 
 /** Same role rule as the sidebar, so the dashboard never links to a page the user can't open. */
 function canOpen(href: string, role: Role) {
-  const item = NAV_ITEMS.find((navItem) => navItem.url === href);
+  const path = href.split("?")[0];
+  const item = NAV_ITEMS.find((navItem) => navItem.url === path);
   return !item || canSee(item, role);
 }
 
@@ -62,7 +63,7 @@ export default async function Home() {
     {
       label: "Joiners this month",
       value: joinersThisMonth,
-      href: "/onboarding",
+      href: "/employees?joined=month",
     },
     { label: "Exits this month", value: exitsThisMonth, href: "/exit" },
     { label: "Probation due", value: probationDue, href: "/probation" },

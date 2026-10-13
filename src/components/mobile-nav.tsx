@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { Role } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
 import { findCurrent, NAV, TABS } from "@/lib/nav";
+import { MessageCircle as ChatIcon } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
 import {
   AutoAwesomeIcon,
@@ -13,7 +14,6 @@ import {
   EventIcon,
   HomeIcon,
   MenuIcon,
-  PersonAddIcon,
   PersonIcon,
   PersonSearchIcon,
   type IconProps,
@@ -27,7 +27,7 @@ const ICONS: Record<string, React.ComponentType<IconProps>> = {
   "/candidates": PersonSearchIcon,
   "/employees": BadgeIcon,
   "/leave": EventBusyIcon,
-  "/onboarding": PersonAddIcon,
+  "/chat": ChatIcon,
 };
 
 const SHORT_TITLES: Record<string, string> = { "/": "Home", "/profile": "Profile" };

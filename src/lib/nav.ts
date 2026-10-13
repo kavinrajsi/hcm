@@ -34,7 +34,6 @@ export const NAV: NavGroup[] = [
     items: [
       { title: "Candidates", url: "/candidates", roles: HR },
       { title: "Employees", url: "/employees", roles: HR_OR_MANAGER },
-      { title: "Onboarding", url: "/onboarding", roles: HR_OR_MANAGER },
       { title: "Probation", url: "/probation", roles: HR_OR_MANAGER },
       { title: "Exit", url: "/exit", roles: HR_OR_MANAGER },
       { title: "ID Cards", url: "/id-cards", roles: HR },
@@ -145,7 +144,7 @@ export function findCurrent(pathname: string) {
 
 /** Mobile bottom-bar tabs (plus a trailing "More"), per role. */
 export const TABS: Record<Role, string[]> = {
-  HR_ADMIN: ["/candidates", "/employees", "/leave", "/onboarding"],
-  MANAGER: ["/", "/employees", "/leave", "/onboarding"],
+  HR_ADMIN: ["/candidates", "/employees", "/leave", "/chat"],
+  MANAGER: ["/", "/employees", "/leave", "/chat"],
   EMPLOYEE: ["/", "/profile", "/sessions"],
 };

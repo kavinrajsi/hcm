@@ -439,7 +439,6 @@ export async function createEmployee(
   });
 
   revalidatePath("/employees");
-  revalidatePath("/onboarding");
   revalidatePath("/id-cards");
   revalidatePath("/users");
 
@@ -644,7 +643,6 @@ export async function importEmployees(
   }
 
   revalidatePath("/employees");
-  revalidatePath("/onboarding");
   revalidatePath("/id-cards");
   revalidatePath("/probation");
   revalidatePath("/users");
@@ -765,7 +763,6 @@ export async function updateEmployee(
   revalidatePath("/employees");
   revalidatePath(`/employees/${employeeId}`);
   revalidatePath("/probation");
-  revalidatePath("/onboarding");
   redirect(`/employees/${employeeId}`);
 }
 

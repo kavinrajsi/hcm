@@ -12,7 +12,6 @@ Every module, page and integration, with links into the [overview](WIKI.md) and 
 | Connect an AI (MCP) | `/mcp/instructions` | All | [→](WIKI.md#connect-an-ai) | [→](WIKI-DETAILED.md#mcp-and-oauth) | `src/lib/mcp/`, `src/lib/oauth/` |
 | Candidates | `/candidates` | HR | [→](WIKI.md#candidates) | [→](WIKI-DETAILED.md#candidates) | `src/app/(app)/candidates/`, `src/lib/candidates/` |
 | Employees | `/employees` | HR, managers | [→](WIKI.md#employees) | [→](WIKI-DETAILED.md#employees) | `src/app/(app)/employees/` |
-| Onboarding | `/onboarding` | HR, managers | [→](WIKI.md#onboarding) | [→](WIKI-DETAILED.md#onboarding) | `src/app/(app)/onboarding/` |
 | Probation | `/probation` | HR, managers | [→](WIKI.md#probation) | [→](WIKI-DETAILED.md#probation) | `src/app/(app)/probation/` |
 | Exit | `/exit` | HR, managers | [→](WIKI.md#exit) | [→](WIKI-DETAILED.md#exit) | `src/app/(app)/exit/` |
 | ID cards | `/id-cards` | HR | [→](WIKI.md#id-cards) | [→](WIKI-DETAILED.md#id-cards) | `src/app/(app)/id-cards/` |
