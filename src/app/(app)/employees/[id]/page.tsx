@@ -192,60 +192,6 @@ export default async function EmployeePage({
         </div>
       </dl>
 
-      {employee.idCard && (
-        <IdCardHistory changes={employee.idCard.statusChanges} />
-      )}
-
-      <section className="mt-6 rounded-lg border border-zinc-200 p-5 text-sm dark:border-zinc-800">
-        <div className="flex items-center gap-2">
-          <h2 className="font-medium">Login</h2>
-          {employee.user && (
-            <span className="text-xs text-zinc-500">
-              {employee.user.disabledAt
-                ? "Disabled"
-                : employee.user.passwordHash
-                  ? "Active"
-                  : "Invited — password not set yet"}
-            </span>
-          )}
-        </div>
-        {employee.user ? (
-          <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-start">
-            <RoleSelect userId={employee.user.id} role={employee.user.role} />
-            <UserActions
-              userId={employee.user.id}
-              disabled={!!employee.user.disabledAt}
-              isSelf={employee.user.id === me.id}
-            />
-          </div>
-        ) : (
-          <div className="mt-3">
-            <p className="mb-2 text-zinc-500">
-              No login yet — {employee.workEmail}
-              {" can't sign in."}
-            </p>
-            {!employee.dateOfExit && (
-              <CreateLoginButton employeeId={employee.id} />
-            )}
-          </div>
-        )}
-      </section>
-
-      <div id="leave-history" className="scroll-mt-20">
-        <LeaveHistory
-          employeeId={employee.id}
-          employeeName={employee.name}
-          year={typeof leaveYear === "string" ? leaveYear : undefined}
-          entries={leave.map((leaveEntry) => ({
-            ...leaveEntry,
-            days: leaveEntry.days !== null ? Number(leaveEntry.days) : null,
-            reviewedBy: leaveEntry.reviewedBy
-              ? (leaveEntry.reviewedBy.name ?? leaveEntry.reviewedBy.email)
-              : null,
-          }))}
-        />
-      </div>
-
       <div className="mt-8">
         <EmployeeForm
           action={update}
@@ -296,13 +242,72 @@ export default async function EmployeePage({
           }}
         />
       </div>
+
+      {/* After the form (Identity → Contact → Address → Employment →
+          Statutory & bank → Documents): ID card history, Devices, Leave
+          history, Basecamp, then Login. */}
+      {employee.idCard && (
+        <IdCardHistory changes={employee.idCard.statusChanges} />
+      )}
+
+      <EmployeeDevices employeeId={employee.id} title="Devices" history provision />
+
+      <div id="leave-history" className="scroll-mt-20">
+        <LeaveHistory
+          employeeId={employee.id}
+          employeeName={employee.name}
+          year={typeof leaveYear === "string" ? leaveYear : undefined}
+          entries={leave.map((leaveEntry) => ({
+            ...leaveEntry,
+            days: leaveEntry.days !== null ? Number(leaveEntry.days) : null,
+            reviewedBy: leaveEntry.reviewedBy
+              ? (leaveEntry.reviewedBy.name ?? leaveEntry.reviewedBy.email)
+              : null,
+          }))}
+        />
+      </div>
+
       <section className="mt-10">
         <h2 className="text-lg font-medium">Basecamp</h2>
         <div className="mt-3">
           <BasecampAccess employeeId={employee.id} linked={Boolean(employee.basecampPersonId)} />
         </div>
       </section>
-      <EmployeeDevices employeeId={employee.id} title="Devices" history provision />
+
+      <section className="mt-6 rounded-lg border border-zinc-200 p-5 text-sm dark:border-zinc-800">
+        <div className="flex items-center gap-2">
+          <h2 className="font-medium">Login</h2>
+          {employee.user && (
+            <span className="text-xs text-zinc-500">
+              {employee.user.disabledAt
+                ? "Disabled"
+                : employee.user.passwordHash
+                  ? "Active"
+                  : "Invited — password not set yet"}
+            </span>
+          )}
+        </div>
+        {employee.user ? (
+          <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-start">
+            <RoleSelect userId={employee.user.id} role={employee.user.role} />
+            <UserActions
+              userId={employee.user.id}
+              disabled={!!employee.user.disabledAt}
+              isSelf={employee.user.id === me.id}
+            />
+          </div>
+        ) : (
+          <div className="mt-3">
+            <p className="mb-2 text-zinc-500">
+              No login yet — {employee.workEmail}
+              {" can't sign in."}
+            </p>
+            {!employee.dateOfExit && (
+              <CreateLoginButton employeeId={employee.id} />
+            )}
+          </div>
+        )}
+      </section>
     </PageShell>
   );
 }
