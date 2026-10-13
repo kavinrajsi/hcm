@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { PageShell } from "@/components/page";
@@ -121,12 +120,6 @@ export default async function EmployeePage({
               </span>
             </h1>
           </div>
-          <Link
-            href="/employees"
-            className="pb-1 text-sm text-zinc-500 underline-offset-4 hover:underline"
-          >
-            Back to list
-          </Link>
         </div>
       </div>
 
