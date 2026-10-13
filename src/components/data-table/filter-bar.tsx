@@ -32,7 +32,16 @@ const popupClass =
   "z-50 max-h-(--available-height) origin-(--transform-origin) overflow-y-auto rounded-xl border border-zinc-200 bg-popover text-sm text-popover-foreground shadow-lg outline-none transition-[scale,opacity] duration-100 data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0 dark:border-zinc-800";
 
 /** Full-width search box writing ?{param}= (debounced). */
-export function FilterSearch({ param = "q", placeholder }: { param?: string; placeholder: string }) {
+export function FilterSearch({
+  param = "q",
+  placeholder,
+  inputClassName,
+}: {
+  param?: string;
+  placeholder: string;
+  /** Extra classes for the input (e.g. Chat's rounded search pill). */
+  inputClassName?: string;
+}) {
   const { searchParams, update } = useUrl();
   const [value, setValue] = useState(searchParams.get(param) ?? "");
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -61,7 +70,10 @@ export function FilterSearch({ param = "q", placeholder }: { param?: string; pla
         }}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="h-10 w-full rounded-lg border border-zinc-200 bg-background pr-9 pl-9 text-sm outline-none focus-visible:border-zinc-400 md:h-9 dark:border-zinc-800 dark:focus-visible:border-zinc-600"
+        className={cn(
+          "h-10 w-full rounded-lg border border-zinc-200 bg-background pr-9 pl-9 text-sm outline-none focus-visible:border-zinc-400 md:h-9 dark:border-zinc-800 dark:focus-visible:border-zinc-600",
+          inputClassName,
+        )}
       />
       {value && (
         <button

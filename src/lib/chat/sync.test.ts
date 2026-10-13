@@ -12,7 +12,7 @@ const basecamp = vi.hoisted(() => ({
 vi.mock("@/lib/basecamp", () => basecamp);
 vi.mock("@/lib/leave-sync", () => ({ leaveSyncUserId: vi.fn(async () => "hr-1") }));
 
-const { syncAllChats, syncChatLines, refreshChatIfStale, sendChatLine, BasecampNotConnectedError } = await import("./sync");
+const { syncAllChats, syncChatLines, refreshChatIfStale, sendChatLine, sendChatUpload, BasecampNotConnectedError } = await import("./sync");
 
 const LINES_URL = "https://3.basecampapi.com/1/chats/9/lines.json";
 const line = (id: number, at: string) => ({ id, created_at: at, content: `<div>Message ${id}</div>`, creator: { id: 77, name: "Ravi" } });
@@ -139,5 +139,49 @@ describe("syncAllChats", () => {
       await onPage([line(Number(url.match(/chats\/(\d+)/)![1]) * 10, "2026-10-13T04:00:00Z"), line(Number(url.match(/chats\/(\d+)/)![1]) * 10 + 1, "2026-10-13T03:00:00Z")]);
     });
     expect(await syncAllChats()).toEqual({ chats: 4, added: 8, failed: 0 });
+  });
+});
+
+describe("sendChatUpload", () => {
+  const fetchMock = vi.fn();
+  const file = (bytes = 10) => ({ name: "brief v2.pdf", type: "application/pdf", bytes: new ArrayBuffer(bytes) });
+  beforeEach(() => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockReset();
+    db.basecampChat.findUnique.mockResolvedValue({ basecampId: "9", linesUrl: LINES_URL });
+  });
+
+  it("uploads to the chat's uploads URL with the sender's token", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 11,
+          created_at: "2026-10-13T06:00:00Z",
+          content: "",
+          creator: { id: 77, name: "Ravi" },
+          attachments: [{ title: "brief v2.pdf", byte_size: 10, download_url: "https://bc/f" }],
+        }),
+        { status: 201 },
+      ),
+    );
+    const row = await sendChatUpload("manager-1", "9", file());
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://3.basecampapi.com/1/chats/9/uploads.json?name=brief%20v2.pdf");
+    expect(init.headers).toMatchObject({
+      Authorization: "Bearer manager-token",
+      "Content-Type": "application/pdf",
+      "Content-Length": "10",
+    });
+    expect(row.basecampId).toBe("11");
+    expect(db.basecampChat.update.mock.calls.at(-1)![0].data.lastLinePreview).toBe("Ravi: 📎 brief v2.pdf");
+  });
+
+  it("refuses files over 4 MB before calling Basecamp", async () => {
+    await expect(sendChatUpload("manager-1", "9", file(4 * 1024 * 1024 + 1))).rejects.toThrow("over 4 MB");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("needs the sender's own Basecamp connection", async () => {
+    await expect(sendChatUpload("employee-1", "9", file())).rejects.toBeInstanceOf(BasecampNotConnectedError);
   });
 });

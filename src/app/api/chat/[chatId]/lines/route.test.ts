@@ -19,6 +19,8 @@ const messages = vi.hoisted(() => ({
   toMessages: vi.fn(async (rows: { basecampId: string }[]) => rows.map((row) => ({ id: row.basecampId }))),
 }));
 vi.mock("@/lib/chat/messages", () => messages);
+const reads = vi.hoisted(() => ({ markChatRead: vi.fn() }));
+vi.mock("@/lib/chat/reads", () => reads);
 
 const { GET, POST } = await import("./route");
 const ctx = { params: Promise.resolve({ chatId: "9" }) };
@@ -53,6 +55,7 @@ describe("/api/chat/[chatId]/lines", () => {
     expect(sync.refreshChatIfStale).toHaveBeenCalledWith("9");
     expect(messages.messagesAfter).toHaveBeenCalledWith("9", "2026-10-13T05:00:00.000Z");
     expect(await response.json()).toEqual({ messages: [{ id: "3" }] });
+    expect(reads.markChatRead).toHaveBeenCalledWith("manager-1", "9");
   });
 
   it("still answers when the Basecamp check fails", async () => {
@@ -67,6 +70,7 @@ describe("/api/chat/[chatId]/lines", () => {
       hasEarlier: false,
     });
     expect(sync.refreshChatIfStale).not.toHaveBeenCalled();
+    expect(reads.markChatRead).not.toHaveBeenCalled();
   });
 
   it("sends as the signed-in person", async () => {

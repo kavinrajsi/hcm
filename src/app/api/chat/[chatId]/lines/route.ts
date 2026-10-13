@@ -3,6 +3,7 @@ import { currentUser } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { BasecampNotConnectedError, refreshChatIfStale, sendChatLine } from "@/lib/chat/sync";
 import { messagesAfter, messagesBefore, toMessages } from "@/lib/chat/messages";
+import { markChatRead } from "@/lib/chat/reads";
 
 export const maxDuration = 60;
 
@@ -23,7 +24,7 @@ async function chatExists(chatId: string) {
 }
 
 export async function GET(request: Request, ctx: { params: Promise<{ chatId: string }> }) {
-  const { error } = await teamUser();
+  const { user, error } = await teamUser();
   if (error) return error;
   const { chatId } = await ctx.params;
   if (!(await chatExists(chatId))) return new Response("Not found", { status: 404 });
@@ -39,7 +40,10 @@ export async function GET(request: Request, ctx: { params: Promise<{ chatId: str
     console.error("[chat] refresh failed", refreshError instanceof Error ? refreshError.message : refreshError);
   }
   const after = query.get("after");
-  return Response.json({ messages: after ? await messagesAfter(chatId, after) : [] });
+  const messages = after ? await messagesAfter(chatId, after) : [];
+  // The page only polls while it's on screen, so a poll means "seen".
+  await markChatRead(user.id, chatId);
+  return Response.json({ messages });
 }
 
 const sendSchema = z.object({ text: z.string().trim().min(1, "Type a message").max(5000, "That message is too long") });

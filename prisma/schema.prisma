@@ -390,6 +390,15 @@ model BasecampChatLine {
   @@index([chatBasecampId, createdAt])
 }
 
+// Chat page: when each person last saw each chat, for unread counts.
+model BasecampChatRead {
+  userId         String
+  chatBasecampId String
+  lastReadAt     DateTime
+
+  @@id([userId, chatBasecampId])
+}
+
 model TrainingSession {
   id            String                @id @default(cuid())
   name          String

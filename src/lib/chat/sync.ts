@@ -183,3 +183,44 @@ export async function sendChatLine(userId: string, chatBasecampId: string, text:
   });
   return row;
 }
+
+/** Biggest file HCM forwards: Vercel caps a request body at 4.5 MB. */
+export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+
+/** Uploads a file into the chat as the sender, the way Basecamp's own + does. */
+export async function sendChatUpload(
+  userId: string,
+  chatBasecampId: string,
+  file: { name: string; type: string; bytes: ArrayBuffer },
+) {
+  if (file.bytes.byteLength > MAX_UPLOAD_BYTES) throw new Error("Files over 4 MB: send them in Basecamp.");
+  const token = await getAccessToken(userId);
+  if (!token) throw new BasecampNotConnectedError();
+  const chat = await db.basecampChat.findUnique({
+    where: { basecampId: chatBasecampId },
+    select: { basecampId: true, linesUrl: true },
+  });
+  if (!chat) throw new Error("Chat not found");
+  if (!chat.linesUrl.startsWith(`${API}${token.accountId}/`) || !chat.linesUrl.endsWith("/lines.json"))
+    throw new Error("This chat is in a different Basecamp account");
+
+  const uploadUrl = `${chat.linesUrl.slice(0, -"/lines.json".length)}/uploads.json?name=${encodeURIComponent(file.name)}`;
+  const response = await fetch(uploadUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token.accessToken}`,
+      "User-Agent": USER_AGENT,
+      "Content-Type": file.type || "application/octet-stream",
+      "Content-Length": String(file.bytes.byteLength),
+    },
+    body: file.bytes,
+  });
+  if (!response.ok) throw new Error(`Basecamp didn't accept the file (${response.status})`);
+  const { preview, ...row } = toChatLineRow(chat.basecampId, (await response.json()) as BasecampChatLineRecording);
+  await db.basecampChatLine.upsert({ where: { basecampId: row.basecampId }, create: row, update: row });
+  await db.basecampChat.update({
+    where: { basecampId: chat.basecampId },
+    data: { lastLineAt: row.createdAt, lastLinePreview: `${row.creatorName}: ${preview || `📎 ${file.name}`}` },
+  });
+  return row;
+}

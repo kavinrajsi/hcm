@@ -2,18 +2,28 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
-import { myEmployeeId } from "@/lib/my-employee";
 import { stringParam } from "@/lib/table-params";
 import { latestMessages } from "@/lib/chat/messages";
-import { ChevronRightIcon, ArrowOutwardIcon } from "@/components/icons";
+import { markChatRead } from "@/lib/chat/reads";
+import { myBasecampPersonId } from "@/lib/chat/viewer";
+import { chatAvatarColor } from "@/lib/chat/format";
+import { ArrowOutwardIcon, ChevronRightIcon } from "@/components/icons";
+import { cn } from "@/lib/utils";
 import { ChatFrame } from "../chat-frame";
 import { ChatList } from "../chat-list";
 import { ChatView } from "./chat-view";
 
-// Chat: one Basecamp project chat. The server renders the newest messages;
-// ChatView then polls for new ones and sends replies.
+// Chat: one Basecamp project chat. The server renders the newest messages
+// and marks the chat read; ChatView then polls for new ones and sends.
 
 export const metadata = { title: "Chat" };
+
+const PEOPLE_WINDOW_MS = 30 * 86_400_000;
+
+/** Start of the "active this month" window for the header's people count. */
+function peopleWindowStart() {
+  return new Date(Date.now() - PEOPLE_WINDOW_MS);
+}
 
 export default async function ChatThreadPage({ params, searchParams }: PageProps<"/chat/[chatId]">) {
   const user = await requirePageRole("HR_ADMIN", "MANAGER");
@@ -21,23 +31,34 @@ export default async function ChatThreadPage({ params, searchParams }: PageProps
   const q = stringParam((await searchParams).q);
   const chat = await db.basecampChat.findUnique({
     where: { basecampId: chatId },
-    select: { basecampId: true, projectName: true, title: true, appUrl: true },
+    select: { basecampId: true, projectId: true, projectName: true, title: true, appUrl: true },
   });
   if (!chat) notFound();
 
-  const [{ messages, hasEarlier }, employeeId, connection] = await Promise.all([
+  const [{ messages, hasEarlier }, myPersonId, connection, posters] = await Promise.all([
     latestMessages(chat.basecampId),
-    myEmployeeId(user),
-    db.basecampToken.findUnique({ where: { userId: user.id }, select: { id: true } }),
+    myBasecampPersonId(user),
+    db.basecampToken.findUnique({ where: { userId: user.id }, select: { userId: true } }),
+    db.basecampChatLine.groupBy({
+      by: ["creatorPersonId"],
+      where: { chatBasecampId: chat.basecampId, createdAt: { gte: peopleWindowStart() } },
+    }),
+    markChatRead(user.id, chat.basecampId),
   ]);
-  const me = employeeId
-    ? await db.employee.findUnique({ where: { id: employeeId }, select: { basecampPersonId: true } })
-    : null;
+  const subtitle =
+    chat.title !== "Chat"
+      ? chat.title
+      : posters.length > 0
+        ? `${posters.length} ${posters.length === 1 ? "person" : "people"} active this month`
+        : "Basecamp project chat";
 
   return (
-    <ChatFrame list={<ChatList activeId={chat.basecampId} q={q} />} showConversationOnPhone>
+    <ChatFrame
+      list={<ChatList activeId={chat.basecampId} q={q} userId={user.id} myPersonId={myPersonId} />}
+      showConversationOnPhone
+    >
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b px-3 py-2.5 md:px-4">
+        <header className="flex items-center gap-3 border-b bg-[var(--chat-pill)] px-3 py-2 md:px-4">
           <Link
             href={`/chat${q ? `?q=${encodeURIComponent(q)}` : ""}`}
             aria-label="Back to chats"
@@ -45,18 +66,28 @@ export default async function ChatThreadPage({ params, searchParams }: PageProps
           >
             <ChevronRightIcon className="size-6 rotate-180" />
           </Link>
+          <span
+            aria-hidden="true"
+            className={cn(
+              "flex size-10 shrink-0 items-center justify-center rounded-full font-semibold text-white",
+              chatAvatarColor(chat.projectId),
+            )}
+          >
+            {chat.projectName.trim().charAt(0).toUpperCase() || "#"}
+          </span>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate font-semibold">{chat.projectName}</h1>
-            {chat.title !== "Chat" && <p className="truncate text-xs text-zinc-500">{chat.title}</p>}
+            <h2 className="truncate font-semibold">{chat.projectName}</h2>
+            <p className="truncate text-xs text-[var(--chat-meta)]">{subtitle}</p>
           </div>
           <a
             href={chat.appUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-foreground"
+            aria-label="Open in Basecamp"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1.5 text-sm text-[var(--chat-meta)] hover:bg-muted hover:text-foreground"
           >
-            Basecamp
-            <ArrowOutwardIcon className="size-3.5" />
+            <span className="hidden sm:inline">Basecamp</span>
+            <ArrowOutwardIcon className="size-4" />
           </a>
         </header>
         <ChatView
@@ -64,7 +95,7 @@ export default async function ChatThreadPage({ params, searchParams }: PageProps
           chatId={chat.basecampId}
           initialMessages={messages}
           initialHasEarlier={hasEarlier}
-          myPersonId={me?.basecampPersonId ?? null}
+          myPersonId={myPersonId}
           connected={Boolean(connection)}
         />
       </div>

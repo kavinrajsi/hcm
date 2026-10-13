@@ -30,3 +30,43 @@ export function chatListTime(value: Date | null, now = new Date()): string {
 }
 
 export { formatTime as chatTime };
+
+// Group-chat name colours (WhatsApp style): each person keeps one colour,
+// readable on both the light and dark bubble.
+const NAME_COLORS = [
+  "text-emerald-700 dark:text-emerald-400",
+  "text-sky-700 dark:text-sky-400",
+  "text-violet-700 dark:text-violet-400",
+  "text-rose-700 dark:text-rose-400",
+  "text-amber-700 dark:text-amber-400",
+  "text-teal-700 dark:text-teal-400",
+  "text-fuchsia-700 dark:text-fuchsia-400",
+  "text-orange-700 dark:text-orange-400",
+] as const;
+
+const AVATAR_COLORS = [
+  "bg-emerald-600",
+  "bg-sky-600",
+  "bg-violet-600",
+  "bg-rose-600",
+  "bg-amber-600",
+  "bg-teal-600",
+  "bg-fuchsia-600",
+  "bg-orange-600",
+] as const;
+
+function hash(value: string): number {
+  let total = 0;
+  for (const character of value) total = (total * 31 + character.charCodeAt(0)) >>> 0;
+  return total;
+}
+
+/** The same person always gets the same name colour. */
+export function senderColor(personId: string | null, name: string): string {
+  return NAME_COLORS[hash(personId ?? name) % NAME_COLORS.length];
+}
+
+/** A chat's avatar background, steady per project. */
+export function chatAvatarColor(projectId: string): string {
+  return AVATAR_COLORS[hash(projectId) % AVATAR_COLORS.length];
+}
