@@ -8,6 +8,7 @@ import { readPii } from "@/lib/employee-pii";
 import { updateEmployee } from "../actions";
 import { EmployeeForm, type SensitiveMasks } from "../employee-form";
 import { IdCardHistory } from "./id-card-history";
+import { EmployeeTabs, employeeTab } from "./tabs";
 import { LeaveHistory } from "./leave-history";
 import { EmployeeDevices } from "../../devices/employee-devices";
 import { BasecampAccess } from "./basecamp-access";
@@ -31,7 +32,8 @@ export default async function EmployeePage({
 }: PageProps<"/employees/[id]">) {
   const me = await requirePageRole("HR_ADMIN");
   const { id } = await params;
-  const { leaveYear } = await searchParams;
+  const { leaveYear, tab: tabParam } = await searchParams;
+  const tab = employeeTab(tabParam);
 
   const [employee, managers, leave] = await Promise.all([
     db.employee.findUnique({
@@ -97,145 +99,165 @@ export default async function EmployeePage({
 
   return (
     <PageShell>
-      <div className="flex flex-col-reverse gap-2 md:flex-row md:items-baseline md:justify-between">
-        <div className="flex items-center gap-4">
-          <EmployeeAvatar
-            name={employee.name}
-            avatarKey={employee.avatarBlobKey}
-            size="lg"
-          />
-          <h1 className="text-xl font-semibold tracking-tight md:text-2xl">
-            {employee.name}
-            <span className="block text-base font-normal text-zinc-500 md:ml-3 md:inline">
-              {employee.empId} · {employee.designation}
-            </span>
-          </h1>
-        </div>
-        <Link
-          href="/employees"
-          className="text-sm text-zinc-500 underline-offset-4 hover:underline"
-        >
-          Back to list
-        </Link>
-      </div>
-
-
-      <div className="mt-8">
-        <EmployeeForm
-          action={update}
-          submitLabel="Save changes"
-          typeEndBase="today"
-          masks={masks}
-          managers={managers}
-          defaults={{
-            empId: employee.empId,
-            name: employee.name,
-            gender: employee.gender ?? undefined,
-            dateOfBirth: pii.dateOfBirth ?? undefined,
-            bloodGroup: employee.bloodGroup ?? undefined,
-            tshirtSize: employee.tshirtSize ?? undefined,
-            phone: pii.phone ?? undefined,
-            personalEmail: pii.personalEmail ?? undefined,
-            workEmail: employee.workEmail,
-            emergencyContact: pii.emergencyContact ?? undefined,
-            fatherName: employee.fatherName ?? undefined,
-            address: pii.address ?? undefined,
-            city: employee.city ?? undefined,
-            state: employee.state ?? undefined,
-            pincode: employee.pincode ?? undefined,
-            department: employee.department,
-            designation: employee.designation,
-            dateOfJoining: employee.dateOfJoining.toISOString().slice(0, 10),
-            empType: employee.empType,
-            typeEndDate: (employee.empType === "PROBATION"
-              ? employee.probation?.dueDate
-              : employee.empType === "PERMANENT"
-                ? null
-                : employee.empTypeEndsOn
-            )
-              ?.toISOString()
-              .slice(0, 10),
-            isFresher: employee.isFresher,
-            pfNumber: pii.pfNumber ?? undefined,
-            uanNumber: pii.uanNumber ?? undefined,
-            linkedinId: employee.linkedinId ?? undefined,
-            previousEmployments: employee.previousEmployments.map((row) => ({
-              id: row.id,
-              companyName: row.companyName,
-              offerLetterBlobKey: row.offerLetterBlobKey,
-              experienceLetterBlobKey: row.experienceLetterBlobKey,
-              relievingLetterBlobKey: row.relievingLetterBlobKey,
-            })),
-            managerId: employee.managerId ?? undefined,
-          }}
+      {/* Cover, then photo + name overlapping it (as in Zoho People). */}
+      <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+        <div
+          aria-hidden="true"
+          className="h-28 bg-[#0b1f14] bg-cover bg-center md:h-40"
+          style={{ backgroundImage: "url(/covers/employee-cover.svg)" }}
         />
+        <div className="flex flex-col gap-3 bg-background px-4 pb-4 md:flex-row md:items-end md:justify-between md:px-6">
+          <div className="flex items-end gap-4">
+            <EmployeeAvatar
+              name={employee.name}
+              avatarKey={employee.avatarBlobKey}
+              size="lg"
+              className="-mt-10 size-20 border-4 border-background text-2xl md:-mt-12 md:size-24"
+            />
+            <h1 className="pb-1 text-xl font-semibold tracking-tight md:text-2xl">
+              {employee.name}
+              <span className="block text-sm font-normal text-zinc-500 md:text-base">
+                {employee.empId} · {employee.designation}
+              </span>
+            </h1>
+          </div>
+          <Link
+            href="/employees"
+            className="pb-1 text-sm text-zinc-500 underline-offset-4 hover:underline"
+          >
+            Back to list
+          </Link>
+        </div>
       </div>
 
-      {/* After the form (Identity → Contact → Address → Employment →
-          Statutory & bank → Documents): ID card history, Devices, Leave
-          history, Basecamp, then Login. */}
-      {employee.idCard && (
-        <IdCardHistory changes={employee.idCard.statusChanges} />
-      )}
+      <EmployeeTabs employeeId={employee.id} active={tab} />
 
-      <EmployeeDevices employeeId={employee.id} title="Devices" history provision />
-
-      <div id="leave-history" className="scroll-mt-20">
-        <LeaveHistory
-          employeeId={employee.id}
-          employeeName={employee.name}
-          year={typeof leaveYear === "string" ? leaveYear : undefined}
-          entries={leave.map((leaveEntry) => ({
-            ...leaveEntry,
-            days: leaveEntry.days !== null ? Number(leaveEntry.days) : null,
-            reviewedBy: leaveEntry.reviewedBy
-              ? (leaveEntry.reviewedBy.name ?? leaveEntry.reviewedBy.email)
-              : null,
-          }))}
-        />
-      </div>
-
-      <section className="mt-10">
-        <h2 className="text-lg font-medium">Basecamp</h2>
-        <div className="mt-3">
-          <BasecampAccess employeeId={employee.id} linked={Boolean(employee.basecampPersonId)} />
-        </div>
-      </section>
-
-      <section className="mt-6 rounded-lg border border-zinc-200 p-5 text-sm dark:border-zinc-800">
-        <div className="flex items-center gap-2">
-          <h2 className="font-medium">Login</h2>
-          {employee.user && (
-            <span className="text-xs text-zinc-500">
-              {employee.user.disabledAt
-                ? "Disabled"
-                : employee.user.passwordHash
-                  ? "Active"
-                  : "Invited — password not set yet"}
-            </span>
-          )}
-        </div>
-        {employee.user ? (
-          <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-start">
-            <RoleSelect userId={employee.user.id} role={employee.user.role} />
-            <UserActions
-              userId={employee.user.id}
-              disabled={!!employee.user.disabledAt}
-              isSelf={employee.user.id === me.id}
+      <div className="mt-6">
+        {tab === "profile" && (
+          <div>
+            <EmployeeForm
+              action={update}
+              submitLabel="Save changes"
+              typeEndBase="today"
+              masks={masks}
+              managers={managers}
+              defaults={{
+                empId: employee.empId,
+                name: employee.name,
+                gender: employee.gender ?? undefined,
+                dateOfBirth: pii.dateOfBirth ?? undefined,
+                bloodGroup: employee.bloodGroup ?? undefined,
+                tshirtSize: employee.tshirtSize ?? undefined,
+                phone: pii.phone ?? undefined,
+                personalEmail: pii.personalEmail ?? undefined,
+                workEmail: employee.workEmail,
+                emergencyContact: pii.emergencyContact ?? undefined,
+                fatherName: employee.fatherName ?? undefined,
+                address: pii.address ?? undefined,
+                city: employee.city ?? undefined,
+                state: employee.state ?? undefined,
+                pincode: employee.pincode ?? undefined,
+                department: employee.department,
+                designation: employee.designation,
+                dateOfJoining: employee.dateOfJoining.toISOString().slice(0, 10),
+                empType: employee.empType,
+                typeEndDate: (employee.empType === "PROBATION"
+                  ? employee.probation?.dueDate
+                  : employee.empType === "PERMANENT"
+                    ? null
+                    : employee.empTypeEndsOn
+                )
+                  ?.toISOString()
+                  .slice(0, 10),
+                isFresher: employee.isFresher,
+                pfNumber: pii.pfNumber ?? undefined,
+                uanNumber: pii.uanNumber ?? undefined,
+                linkedinId: employee.linkedinId ?? undefined,
+                previousEmployments: employee.previousEmployments.map((row) => ({
+                  id: row.id,
+                  companyName: row.companyName,
+                  offerLetterBlobKey: row.offerLetterBlobKey,
+                  experienceLetterBlobKey: row.experienceLetterBlobKey,
+                  relievingLetterBlobKey: row.relievingLetterBlobKey,
+                })),
+                managerId: employee.managerId ?? undefined,
+              }}
             />
           </div>
-        ) : (
-          <div className="mt-3">
-            <p className="mb-2 text-zinc-500">
-              No login yet — {employee.workEmail}
-              {" can't sign in."}
-            </p>
-            {!employee.dateOfExit && (
-              <CreateLoginButton employeeId={employee.id} />
-            )}
+        )}
+        {tab === "leave" && (
+          <div>
+            <LeaveHistory
+              employeeId={employee.id}
+              employeeName={employee.name}
+              year={typeof leaveYear === "string" ? leaveYear : undefined}
+              entries={leave.map((leaveEntry) => ({
+                ...leaveEntry,
+                days: leaveEntry.days !== null ? Number(leaveEntry.days) : null,
+                reviewedBy: leaveEntry.reviewedBy
+                  ? (leaveEntry.reviewedBy.name ?? leaveEntry.reviewedBy.email)
+                  : null,
+              }))}
+            />
           </div>
         )}
-      </section>
+        {tab === "devices" && (
+          <EmployeeDevices employeeId={employee.id} title="Devices" history provision />
+        )}
+        {tab === "id-card" && (
+          <>
+            {employee.idCard ? (
+              <IdCardHistory changes={employee.idCard.statusChanges} />
+            ) : (
+              <p className="text-sm text-zinc-500">No ID card yet.</p>
+            )}
+          </>
+        )}
+        {tab === "basecamp" && (
+          <section>
+            <h2 className="text-lg font-medium">Basecamp</h2>
+            <div className="mt-3">
+              <BasecampAccess employeeId={employee.id} linked={Boolean(employee.basecampPersonId)} />
+            </div>
+          </section>
+        )}
+        {tab === "login" && (
+          <section className="rounded-lg border border-zinc-200 p-5 text-sm dark:border-zinc-800">
+            <div className="flex items-center gap-2">
+              <h2 className="font-medium">Login</h2>
+              {employee.user && (
+                <span className="text-xs text-zinc-500">
+                  {employee.user.disabledAt
+                    ? "Disabled"
+                    : employee.user.passwordHash
+                      ? "Active"
+                      : "Invited — password not set yet"}
+                </span>
+              )}
+            </div>
+            {employee.user ? (
+              <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-start">
+                <RoleSelect userId={employee.user.id} role={employee.user.role} />
+                <UserActions
+                  userId={employee.user.id}
+                  disabled={!!employee.user.disabledAt}
+                  isSelf={employee.user.id === me.id}
+                />
+              </div>
+            ) : (
+              <div className="mt-3">
+                <p className="mb-2 text-zinc-500">
+                  No login yet — {employee.workEmail}
+                  {" can't sign in."}
+                </p>
+                {!employee.dateOfExit && (
+                  <CreateLoginButton employeeId={employee.id} />
+                )}
+              </div>
+            )}
+          </section>
+        )}
+      </div>
     </PageShell>
   );
 }

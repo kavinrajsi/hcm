@@ -24,6 +24,7 @@ import {
 } from "@/lib/leave-history";
 import { cn } from "@/lib/utils";
 import { formatDay } from "@/lib/format-date";
+import { employeeTabHref } from "./tabs";
 
 // Employee page: every Basecamp leave post for this employee, by year, with
 // the same "leave days" rule as the Leave page. Read-only — corrections are
@@ -133,13 +134,13 @@ export function LeaveHistory({
             items={[
               ...years.map((yearOption) => ({
                 key: String(yearOption),
-                href: `/employees/${employeeId}?leaveYear=${yearOption}#leave-history`,
+                href: employeeTabHref(employeeId, "leave", { leaveYear: String(yearOption) }),
                 label: String(yearOption),
                 active: year === yearOption,
               })),
               {
                 key: "all",
-                href: `/employees/${employeeId}?leaveYear=all#leave-history`,
+                href: employeeTabHref(employeeId, "leave", { leaveYear: "all" }),
                 label: "All",
                 active: year === "all",
               },
