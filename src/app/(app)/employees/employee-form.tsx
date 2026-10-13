@@ -19,6 +19,7 @@ import {
   addDaysToDay,
   type EmpTypeValue,
 } from "./type-end";
+import { linkedinIdFrom } from "@/lib/linkedin";
 
 export type EmployeeDefaults = Partial<{
   empId: string;
@@ -74,12 +75,15 @@ export type SensitiveMasks = Partial<{
 function Section({
   title,
   children,
+  hidden = false,
 }: {
   title: string;
   children: React.ReactNode;
+  /** Kept in the form (its values still save) but not shown on this tab. */
+  hidden?: boolean;
 }) {
   return (
-    <fieldset className="rounded-lg border border-zinc-200 p-5 dark:border-zinc-800">
+    <fieldset hidden={hidden} className="rounded-lg border border-zinc-200 p-5 dark:border-zinc-800">
       <legend className="px-1 text-sm font-medium">{title}</legend>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
     </fieldset>
@@ -184,6 +188,7 @@ export function EmployeeForm({
   submitLabel,
   hidden = {},
   typeEndBase = "joining",
+  view = "all",
 }: {
   action: (
     prev: EmployeeFormState,
@@ -197,6 +202,11 @@ export function EmployeeForm({
   hidden?: Record<string, string>;
   /** Default end date counts from the joining date (add) or today (edit). */
   typeEndBase?: "joining" | "today";
+  /**
+   * Which sections show: everything (add), the profile tab, or the career
+   * tab. Hidden sections stay in the form, so either tab saves everything.
+   */
+  view?: "all" | "profile" | "career";
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [isFresher, setIsFresher] = useState(defaults.isFresher ?? true);
@@ -239,7 +249,7 @@ export function EmployeeForm({
       {Object.entries(hidden).map(([name, value]) => (
         <input key={name} type="hidden" name={name} value={value} />
       ))}
-      <Section title="Identity">
+      <Section title="Identity" hidden={view === "career"}>
         <FormField label="Employee ID" name="empId">
           <Input
             id="empId"
@@ -299,7 +309,7 @@ export function EmployeeForm({
         </FormField>
       </Section>
 
-      <Section title="Contact">
+      <Section title="Contact" hidden={view === "career"}>
         <FormField label="Phone" name="phone">
           <Input
             id="phone"
@@ -341,7 +351,7 @@ export function EmployeeForm({
         </FormField>
       </Section>
 
-      <Section title="Address">
+      <Section title="Address" hidden={view === "career"}>
         <FormField label="Father's name" name="fatherName">
           <Input
             id="fatherName"
@@ -364,7 +374,7 @@ export function EmployeeForm({
         </FormField>
       </Section>
 
-      <Section title="Employment">
+      <Section title="Employment" hidden={view === "career"}>
         <FormField label="Department" name="department">
           <Input
             id="department"
@@ -385,26 +395,7 @@ export function EmployeeForm({
           />
         </FormField>
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="managerId">Manager</Label>
-            <div className="flex items-center gap-2">
-              <input
-                id="isFresher"
-                name="isFresher"
-                type="checkbox"
-                checked={isFresher}
-                onChange={(event) => {
-                  setIsFresher(event.target.checked);
-                  // An experienced hire starts with one company to fill in.
-                  if (!event.target.checked && previousRows.length === 0) {
-                    setPreviousRows([newRow()]);
-                  }
-                }}
-                className="size-4"
-              />
-              <Label htmlFor="isFresher">Fresher</Label>
-            </div>
-          </div>
+          <Label htmlFor="managerId">Manager</Label>
           <FormField name="managerId">
             <select
               id="managerId"
@@ -478,18 +469,48 @@ export function EmployeeForm({
             />
           </FormField>
         )}
+      </Section>
+
+      <Section title="Career history" hidden={view === "profile"}>
+        <div className="flex items-center gap-2 sm:col-span-2 lg:col-span-3">
+          <input
+            id="isFresher"
+            name="isFresher"
+            type="checkbox"
+            checked={isFresher}
+            onChange={(event) => {
+              setIsFresher(event.target.checked);
+              // An experienced hire starts with one company to fill in.
+              if (!event.target.checked && previousRows.length === 0) {
+                setPreviousRows([newRow()]);
+              }
+            }}
+            className="size-4"
+          />
+          <Label htmlFor="isFresher">Fresher (no previous companies)</Label>
+        </div>
         {!isFresher && (
           <>
-            <FormField
-              label="LinkedIn ID"
-              name="linkedinId"
-              className="sm:col-start-1"
-            >
-              <Input
-                id="linkedinId"
-                name="linkedinId"
-                defaultValue={defaults.linkedinId}
-              />
+            <FormField label="LinkedIn ID" name="linkedinId" className="sm:col-start-1">
+              {/* Just the ID; the link part is shown, not typed. */}
+              <div className="flex h-9 items-stretch overflow-hidden rounded-md border border-input focus-within:ring-2 focus-within:ring-ring/50 dark:bg-input/30">
+                <span className="flex items-center border-r border-input bg-muted px-2.5 text-sm text-zinc-500 select-none">
+                  linkedin.com/in/
+                </span>
+                <input
+                  id="linkedinId"
+                  name="linkedinId"
+                  defaultValue={defaults.linkedinId}
+                  placeholder="kavinrajsi"
+                  autoComplete="off"
+                  spellCheck={false}
+                  onBlur={(event) => {
+                    // A pasted full link is cut down to the ID right away.
+                    event.target.value = linkedinIdFrom(event.target.value);
+                  }}
+                  className="min-w-0 flex-1 bg-transparent px-2.5 text-sm outline-none"
+                />
+              </div>
             </FormField>
             <PreviousCompanies
               rows={previousRows}
@@ -502,7 +523,7 @@ export function EmployeeForm({
         )}
       </Section>
 
-      <Section title="Statutory & bank (stored encrypted)">
+      <Section title="Statutory & bank (stored encrypted)" hidden={view === "career"}>
         <FormField label="PAN" name="pan">
           <Input
             id="pan"
@@ -554,7 +575,7 @@ export function EmployeeForm({
         </FormField>
       </Section>
 
-      <Section title="Documents">
+      <Section title="Documents" hidden={view === "career"}>
         <FormField label="Passport-size photo" name="photo">
           <Input id="photo" name="photo" type="file" accept="image/*" />
         </FormField>

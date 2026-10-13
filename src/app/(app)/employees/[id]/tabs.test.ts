@@ -5,6 +5,7 @@ describe("employee tabs", () => {
   it("opens Profile unless ?tab= names another tab", () => {
     expect(employeeTab(undefined)).toBe("profile");
     expect(employeeTab("leave")).toBe("leave");
+    expect(employeeTab("career")).toBe("career");
     expect(employeeTab("id-card")).toBe("id-card");
     expect(employeeTab("nonsense")).toBe("profile");
     expect(employeeTab(["leave"])).toBe("profile");

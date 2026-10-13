@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 export const EMPLOYEE_TABS = [
   { key: "profile", label: "Profile" },
+  { key: "career", label: "Career history" },
   { key: "leave", label: "Leave" },
   { key: "devices", label: "Devices" },
   { key: "id-card", label: "ID card" },

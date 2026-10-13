@@ -39,6 +39,7 @@ import {
   invalid,
   type FormState,
 } from "@/lib/form-state";
+import { LINKEDIN_ID, linkedinIdFrom } from "@/lib/linkedin";
 
 export type EmployeeFormState = FormState;
 
@@ -86,7 +87,10 @@ const employeeSchema = z.object({
   isFresher: z.coerce.boolean(),
   pfNumber: optionalTrimmed,
   uanNumber: optionalTrimmed,
-  linkedinId: optionalTrimmed,
+  // Just the profile ID; a pasted link is cut down to it.
+  linkedinId: optionalTrimmed
+    .transform((value) => (value ? linkedinIdFrom(value) : undefined))
+    .pipe(z.string().regex(LINKEDIN_ID, "Enter just the LinkedIn ID, e.g. kavinrajsi").optional()),
   managerId: optionalTrimmed,
   // Sensitive — validated then encrypted, never stored plaintext.
   pan: optionalTrimmed.pipe(

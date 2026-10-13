@@ -133,9 +133,13 @@ export default async function EmployeePage({
       <EmployeeTabs employeeId={employee.id} active={tab} />
 
       <div className="mt-6">
-        {tab === "profile" && (
+        {/* Profile and Career history are one form: each shows its own
+            sections, and saving from either keeps everything. */}
+        {(tab === "profile" || tab === "career") && (
           <div>
             <EmployeeForm
+              key={tab}
+              view={tab}
               action={update}
               submitLabel="Save changes"
               typeEndBase="today"
