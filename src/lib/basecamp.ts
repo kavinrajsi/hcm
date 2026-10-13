@@ -83,6 +83,8 @@ export async function saveToken(
   await db.basecampToken.upsert({
     where: { userId },
     update: {
+      // Reconnecting may be a different Basecamp login; ask again when needed.
+      personId: null,
       accessTokenEnc: encryptField(token.access_token),
       refreshTokenEnc: token.refresh_token
         ? encryptField(token.refresh_token)

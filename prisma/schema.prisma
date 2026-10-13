@@ -498,6 +498,9 @@ model BasecampToken {
   refreshTokenEnc String?
   expiresAt       DateTime
   accountId       String
+  // The Basecamp person behind this connection (from /my/profile.json),
+  // filled the first time it's needed. Chat uses it to know "my" messages.
+  personId        String?
   updatedAt       DateTime @updatedAt
 }
 
