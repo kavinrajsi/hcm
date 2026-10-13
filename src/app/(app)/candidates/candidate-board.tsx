@@ -13,7 +13,6 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CandidateDialog, type CandidateDetail } from "./candidate-dialog";
@@ -24,8 +23,6 @@ import {
   CANDIDATE_STATUS_CLASSES,
   type CandidateStatus,
 } from "./statuses";
-import { formatDay } from "@/lib/format-date";
-import { ScoreBadge } from "./score-badge";
 
 type Columns = Record<CandidateStatus, CandidateDetail[]>;
 type Counts = Record<CandidateStatus, number>;
@@ -40,28 +37,12 @@ function insertSorted(list: CandidateDetail[], card: CandidateDetail) {
     : [...list.slice(0, insertIndex), card, ...list.slice(insertIndex)];
 }
 
+/** A board card: just who and the type of position (Full Time / Intern); "View" has the rest. */
 function CardBody({ candidate }: { candidate: CandidateDetail }) {
   return (
     <>
-      <div className="flex items-start justify-between gap-2">
-        <span className="font-medium leading-snug">{candidate.name}</span>
-        <span className="flex shrink-0 items-center gap-1.5">
-          {candidate.score?.value != null && <ScoreBadge score={candidate.score} />}
-          {candidate.resumeHref && (
-            <FileText
-              className="mt-0.5 size-3.5 shrink-0 text-zinc-400"
-              aria-label="Has resume"
-            />
-          )}
-        </span>
-      </div>
-      <div className="mt-0.5 text-xs text-zinc-500">
-        {candidate.jobRole ?? "—"}
-      </div>
-      <div className="mt-2 flex items-center justify-between text-xs text-zinc-400">
-        <span>{candidate.position ?? "—"}</span>
-        <span className="tabular-nums">{formatDay(candidate.appliedOn)}</span>
-      </div>
+      <div className="font-medium leading-snug">{candidate.name}</div>
+      <div className="mt-0.5 text-xs text-zinc-500">{candidate.position ?? "—"}</div>
     </>
   );
 }

@@ -53,7 +53,7 @@ export const metadata = { title: "Candidates" };
 
 // Applications submitted through the madarth.com career form. The website
 // writes rows directly; this page is HR's triage view — a paginated list,
-// or a board with one column per status (?view=board).
+// or a board with one column per status (the default; ?view=list for the list).
 
 export default async function CandidatesPage({
   searchParams,
@@ -61,7 +61,7 @@ export default async function CandidatesPage({
   await requirePageRole("HR_ADMIN");
   const raw = await searchParams;
   const params = parseTableParams(raw);
-  const view = raw.view === "board" ? "board" : "list";
+  const view = raw.view === "list" ? "list" : "board";
   const trimmedParam = (value: unknown) =>
     typeof value === "string" && value.trim()
       ? value.trim().slice(0, 200)
@@ -244,7 +244,7 @@ export default async function CandidatesPage({
               key: viewOption,
               href: hrefWith(
                 "view",
-                viewOption === "board" ? "board" : undefined,
+                viewOption === "list" ? "list" : undefined,
               ),
               label: viewOption === "list" ? "List" : "Board",
               active: view === viewOption,
