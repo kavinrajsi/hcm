@@ -40,6 +40,13 @@ import { formatDay } from "@/lib/format-date";
 import { EmployeeAvatar } from "@/components/employee-avatar";
 import { EMP_TYPE_LABELS, EMP_TYPE_OPTIONS } from "@/lib/emp-type";
 
+// The Employees page lists and filters by Permanent, Contract, Intern.
+// Probation isn't a filter here; anyone still on it is listed last.
+const FILTER_TYPES = (["PERMANENT", "CONTRACT", "INTERN"] as const).map(
+  (value) => EMP_TYPE_OPTIONS.find((option) => option.value === value)!,
+);
+const LIST_ORDER = [...FILTER_TYPES.map((option) => option.value), "PROBATION"] as const;
+
 export const metadata = { title: "Employees" };
 
 /** Internship / contract end, or probation confirmation due. */
@@ -66,7 +73,7 @@ export default async function EmployeesPage({
   // Multi-selects arrive as repeated params (?type=INTERN&type=CONTRACT);
   // unknown emp types are ignored.
   const typeParam = listParam(raw.type);
-  const empTypes = EMP_TYPE_OPTIONS.map((option) => option.value).filter(
+  const empTypes = FILTER_TYPES.map((option) => option.value).filter(
     (value) => typeParam.includes(value),
   );
   const departments = listParam(raw.department);
@@ -112,7 +119,7 @@ export default async function EmployeesPage({
   const pageEnd = params.skip + params.take;
   const slices: { empType: string; skip: number; take: number }[] = [];
   let typeStart = 0;
-  for (const { value } of EMP_TYPE_OPTIONS) {
+  for (const value of LIST_ORDER) {
     const count = matchedCounts.get(value) ?? 0;
     const from = Math.max(params.skip, typeStart);
     const to = Math.min(pageEnd, typeStart + count);
@@ -178,7 +185,7 @@ export default async function EmployeesPage({
       />
 
       <CountChips
-        items={EMP_TYPE_OPTIONS.map((option) => ({
+        items={FILTER_TYPES.map((option) => ({
           key: option.value,
           label: option.label,
           count: typeCounts.get(option.value) ?? 0,
@@ -196,7 +203,7 @@ export default async function EmployeesPage({
               param="type"
               label="Emp type"
               plural="Emp types"
-              options={EMP_TYPE_OPTIONS.map((option) => ({
+              options={FILTER_TYPES.map((option) => ({
                 value: option.value,
                 label: option.label,
                 count: typeCounts.get(option.value) ?? 0,
