@@ -354,7 +354,7 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
                     badge={<StatusPill status={status} />}
                     meta={
                       <>
-                        <span>{assignees.map((person) => person.name).join(", ") || "Unassigned"}</span>
+                        {assignees.length === 0 && <span>Unassigned</span>}
                         {!todo.completed && todo.dueOn && <span>Due {formatDay(todo.dueOn)}</span>}
                       </>
                     }
@@ -398,15 +398,12 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
                   const assignees = assigneesOf(data);
                   return (
                     <TableRow key={todo.id} className="align-top">
-                      <TableCell className="w-64 py-3">
+                      <TableCell className="w-40 py-3">
                         {assignees.length === 0 ? (
                           <span className="text-zinc-500">Unassigned</span>
                         ) : (
-                          <div className="flex items-center gap-2">
-                            <AvatarStack people={assignees} />
-                            {/* One person: their name too; more show names on hover. */}
-                            {assignees.length === 1 && <span className="truncate">{assignees[0].name}</span>}
-                          </div>
+                          // Photos only; names show on hover and to screen readers.
+                          <AvatarStack people={assignees} />
                         )}
                       </TableCell>
                       <TableCell className="w-36 py-3">{hoursCell(todo)}</TableCell>
