@@ -226,6 +226,7 @@ model Employee {
   onboarding          OnboardingRecord?
   idCard              IdCard?
   probation           ProbationRecord?
+  quantumHours        QuantumHours[]
   registrations       SessionRegistration[]
   attendance          SessionAttendance[]
   letters             Letter[]
@@ -331,6 +332,26 @@ model QuantumTodo {
   @@index([sheetDay])
   @@index([basecampUpdatedAt])
   @@index([assigneeIds], type: Gin)
+}
+
+// Quantum Sheet hours on a to-do. Basecamp Timesheet entries are copied by
+// the sync (source "basecamp"); when a to-do has none, each assignee can log
+// their own total in HCM (source "hcm", one row per person per to-do).
+model QuantumHours {
+  id              String    @id @default(cuid())
+  todoBasecampId  String // QuantumTodo.basecampId
+  source          String // basecamp | hcm
+  basecampEntryId String?   @unique
+  personName      String? // who logged it in Basecamp
+  employee        Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId      String? // who logged it in HCM
+  date            DateTime  @db.Date
+  minutes         Int
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([todoBasecampId, employeeId])
+  @@index([todoBasecampId])
 }
 
 model TrainingSession {

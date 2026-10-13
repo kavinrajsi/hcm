@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const db = vi.hoisted(() => ({
   appSetting: { findUnique: vi.fn(), upsert: vi.fn() },
   quantumTodo: { upsert: vi.fn((args: unknown) => args) },
+  quantumHours: { upsert: vi.fn(), deleteMany: vi.fn() },
 }));
 vi.mock("@/lib/db", () => ({ db }));
 const basecamp = vi.hoisted(() => ({
@@ -12,7 +13,7 @@ const basecamp = vi.hoisted(() => ({
 vi.mock("@/lib/basecamp", () => basecamp);
 vi.mock("@/lib/leave-sync", () => ({ leaveSyncUserId: vi.fn(async () => "hr-1") }));
 
-const { syncQuantumTodos, syncStart } = await import("./sync");
+const { syncQuantumTodos, syncStart, syncTimesheetHours } = await import("./sync");
 
 const todo = (id: number, updated: string) => ({
   id,
@@ -47,6 +48,7 @@ describe("syncQuantumTodos", () => {
     db.appSetting.findUnique.mockResolvedValue({ value: { syncedThrough: "2026-10-12T00:10:00.000Z" } });
     const stops: unknown[] = [];
     basecamp.eachPage.mockImplementation(async (_token, url: string, _agent, onPage) => {
+      if (url.includes("timesheet")) return;
       if (!url.includes("status=active")) return stops.push(await onPage([]));
       stops.push(await onPage([todo(1, "2026-10-12T09:00:00.000Z"), todo(2, "2026-10-11T00:00:00.000Z")]));
     });
@@ -57,11 +59,9 @@ describe("syncQuantumTodos", () => {
     expect(db.quantumTodo.upsert).toHaveBeenCalledTimes(1);
     expect(db.quantumTodo.upsert.mock.calls[0][0]).toMatchObject({ where: { basecampId: "1" } });
     expect(stops).toEqual([true, true, false]);
-    expect(basecamp.eachPage.mock.calls.map((call) => /status=(\w+)/.exec(call[1])![1])).toEqual([
-      "active",
-      "archived",
-      "trashed",
-    ]);
+    expect(
+      basecamp.eachPage.mock.calls.map((call) => /status=(\w+)/.exec(call[1])?.[1] ?? "timesheet"),
+    ).toEqual(["active", "archived", "trashed", "timesheet"]);
     expect(db.appSetting.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { key: "quantum.sync" } }),
     );
@@ -70,7 +70,8 @@ describe("syncQuantumTodos", () => {
   it("keeps paging while a whole page is newer", async () => {
     db.appSetting.findUnique.mockResolvedValue({ value: { syncedThrough: "2026-10-12T00:10:00.000Z" } });
     const stops: unknown[] = [];
-    basecamp.eachPage.mockImplementation(async (_token, _url, _agent, onPage) => {
+    basecamp.eachPage.mockImplementation(async (_token, url: string, _agent, onPage) => {
+      if (url.includes("timesheet")) return;
       stops.push(await onPage([todo(1, "2026-10-12T09:00:00.000Z")]));
     });
     await syncQuantumTodos();
@@ -100,5 +101,31 @@ describe("syncQuantumTodos", () => {
   it("needs a connected HR admin", async () => {
     basecamp.getAccessToken.mockResolvedValueOnce(null as never);
     await expect(syncQuantumTodos()).rejects.toThrow("No HR admin has connected Basecamp");
+  });
+});
+
+describe("syncTimesheetHours", () => {
+  it("keeps hours logged on to-dos and drops entries deleted in Basecamp", async () => {
+    basecamp.eachPage.mockImplementation(async (_token, url: string, _agent, onPage) => {
+      expect(url).toContain("start_date=2025-10-13&end_date=2026-10-13");
+      await onPage([
+        { id: 1, status: "active", date: "2026-10-07", hours: "1.5", parent: { id: 42, type: "Todo" }, person: { id: 5, name: "Ravi" } },
+        { id: 2, status: "active", date: "2026-10-07", hours: "2.0", parent: { id: 9, type: "Message" } },
+        { id: 3, status: "trashed", date: "2026-10-07", hours: "1.0", parent: { id: 43, type: "Todo" } },
+      ]);
+    });
+
+    const saved = await syncTimesheetHours({ accessToken: "t", accountId: "1" }, new Date("2026-10-13T06:00:00Z"));
+
+    expect(saved).toBe(1);
+    expect(db.quantumHours.upsert).toHaveBeenCalledWith({
+      where: { basecampEntryId: "1" },
+      create: expect.objectContaining({ todoBasecampId: "42", minutes: 90, source: "basecamp", basecampEntryId: "1" }),
+      update: expect.objectContaining({ minutes: 90 }),
+    });
+    expect(db.quantumHours.deleteMany.mock.calls[0][0].where).toMatchObject({
+      source: "basecamp",
+      basecampEntryId: { notIn: ["1"] },
+    });
   });
 });

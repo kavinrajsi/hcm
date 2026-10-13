@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { rowStatus, statusWhere, toQuantumRow, type BasecampTodoRecording } from "./todos";
+import {
+  effectiveMinutes,
+  formatHours,
+  hoursToMinutes,
+  rowStatus,
+  statusWhere,
+  toQuantumRow,
+  type BasecampTodoRecording,
+} from "./todos";
 
 const base: BasecampTodoRecording = {
   id: 42,
@@ -81,5 +89,32 @@ describe("rowStatus", () => {
     expect(rowStatus({ completed: false, dueOn: due("2026-10-12") }, "2026-10-13")).toBe("overdue");
     expect(rowStatus({ completed: false, dueOn: due("2026-10-13") }, "2026-10-13")).toBe("open");
     expect(rowStatus({ completed: false, dueOn: null }, "2026-10-13")).toBe("open");
+  });
+});
+
+describe("hours", () => {
+  it("converts Basecamp hours to minutes", () => {
+    expect(hoursToMinutes("1.5")).toBe(90);
+    expect(hoursToMinutes("0.3")).toBe(18);
+    expect(hoursToMinutes("abc")).toBe(0);
+    expect(hoursToMinutes(-2)).toBe(0);
+  });
+
+  it("formats minutes for the Hours column", () => {
+    expect(formatHours(0)).toBe("");
+    expect(formatHours(45)).toBe("45m");
+    expect(formatHours(90)).toBe("1.5h");
+    expect(formatHours(100)).toBe("1.67h");
+  });
+
+  it("prefers Basecamp hours over HCM hours per to-do", () => {
+    const result = effectiveMinutes([
+      { todoBasecampId: "1", source: "basecamp", minutes: 60 },
+      { todoBasecampId: "1", source: "hcm", minutes: 30 },
+      { todoBasecampId: "2", source: "hcm", minutes: 30 },
+      { todoBasecampId: "2", source: "hcm", minutes: 45 },
+    ]);
+    expect(result.get("1")).toEqual({ minutes: 60, source: "basecamp" });
+    expect(result.get("2")).toEqual({ minutes: 75, source: "hcm" });
   });
 });

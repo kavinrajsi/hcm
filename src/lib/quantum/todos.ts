@@ -125,3 +125,51 @@ export function rowStatus(
   if (todo.completed) return "completed";
   return todo.dueOn && todo.dueOn < utcDate(today) ? "overdue" : "open";
 }
+
+/** A Basecamp Timesheet entry as `/reports/timesheet.json` returns it (fields we use). */
+export type BasecampTimesheetEntry = {
+  id: number;
+  status: string;
+  date: string; // YYYY-MM-DD
+  hours: string; // "1.5"
+  parent: { id: number; type: string };
+  person?: { id: number; name: string } | null;
+};
+
+/** Hours as whole minutes ("0.3" → 18). */
+export function hoursToMinutes(hours: string | number): number {
+  const value = typeof hours === "number" ? hours : Number.parseFloat(hours);
+  return Number.isFinite(value) && value > 0 ? Math.round(value * 60) : 0;
+}
+
+/** "1.5h", "45m" — minutes as the Hours column shows them. */
+export function formatHours(minutes: number): string {
+  if (minutes <= 0) return "";
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.round((minutes / 60) * 100) / 100;
+  return `${hours}h`;
+}
+
+/**
+ * Each to-do's hours: Basecamp Timesheet when anyone logged there, else the
+ * hours people logged in HCM.
+ */
+export function effectiveMinutes(
+  rows: { todoBasecampId: string; source: string; minutes: number }[],
+): Map<string, { minutes: number; source: "basecamp" | "hcm" }> {
+  const sums = new Map<string, { basecamp: number; hcm: number }>();
+  for (const row of rows) {
+    const sum = sums.get(row.todoBasecampId) ?? { basecamp: 0, hcm: 0 };
+    if (row.source === "basecamp") sum.basecamp += row.minutes;
+    else sum.hcm += row.minutes;
+    sums.set(row.todoBasecampId, sum);
+  }
+  return new Map(
+    [...sums].map(([id, sum]) => [
+      id,
+      sum.basecamp > 0
+        ? { minutes: sum.basecamp, source: "basecamp" as const }
+        : { minutes: sum.hcm, source: "hcm" as const },
+    ]),
+  );
+}

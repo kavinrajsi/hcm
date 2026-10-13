@@ -46,8 +46,9 @@ export const NAV: NavGroup[] = [
     title: "Work",
     items: [
       { title: "Leave", url: "/leave", roles: HR_OR_MANAGER },
-      // Basecamp to-dos by day, like Basecamp's timesheet.
-      { title: "Quantum Sheet", url: "/quantum", roles: HR_OR_MANAGER },
+      // Basecamp to-dos by day, like Basecamp's timesheet; everyone logs
+      // hours on their own to-dos, HR and managers see all.
+      { title: "Quantum Sheet", url: "/quantum" },
       // Assignment Intelligence: who should take a design job.
       { title: "Assign", url: "/assign", roles: HR_OR_MANAGER },
       { title: "Freelancers", url: "/freelancers", roles: HR_OR_MANAGER },

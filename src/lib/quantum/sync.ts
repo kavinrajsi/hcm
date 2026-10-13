@@ -7,7 +7,13 @@
 import { db } from "@/lib/db";
 import { eachPage, getAccessToken } from "@/lib/basecamp";
 import { leaveSyncUserId } from "@/lib/leave-sync";
-import { toQuantumRow, type BasecampTodoRecording } from "./todos";
+import { istDay } from "@/lib/date-filter";
+import {
+  hoursToMinutes,
+  toQuantumRow,
+  type BasecampTimesheetEntry,
+  type BasecampTodoRecording,
+} from "./todos";
 
 /** AppSetting: { syncedThrough: ISO instant } — set only when a run finishes. */
 export const QUANTUM_SYNC_SETTING = "quantum.sync";
@@ -22,6 +28,7 @@ export type QuantumSyncResult = {
   since: string;
   pages: number;
   saved: number;
+  hourEntries: number;
 };
 
 /** Where this run starts: the last finished sync, never further back than 12 months. */
@@ -91,11 +98,61 @@ export async function syncQuantumTodos(
     );
   }
 
+  const hourEntries = await syncTimesheetHours(token, startedAt);
+
   const value = { syncedThrough: startedAt.toISOString() };
   await db.appSetting.upsert({
     where: { key: QUANTUM_SYNC_SETTING },
     create: { key: QUANTUM_SYNC_SETTING, value, updatedById },
     update: { value, updatedById: updatedById ?? null },
   });
-  return { since: sinceIso, pages, saved };
+  return { since: sinceIso, pages, saved, hourEntries };
+}
+
+/**
+ * Basecamp Timesheet hours logged on to-dos in the last 12 months. The team
+ * logs few entries, so the whole year is one request; entries deleted in
+ * Basecamp are dropped here too.
+ */
+export async function syncTimesheetHours(
+  token: { accessToken: string; accountId: string },
+  now: Date,
+): Promise<number> {
+  const startDay = istDay(new Date(now.getTime() - HISTORY_DAYS * 86_400_000));
+  const entries: BasecampTimesheetEntry[] = [];
+  await eachPage<BasecampTimesheetEntry>(
+    token.accessToken,
+    `https://3.basecampapi.com/${token.accountId}/reports/timesheet.json?start_date=${startDay}&end_date=${istDay(now)}`,
+    USER_AGENT,
+    (page) => {
+      entries.push(...page);
+    },
+  );
+  const onTodos = entries.filter(
+    (entry) => entry.parent?.type === "Todo" && entry.status === "active" && hoursToMinutes(entry.hours) > 0,
+  );
+  await Promise.all(
+    onTodos.map((entry) => {
+      const row = {
+        todoBasecampId: String(entry.parent.id),
+        source: "basecamp",
+        personName: entry.person?.name ?? null,
+        date: new Date(`${entry.date}T00:00:00Z`),
+        minutes: hoursToMinutes(entry.hours),
+      };
+      return db.quantumHours.upsert({
+        where: { basecampEntryId: String(entry.id) },
+        create: { ...row, basecampEntryId: String(entry.id) },
+        update: row,
+      });
+    }),
+  );
+  await db.quantumHours.deleteMany({
+    where: {
+      source: "basecamp",
+      date: { gte: new Date(`${startDay}T00:00:00Z`) },
+      basecampEntryId: { notIn: onTodos.map((entry) => String(entry.id)) },
+    },
+  });
+  return onTodos.length;
 }
