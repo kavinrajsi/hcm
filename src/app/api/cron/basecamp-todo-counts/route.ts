@@ -1,13 +1,14 @@
 import type { NextRequest } from "next/server";
 import { inNightWindow, isAuthorizedCron } from "@/lib/cron-auth";
 import { syncOpenTodoCounts } from "@/lib/basecamp-todo-counts";
+import { withCronRun } from "@/lib/status/cron-runs";
 
 export const maxDuration = 300;
 
 // Every 30 minutes overnight (02:00–08:00 IST): each employee's open
 // Basecamp to-dos (with and without a due date) for the Staff page.
 // Protected by CRON_SECRET.
-export async function GET(request: NextRequest) {
+async function run(request: NextRequest) {
   if (!isAuthorizedCron(request)) {
     return new Response("Unauthorized", { status: 401 });
   }
@@ -23,3 +24,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// Each run is recorded for the Status page.
+export const GET = withCronRun("/api/cron/basecamp-todo-counts", run);

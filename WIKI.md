@@ -64,6 +64,9 @@ The sidebar only shows what your role can open; the page itself also checks.
 ### Chat
 `/chat` (HR, managers) — Basecamp project chats (Campfires), laid out like WhatsApp: chats on the left, most recent first; the conversation on the right (full screen on phones). New messages show up within a few seconds; a green badge counts messages you haven't seen. To reply, connect your own Basecamp once; messages, emoji and files (up to 4 MB, via +) post under your name. Private Pings aren't available through Basecamp's API, so only project chats appear.
 
+### Status
+`/status` (public, no sign-in; HR link under Admin) — live health of HCM and the services it uses (database, Basecamp API, Basecamp sync, AI Gateway, file storage, email, background jobs), checked every 5 minutes, with 90 days of daily bars and uptime %, like status.claude.com. Shows states only, never error details.
+
 ### Assign
 `/assign` (HR, managers) — Assignment Intelligence: when a new design job comes in, shows which designers handled similar jobs and how those went, from Basecamp history. Includes belief capture, comment labelling and evaluation pages. See [docs/assignment-intelligence/](docs/assignment-intelligence/README.md).
 

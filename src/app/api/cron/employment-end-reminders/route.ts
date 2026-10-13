@@ -1,11 +1,12 @@
 import type { NextRequest } from "next/server";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { sendEndReminders } from "@/lib/employment-emails";
+import { withCronRun } from "@/lib/status/cron-runs";
 
 // Daily Vercel cron: emails hr@madarth.com once, a week ahead, about each
 // probation confirmation, contract end and internship end. ?dryRun=1 lists
 // what it would send without sending or recording. CRON_SECRET protected.
-export async function GET(request: NextRequest) {
+async function run(request: NextRequest) {
   if (!isAuthorizedCron(request)) return new Response("Unauthorized", { status: 401 });
   const dryRun = request.nextUrl.searchParams.get("dryRun") === "1";
   try {
@@ -25,3 +26,6 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: error instanceof Error ? error.message : "Failed" }, { status: 500 });
   }
 }
+
+// Each run is recorded for the Status page.
+export const GET = withCronRun("/api/cron/employment-end-reminders", run);

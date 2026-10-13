@@ -1,12 +1,13 @@
 import type { NextRequest } from "next/server";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { syncBasecampPeople } from "@/lib/basecamp-people";
+import { withCronRun } from "@/lib/status/cron-runs";
 
 export const maxDuration = 300;
 
 // Daily Vercel cron: links Basecamp people to employees and refreshes their
 // profile pictures. Protected by CRON_SECRET (sent as a Bearer token).
-export async function GET(request: NextRequest) {
+async function run(request: NextRequest) {
   if (!isAuthorizedCron(request)) {
     return new Response("Unauthorized", { status: 401 });
   }
@@ -20,3 +21,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// Each run is recorded for the Status page.
+export const GET = withCronRun("/api/cron/basecamp-people", run);

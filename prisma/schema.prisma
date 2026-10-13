@@ -399,6 +399,32 @@ model BasecampChatRead {
   @@id([userId, chatBasecampId])
 }
 
+// Status page: one row per service per 5-minute check (src/lib/status).
+// `detail` is for HR debugging only and is never shown on the public page.
+model HealthCheck {
+  id        String   @id @default(cuid())
+  service   String // key from SERVICES in src/lib/status/services.ts
+  checkedAt DateTime @default(now())
+  status    String // ok | degraded | down
+  latencyMs Int?
+  detail    String?
+
+  @@index([service, checkedAt])
+  @@index([checkedAt])
+}
+
+// Status page: every scheduled job's run, recorded by recordCronRun.
+model CronRun {
+  id         String   @id @default(cuid())
+  path       String // "/api/cron/leave-sync"
+  startedAt  DateTime @default(now())
+  finishedAt DateTime?
+  ok         Boolean?
+  error      String?
+
+  @@index([path, startedAt])
+}
+
 model TrainingSession {
   id            String                @id @default(cuid())
   name          String

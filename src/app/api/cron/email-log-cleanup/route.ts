@@ -3,13 +3,14 @@ import { isAuthorizedCron } from "@/lib/cron-auth";
 import { db } from "@/lib/db";
 import { AUTH_ATTEMPT_RETENTION_MS } from "@/lib/auth-throttle";
 import { SESSION_RETENTION_DAYS } from "@/lib/login-sessions";
+import { withCronRun } from "@/lib/status/cron-runs";
 
 // Daily: the Email log keeps one year; sign-in throttle rows keep one day;
 // expired passkey challenges go; signed-in devices are listed for a year
 // after last use.
 export const RETENTION_DAYS = 365;
 
-export async function GET(request: NextRequest) {
+async function run(request: NextRequest) {
   if (!isAuthorizedCron(request)) return new Response("Unauthorized", { status: 401 });
   const before = new Date(Date.now() - RETENTION_DAYS * 86_400_000);
   const { count } = await db.emailLog.deleteMany({ where: { createdAt: { lt: before } } });
@@ -22,3 +23,6 @@ export async function GET(request: NextRequest) {
   });
   return Response.json({ deleted: count, before: before.toISOString() });
 }
+
+// Each run is recorded for the Status page.
+export const GET = withCronRun("/api/cron/email-log-cleanup", run);

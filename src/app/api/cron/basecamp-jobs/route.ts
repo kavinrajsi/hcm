@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { syncBasecampJobs } from "@/lib/assign/jobs-sync";
 import { classifyPending } from "@/lib/assign/classify";
+import { withCronRun } from "@/lib/status/cron-runs";
 
 export const maxDuration = 300;
 
@@ -11,7 +12,7 @@ const CLASSIFY_BUDGET_MS = 120_000;
 
 // Daily Vercel cron: pulls new completed Basecamp to-dos and comments, then
 // classifies job kinds and comment categories. Protected by CRON_SECRET.
-export async function GET(request: NextRequest) {
+async function run(request: NextRequest) {
   if (!isAuthorizedCron(request)) {
     return new Response("Unauthorized", { status: 401 });
   }
@@ -26,3 +27,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// Each run is recorded for the Status page.
+export const GET = withCronRun("/api/cron/basecamp-jobs", run);

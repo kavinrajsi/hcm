@@ -103,6 +103,8 @@ export const NAV: NavGroup[] = [
   {
     title: "Admin",
     items: [
+      // Public page: live health of HCM and its services.
+      { title: "Status", url: "/status", roles: HR },
       { title: "Users & roles", url: "/users", roles: HR },
       // Basecamp people and profile pictures, on demand.
       { title: "Basecamp sync", url: "/basecamp-sync", roles: HR },
