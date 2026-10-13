@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chatAvatarColor, chatDayLabel, chatListTime, markMentions, mentionsAsText, senderColor } from "./format";
+import { chatAvatarColor, chatDayLabel, chatListTime, endsInTextLine, markMentions, mentionsAsText, senderColor } from "./format";
 
 // 13/10/2026 10:00 IST
 const now = new Date("2026-10-13T04:30:00Z");
@@ -43,11 +43,10 @@ const mention = (name: string) =>
 const picture = `<figure><img alt="" src="https://bc3/photo.jpg" width="1200" height="800" /><figcaption>photo.jpg</figcaption></figure>`;
 
 describe("mentions", () => {
-  it("turns each mention into an inline avatar + name chip", () => {
-    const html = `<div>${mention("Ravi")}${mention("Meena")} please check</div>`;
+  it("turns each mention into @Name, WhatsApp style", () => {
+    const html = `<div>${mention("Ravi")} ${mention("Meena")} please check</div>`;
     expect(markMentions(html)).toBe(
-      '<div><span class="bc-mention"><img alt="Ravi" src="https://bc3/avatar.jpg" width="20" height="20" /><span>Ravi</span></span>' +
-        '<span class="bc-mention"><img alt="Meena" src="https://bc3/avatar.jpg" width="20" height="20" /><span>Meena</span></span> please check</div>',
+      '<div><span class="bc-mention">@Ravi</span> <span class="bc-mention">@Meena</span> please check</div>',
     );
   });
 
@@ -57,5 +56,21 @@ describe("mentions", () => {
 
   it("reads mentions as @Name for previews", () => {
     expect(mentionsAsText(`<div>${mention("Ravi")} hi</div>`).replace(/\s+/g, " ")).toBe("<div> @Ravi hi</div>");
+  });
+});
+
+describe("endsInTextLine", () => {
+  it("lets the time share the last line of text", () => {
+    expect(endsInTextLine("<div>hello</div>")).toBe("block");
+    expect(endsInTextLine("<p>hi <strong>there</strong></p>")).toBe("block");
+    expect(endsInTextLine("plain text")).toBe("inline");
+    expect(endsInTextLine("text with <strong>bold</strong>")).toBe("inline");
+  });
+
+  it("gives the time its own line after lists, pictures and quotes", () => {
+    expect(endsInTextLine("<div><ul><li>a</li></ul></div>")).toBeNull();
+    expect(endsInTextLine("<figure><img src=\"https://x\" /></figure>")).toBeNull();
+    expect(endsInTextLine("<blockquote>q</blockquote>")).toBeNull();
+    expect(endsInTextLine("")).toBeNull();
   });
 });

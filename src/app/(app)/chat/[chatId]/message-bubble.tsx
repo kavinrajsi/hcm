@@ -8,7 +8,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { FileText } from "lucide-react";
 import { EmployeeAvatar } from "@/components/employee-avatar";
-import { chatTime, markMentions, senderColor } from "@/lib/chat/format";
+import { chatTime, endsInTextLine, markMentions, senderColor } from "@/lib/chat/format";
 import type { ChatMessage } from "@/lib/chat/messages";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +39,20 @@ export function MessageBubble({
   }, [message.html]);
 
   const created = new Date(message.createdAt);
+  // WhatsApp puts the time at the end of the last line of text: a spacer the
+  // width of the time ends that line, and the time sits over it.
+  const textEnd = message.attachments.length === 0 && !(foldable && !expanded) ? endsInTextLine(message.html) : null;
+  const time = (
+    <time
+      dateTime={message.createdAt}
+      className={cn(
+        "shrink-0 text-[11px] text-[var(--chat-meta)] tabular-nums",
+        textEnd ? "absolute right-2.5 bottom-1" : "ml-auto pl-2",
+      )}
+    >
+      {chatTime(created)}
+    </time>
+  );
   return (
     <li className={cn("flex items-start gap-2", mine ? "justify-end" : "justify-start", firstInRun ? "mt-2" : "mt-0.5")}>
       {!mine && (
@@ -48,7 +62,7 @@ export function MessageBubble({
       )}
       <div
         className={cn(
-          "relative max-w-[85%] rounded-lg px-2.5 pt-1.5 pb-1 text-sm text-[var(--chat-bubble-text)] shadow-sm md:max-w-[65%]",
+          "relative max-w-[85%] rounded-lg px-2.5 pt-1.5 pb-1.5 text-sm text-[var(--chat-bubble-text)] shadow-sm md:max-w-[65%]",
           mine ? "bg-[var(--chat-bubble-own)]" : "bg-[var(--chat-bubble-other)]",
           firstInRun && (mine ? "rounded-tr-none" : "rounded-tl-none"),
         )}
@@ -78,9 +92,15 @@ export function MessageBubble({
               "break-words leading-relaxed [&_a]:text-sky-700 [&_a]:underline [&_a]:underline-offset-2 dark:[&_a]:text-sky-400",
               "[&_blockquote]:border-l-2 [&_blockquote]:pl-2 [&_figcaption]:hidden [&_figure]:my-1",
               "[&_img]:max-h-72 [&_img]:max-w-full [&_img]:rounded-md [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5",
-              // @mentions: a small round avatar and the name, inline with the text.
-              "[&_.bc-mention]:mx-0.5 [&_.bc-mention]:inline-flex [&_.bc-mention]:items-center [&_.bc-mention]:gap-1 [&_.bc-mention]:align-middle [&_.bc-mention]:font-medium [&_.bc-mention]:text-sky-700 dark:[&_.bc-mention]:text-sky-400",
-              "[&_.bc-mention_img]:size-5 [&_.bc-mention_img]:rounded-full [&_.bc-mention_img]:object-cover",
+              // @mentions: coloured "@Name", as in WhatsApp.
+              "[&_.bc-mention]:font-medium",
+              mine
+                ? "[&_.bc-mention]:text-sky-700 dark:[&_.bc-mention]:text-sky-300"
+                : "[&_.bc-mention]:text-emerald-700 dark:[&_.bc-mention]:text-emerald-400",
+              // Room for the time at the end of the last line.
+              textEnd === "block" &&
+                "[&>*:last-child]:after:inline-block [&>*:last-child]:after:w-16 [&>*:last-child]:after:content-['']",
+              textEnd === "inline" && "after:inline-block after:w-16 after:content-['']",
               foldable && !expanded && "overflow-hidden",
             )}
             dangerouslySetInnerHTML={{ __html: markMentions(message.html) }}
@@ -104,25 +124,24 @@ export function MessageBubble({
             ))}
           </ul>
         )}
-        <div className="flex items-end justify-between gap-3">
-          {foldable && !expanded ? (
-            <button
-              type="button"
-              onClick={() => setExpanded(true)}
-              className="py-0.5 text-sm font-medium text-[var(--chat-accent)] hover:underline"
-            >
-              Read more
-            </button>
-          ) : (
-            <span />
-          )}
-          <time
-            dateTime={message.createdAt}
-            className="ml-auto shrink-0 pl-2 text-[11px] text-[var(--chat-meta)] tabular-nums"
-          >
-            {chatTime(created)}
-          </time>
-        </div>
+        {textEnd ? (
+          time
+        ) : (
+          <div className="flex items-end justify-between gap-3">
+            {foldable && !expanded ? (
+              <button
+                type="button"
+                onClick={() => setExpanded(true)}
+                className="py-0.5 text-sm font-medium text-[var(--chat-accent)] hover:underline"
+              >
+                Read more
+              </button>
+            ) : (
+              <span />
+            )}
+            {time}
+          </div>
+        )}
       </div>
     </li>
   );

@@ -76,12 +76,22 @@ export function chatAvatarColor(projectId: string): string {
 // are figures too, but never 20×20.
 const MENTION = /<figure>\s*(<img\b[^>]*\bwidth="20"[^>]*>)\s*<figcaption>([\s\S]*?)<\/figcaption>\s*<\/figure>/g;
 
-/** Turns mention figures into inline chips (small avatar + name) for the bubble. */
+/** Turns mention figures into "@Name" in the mention colour (WhatsApp style). */
 export function markMentions(html: string): string {
-  return html.replace(
-    MENTION,
-    (_match, image: string, name: string) => `<span class="bc-mention">${image}<span>${name.trim()}</span></span>`,
-  );
+  return html.replace(MENTION, (_match, _image: string, name: string) => `<span class="bc-mention">@${name.trim()}</span>`);
+}
+
+/**
+ * Whether the message ends in a line of text (plain, or a closing div/p), so
+ * the time can sit at the end of that last line as in WhatsApp. Lists,
+ * pictures and quotes end on their own, and the time gets its own line.
+ */
+export function endsInTextLine(html: string): "block" | "inline" | null {
+  const tail = html.trimEnd();
+  if (!tail) return null;
+  if (/<\/(div|p)>$/i.test(tail)) return /<\/(ul|ol|figure|blockquote|pre)>\s*<\/(div|p)>$/i.test(tail) ? null : "block";
+  if (/<\/[a-z-]+>$/i.test(tail) && !/<\/(span|strong|b|em|i|u|s|a|code)>$/i.test(tail)) return null;
+  return "inline";
 }
 
 /** Mentions as plain "@Name", for previews. */

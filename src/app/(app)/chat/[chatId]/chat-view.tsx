@@ -65,6 +65,21 @@ export function ChatView({
     }
   }, [messages]);
 
+  // The frame settles its height after the first paint and images load
+  // later; while the reader is at the newest message, stay there.
+  useEffect(() => {
+    const element = scroller.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      if (stickToBottom.current) element.scrollTop = element.scrollHeight;
+    });
+    observer.observe(element);
+    if (element.firstElementChild) observer.observe(element.firstElementChild);
+    const list = element.querySelector("ol");
+    if (list) observer.observe(list);
+    return () => observer.disconnect();
+  }, []);
+
   const poll = useCallback(async () => {
     try {
       const response = await fetch(`/api/chat/${chatId}/lines?after=${encodeURIComponent(latest.current)}`, {

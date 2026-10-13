@@ -18,9 +18,9 @@ import { ChatView } from "./chat-view";
 
 export const metadata = { title: "Chat" };
 
-const PEOPLE_WINDOW_MS = 30 * 86_400_000;
+const PEOPLE_WINDOW_MS = 90 * 86_400_000;
 
-/** Start of the "active this month" window for the header's people count. */
+/** Start of the window for the header's "who's here" line (last 3 months). */
 function peopleWindowStart() {
   return new Date(Date.now() - PEOPLE_WINDOW_MS);
 }
@@ -40,17 +40,16 @@ export default async function ChatThreadPage({ params, searchParams }: PageProps
     myBasecampPersonId(user),
     db.basecampToken.findUnique({ where: { userId: user.id }, select: { userId: true } }),
     db.basecampChatLine.groupBy({
-      by: ["creatorPersonId"],
+      by: ["creatorPersonId", "creatorName"],
       where: { chatBasecampId: chat.basecampId, createdAt: { gte: peopleWindowStart() } },
+      _max: { createdAt: true },
+      orderBy: { _max: { createdAt: "desc" } },
     }),
     markChatRead(user.id, chat.basecampId),
   ]);
-  const subtitle =
-    chat.title !== "Chat"
-      ? chat.title
-      : posters.length > 0
-        ? `${posters.length} ${posters.length === 1 ? "person" : "people"} active this month`
-        : "Basecamp project chat";
+  // Like WhatsApp's member line: who has posted lately, most recent first.
+  const names = [...new Set(posters.map((poster) => poster.creatorName))];
+  const subtitle = names.length > 0 ? names.join(", ") : chat.title !== "Chat" ? chat.title : "Basecamp project chat";
 
   return (
     <ChatFrame

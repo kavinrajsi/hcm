@@ -51,7 +51,10 @@ export function ChatFrame({
     <main
       ref={frame}
       // Close enough before measuring (header 56/64 px, phone tab bar 56 px).
-      className="flex h-[calc(100dvh-7rem-env(safe-area-inset-bottom))] min-h-0 w-full min-w-0 flex-1 overflow-hidden md:h-[calc(100dvh-4rem)]"
+      // flex-none: inside the app's column layout, flex-1 would override the
+      // height and let the frame grow with the messages, pushing the message
+      // box below the window.
+      className="flex h-[calc(100dvh-7rem-env(safe-area-inset-bottom))] min-h-0 w-full min-w-0 flex-none overflow-hidden md:h-[calc(100dvh-4rem)]"
     >
       <aside
         className={cn(
