@@ -280,12 +280,18 @@ export default async function EmployeesPage({
               </TableRow>
             )}
             {employees.map((employee) => (
-              <TableRow key={employee.id}>
+              // HR: the Emp ID link stretches over the whole row, so a click
+              // anywhere opens the employee (still one link for keyboards and
+              // screen readers).
+              <TableRow
+                key={employee.id}
+                className={isHr ? "relative cursor-pointer hover:bg-muted/60" : undefined}
+              >
                 <TableCell>
                   {isHr ? (
                     <Link
                       href={`/employees/${employee.id}`}
-                      className="font-medium underline-offset-4 hover:underline"
+                      className="font-medium underline-offset-4 after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset"
                     >
                       {employee.empId}
                     </Link>
