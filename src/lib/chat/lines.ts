@@ -3,6 +3,7 @@
 // stored; the page renders it again through the same sanitizer.
 
 import sanitizeHtml from "sanitize-html";
+import { mentionsAsText } from "./format";
 
 /** A Campfire as `/chats.json` returns it (fields we use). */
 export type BasecampChatRecording = {
@@ -61,7 +62,7 @@ export function sanitizeChatHtml(html: string): string {
 
 /** Plain text for the chat list's last-message preview. */
 export function previewText(html: string, attachments: ChatAttachment[] = []): string {
-  const text = sanitizeHtml(html.replace(/<(br|\/p|\/div|\/li)\s*\/?>/gi, " "), {
+  const text = sanitizeHtml(mentionsAsText(html).replace(/<(br|\/p|\/div|\/li)\s*\/?>/gi, " "), {
     allowedTags: [],
     allowedAttributes: {},
     nonTextTags: ["style", "script", "iframe", "figcaption"],

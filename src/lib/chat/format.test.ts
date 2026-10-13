@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chatAvatarColor, chatDayLabel, chatListTime, senderColor } from "./format";
+import { chatAvatarColor, chatDayLabel, chatListTime, markMentions, mentionsAsText, senderColor } from "./format";
 
 // 13/10/2026 10:00 IST
 const now = new Date("2026-10-13T04:30:00Z");
@@ -34,5 +34,28 @@ describe("colours", () => {
   it("keeps a project's avatar colour steady", () => {
     expect(chatAvatarColor("123")).toBe(chatAvatarColor("123"));
     expect(chatAvatarColor("123")).toMatch(/^bg-/);
+  });
+});
+
+// The shape Basecamp mentions have after sanitizing (see real lines).
+const mention = (name: string) =>
+  `<figure>\n<img alt="${name}" src="https://bc3/avatar.jpg" width="20" height="20" />\n<figcaption>\n${name}\n</figcaption>\n</figure>`;
+const picture = `<figure><img alt="" src="https://bc3/photo.jpg" width="1200" height="800" /><figcaption>photo.jpg</figcaption></figure>`;
+
+describe("mentions", () => {
+  it("turns each mention into an inline avatar + name chip", () => {
+    const html = `<div>${mention("Ravi")}${mention("Meena")} please check</div>`;
+    expect(markMentions(html)).toBe(
+      '<div><span class="bc-mention"><img alt="Ravi" src="https://bc3/avatar.jpg" width="20" height="20" /><span>Ravi</span></span>' +
+        '<span class="bc-mention"><img alt="Meena" src="https://bc3/avatar.jpg" width="20" height="20" /><span>Meena</span></span> please check</div>',
+    );
+  });
+
+  it("leaves posted pictures alone", () => {
+    expect(markMentions(picture)).toBe(picture);
+  });
+
+  it("reads mentions as @Name for previews", () => {
+    expect(mentionsAsText(`<div>${mention("Ravi")} hi</div>`).replace(/\s+/g, " ")).toBe("<div> @Ravi hi</div>");
   });
 });

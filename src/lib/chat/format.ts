@@ -70,3 +70,21 @@ export function senderColor(personId: string | null, name: string): string {
 export function chatAvatarColor(projectId: string): string {
   return AVATAR_COLORS[hash(projectId) % AVATAR_COLORS.length];
 }
+
+// A Basecamp @mention, as stored after sanitizing: a figure holding the
+// person's 20×20 avatar and their name as the caption. Pictures people post
+// are figures too, but never 20×20.
+const MENTION = /<figure>\s*(<img\b[^>]*\bwidth="20"[^>]*>)\s*<figcaption>([\s\S]*?)<\/figcaption>\s*<\/figure>/g;
+
+/** Turns mention figures into inline chips (small avatar + name) for the bubble. */
+export function markMentions(html: string): string {
+  return html.replace(
+    MENTION,
+    (_match, image: string, name: string) => `<span class="bc-mention">${image}<span>${name.trim()}</span></span>`,
+  );
+}
+
+/** Mentions as plain "@Name", for previews. */
+export function mentionsAsText(html: string): string {
+  return html.replace(MENTION, (_match, _image: string, name: string) => ` @${name.trim()} `);
+}

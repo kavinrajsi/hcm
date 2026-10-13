@@ -29,6 +29,13 @@ describe("previewText", () => {
     expect(previewText(`<p>${"a".repeat(200)}</p>`)).toHaveLength(120);
   });
 
+  it("keeps mentioned names as @Name", () => {
+    const html = sanitizeChatHtml(
+      '<div><bc-attachment sgid="x" content-type="application/vnd.basecamp.mention"><figure><img class="avatar" src="https://bc3/a.jpg" width="20" height="20" alt="Ravi"><figcaption>Ravi</figcaption></figure></bc-attachment> can you add the logo</div>',
+    );
+    expect(previewText(html)).toBe("@Ravi can you add the logo");
+  });
+
   it("falls back to the file name for uploads", () => {
     expect(previewText("", [{ name: "brief.pdf", contentType: null, size: null, url: null }])).toBe("📎 brief.pdf");
   });

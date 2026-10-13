@@ -8,7 +8,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { FileText } from "lucide-react";
 import { EmployeeAvatar } from "@/components/employee-avatar";
-import { chatTime, senderColor } from "@/lib/chat/format";
+import { chatTime, markMentions, senderColor } from "@/lib/chat/format";
 import type { ChatMessage } from "@/lib/chat/messages";
 import { cn } from "@/lib/utils";
 
@@ -78,9 +78,12 @@ export function MessageBubble({
               "break-words leading-relaxed [&_a]:text-sky-700 [&_a]:underline [&_a]:underline-offset-2 dark:[&_a]:text-sky-400",
               "[&_blockquote]:border-l-2 [&_blockquote]:pl-2 [&_figcaption]:hidden [&_figure]:my-1",
               "[&_img]:max-h-72 [&_img]:max-w-full [&_img]:rounded-md [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5",
+              // @mentions: a small round avatar and the name, inline with the text.
+              "[&_.bc-mention]:mx-0.5 [&_.bc-mention]:inline-flex [&_.bc-mention]:items-center [&_.bc-mention]:gap-1 [&_.bc-mention]:align-middle [&_.bc-mention]:font-medium [&_.bc-mention]:text-sky-700 dark:[&_.bc-mention]:text-sky-400",
+              "[&_.bc-mention_img]:size-5 [&_.bc-mention_img]:rounded-full [&_.bc-mention_img]:object-cover",
               foldable && !expanded && "overflow-hidden",
             )}
-            dangerouslySetInnerHTML={{ __html: message.html }}
+            dangerouslySetInnerHTML={{ __html: markMentions(message.html) }}
           />
         )}
         {message.attachments.length > 0 && (
