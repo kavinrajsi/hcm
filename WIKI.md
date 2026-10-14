@@ -17,7 +17,12 @@ The sidebar only shows what your role can open; the page itself also checks.
 ## Overview
 
 ### Dashboard
-`/` — the home page. HR also sees recruitment charts (applications and pipeline).
+`/` — the home page, and everyone arranges their own. **Customise** (or **Edit dashboard**) to add, drag, resize and remove widgets; long-press the handle to move one on a phone. Several dashboards show as tabs (**New dashboard**, rename, move, delete).
+- **Add widget** offers ready-made ones (headcount, joiners and exits, probation due, on leave / WFH today, leave by type and month, Quantum hours by project or person, overdue to-dos, devices, birthdays and anniversaries, recruitment charts…) or **Build your own**: pick the data (employees, leave, candidates, Quantum hours or to-dos, sessions, devices, probation, ID cards, freelancers), what to count, how to split it (by month, department, type, project, person…), filters, dates and a chart (number, bar, line, donut, table), with a live preview.
+- Every number uses the **viewer's own access**, the same as their pages: employees see their own leave and hours, managers their team, HR everyone; recruitment is HR only. Clicking a number or bar opens the matching page, filtered.
+- The date picker at the top sets the period for every widget that shows one (totals and upcoming lists keep theirs). Numbers refresh every 5 minutes while the page is open.
+- **Share** a dashboard with colleagues to view (read-only, each with their own access); it appears as an extra tab for them.
+- **HR:** "Defaults for" HR admins / Managers / Employees sets the starting dashboard for each role. People who haven't changed theirs follow it; anyone who has keeps theirs until **Reset to default**. HR can also add any custom widget to the catalogue for everyone. Until HR saves a default, everyone starts from the original layout (seven tiles and the recruitment charts, minus what their role can't see).
 
 ### Staff
 `/staff` — everyone at the company as a photo and name, open to all. Each photo has a ring of that person's open Basecamp to-dos: **red overdue**, **amber dated**, **grey no date**, with counts under the name. Click a photo for the full list (soonest due first, overdue in red), linking to Basecamp. Counts refresh every 30 minutes overnight (2–8 am IST).

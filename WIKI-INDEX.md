@@ -6,7 +6,7 @@ Every module, page and integration, with links into the [overview](WIKI.md) and 
 
 | Module | Page | Who | Overview | Detail | Source |
 |---|---|---|---|---|---|
-| Dashboard | `/` | All | [→](WIKI.md#dashboard) | [→](WIKI-DETAILED.md#dashboard) | `src/app/(app)/page.tsx` |
+| Dashboard | `/` | All | [→](WIKI.md#dashboard) | [→](WIKI-DETAILED.md#dashboard) | `src/lib/dashboard/`, `src/app/(app)/_dashboard/` |
 | Staff | `/staff` | All | [→](WIKI.md#staff) | [→](WIKI-DETAILED.md#staff) | `src/app/(app)/staff/` |
 | MadMax AI | `/madmax` | All | [→](WIKI.md#madmax-ai) | [→](WIKI-DETAILED.md#madmax-ai) | `src/lib/madmax/` |
 | Connect an AI (MCP) | `/mcp/instructions` | All | [→](WIKI.md#connect-an-ai) | [→](WIKI-DETAILED.md#mcp-and-oauth) | `src/lib/mcp/`, `src/lib/oauth/` |

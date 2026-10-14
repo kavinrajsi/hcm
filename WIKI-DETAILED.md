@@ -41,6 +41,7 @@ Other scopes: devices (`src/lib/devices/access.ts`: HR manage; holder and holder
 | Training | `TrainingSession`, `SessionRegistration`, `SessionAttendance` |
 | Leave | `LeaveEntry` (Basecamp answer, AI or manual classification, reviewer) |
 | Recruitment | `Candidate` → table `candidates`, `CandidateStatusChange` → `candidate_status_changes` (**owned by the website**, snake_case, don't rename), `CandidateScore` (1:1 AI score), `RoleCriteria` |
+| Dashboard | `Dashboard`, `DashboardWidget`, `DashboardShare`, `DashboardCatalogWidget` |
 | Quantum Sheet | `QuantumTodo`, `QuantumHours` |
 | Chat | `BasecampChat`, `BasecampChatLine`, `BasecampChatRead` |
 | Assign | `Job`, `JobAssignee`, `JobComment`, `CommentLabel`, `DesignerBelief`, `AssignmentQuery` |
@@ -63,7 +64,13 @@ AES-256-GCM in `src/lib/crypto.ts`; values look like `k<keyId>:iv:tag:ct`. Encry
 ## Modules
 
 ### Dashboard
-`/` (U). `src/app/(app)/page.tsx`; HR-only recruitment section `src/app/(app)/recruitment-section.tsx`, stats in `src/lib/recruitment-stats.ts`.
+`/` (U). Page `src/app/(app)/page.tsx`, UI and actions in `src/app/(app)/_dashboard/`, engine in `src/lib/dashboard/`. Models `Dashboard` (owner user, or `role` with no owner = HR's default for that role), `DashboardWidget` (`builtinKey` or `spec` JSON, `width` of 4 columns × `height` rows, `position`), `DashboardShare` (read-only, unique per dashboard + user), `DashboardCatalogWidget` (HR-published specs).
+- **Copy-on-write** (`store.ts`): no rows until the first change; until then a user sees their role's default rows, else `builtInDashboards(role)` (catalogue `DEFAULT_LAYOUT` = the original 7 tiles + recruitment trend/pipeline/table, filtered by role). **Customise** (`startEditing`) copies what they see; **Reset** deletes their rows. HR edits role defaults at `/?defaults=ROLE&edit=1` (same flow on role rows). `editableDashboard`: owner, or HR on a role default; shared dashboards are never editable.
+- **Specs** (`spec.ts`, zod): `source`, `measure`, `dateField`, `groupBy` (field or `time:day|week|month|quarter`), `filters` (field → values), `range` (preset or custom IST days), `chart` (number/bar/line/pie/table), `compare`, `limit`. Re-validated on every run (`runWidget`), then `cleanSpec` drops unknown fields and disallowed values.
+- **Sources** (`sources.ts`): employees, leave, candidates, quantumHours, quantumTodos, sessions, devices, probation, idCards, freelancers. Each has roles, measures, date fields, fields (fixed labels or scoped `options`), a page for click-through (`param` per field, checked with `canOpen`) and `load`/`count` with the **viewer's** scope (HR all; managers `manager.userId`; employees own `employeeId` / `basecampPersonId`; Quantum team view for HR and managers). Only typed Prisma `in`/`equals` conditions; no raw SQL; no PII fields. Quantum hours drop HCM entries on to-dos with Basecamp hours (as the Hours column). Candidates exclude honeypot and `localhost` sources.
+- **Aggregation** (`aggregate.ts`, `time.ts`): IST day buckets with empty periods filled; field groups biggest first, rest folded into "Other"; `previousRange` for "vs the period before" (whole months for month presets). The dashboard `?range=` override skips widgets whose own range is all / today / to-month-end / upcoming / next-30-days.
+- **Built-ins** (`builtins.ts`): recruitment trend, pipeline and table (`getRecruitmentStats`, loaded once) and celebrations (next 30 days, current staff, manager's team; birthdays show day and month only).
+- Grid: `@dnd-kit/sortable` (pointer, 250 ms long-press touch, keyboard), sizes small/wide/tall/medium/full width/full width tall; 4 / 2 / 1 columns. `AutoRefresh` calls `router.refresh()` every 5 minutes only while the tab is visible (a hidden tab never keeps the session alive), paused while editing.
 
 ### Staff
 `/staff` (U). `src/app/(app)/staff/` — grid of current employees (`dateOfExit: null`), `TodoRing` (`todo-ring.tsx`), bottom sheet of open to-dos (`person-todos.tsx`, server action `loadOpenTodos` fetching live through `openTodosFor`). Counts: `src/lib/basecamp-todo-counts.ts` → `syncOpenTodoCounts()` reads Basecamp's `/reports/todos/assigned/{personId}.json` for each linked employee (3 at a time) and stores dated / undated / overdue (due before today in IST). Cron `/api/cron/basecamp-todo-counts` every 30 min overnight (02:00–08:00 IST). Sheet visible to everyone (titles from any project the HR connection sees).

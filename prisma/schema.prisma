@@ -120,6 +120,9 @@ model User {
   announcementsPosted    Announcement[]
   announcementReads      AnnouncementRead[]
   roleCriteriaEdits      RoleCriteria[]
+  dashboards             Dashboard[]             @relation("DashboardOwner")
+  dashboardShares        DashboardShare[]
+  catalogWidgets         DashboardCatalogWidget[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 }
@@ -1477,4 +1480,69 @@ model RoleCriteria {
   updatedBy   User     @relation(fields: [updatedById], references: [id])
   updatedById String
   updatedAt   DateTime @updatedAt
+}
+
+// Dashboard (home page): tabs of widgets people arrange themselves. A user
+// has no rows until they first change something; until then they see their
+// role's default set (rows with `role` and no owner), or the built-in layout
+// if HR hasn't saved one. "Reset to default" deletes their own rows.
+model Dashboard {
+  id        String            @id @default(cuid())
+  owner     User?             @relation("DashboardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId   String?
+  // Set (with no owner) = HR's default for everyone with this role.
+  role      Role?
+  name      String
+  position  Int               @default(0)
+  widgets   DashboardWidget[]
+  shares    DashboardShare[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([ownerId])
+  @@index([role])
+}
+
+// One widget: a built-in (builtinKey) or a saved spec (src/lib/dashboard/spec.ts),
+// re-validated every time it runs. Width is columns of 4; height in rows.
+model DashboardWidget {
+  id          String    @id @default(cuid())
+  dashboard   Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  dashboardId String
+  title       String
+  builtinKey  String?
+  spec        Json?
+  width       Int       @default(1)
+  height      Int       @default(1)
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([dashboardId])
+}
+
+// A dashboard shared read-only with a colleague; they see it with their own access.
+model DashboardShare {
+  id          String    @id @default(cuid())
+  dashboard   Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  dashboardId String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  createdAt   DateTime  @default(now())
+
+  @@unique([dashboardId, userId])
+  @@index([userId])
+}
+
+// Custom widgets HR added to the catalogue for everyone.
+model DashboardCatalogWidget {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  spec        Json
+  width       Int      @default(2)
+  height      Int      @default(2)
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+  createdAt   DateTime @default(now())
 }

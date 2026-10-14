@@ -155,27 +155,20 @@ export function ListPageSkeleton({
 export function DashboardSkeleton() {
   return (
     <Loading>
-      <Skeleton className="h-8 w-56" />
+      <Skeleton className="h-8 w-40" />
       <Skeleton className="mt-3 h-4 w-80 max-w-full" />
-      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-        {Array.from({ length: 7 }, (_, index) => (
-          <div
-            key={index}
-            className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
-          >
-            <Skeleton className="h-7 w-10" />
-            <Skeleton className="mt-2 h-3 w-20" />
-          </div>
-        ))}
+      <div className="mt-8 flex gap-4 border-b border-zinc-200 pb-2 dark:border-zinc-800">
+        <Skeleton className="h-5 w-20" />
+        <Skeleton className="h-5 w-16" />
       </div>
-      <Skeleton className="mt-12 h-6 w-24" />
-      <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {Array.from({ length: 12 }, (_, index) => (
+      <div className="mt-5 grid auto-rows-[9rem] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 8 }, (_, index) => (
           <div
             key={index}
-            className="rounded-lg border border-zinc-200 px-4 py-3 dark:border-zinc-800"
+            className={`rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 ${index >= 4 ? "sm:col-span-2 sm:row-span-2" : ""}`}
           >
             <Skeleton className="h-4 w-28" />
+            <Skeleton className="mt-4 h-8 w-16" />
           </div>
         ))}
       </div>
