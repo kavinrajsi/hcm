@@ -346,6 +346,8 @@ model QuantumHours {
   source          String // basecamp | hcm
   basecampEntryId String?   @unique
   personName      String? // who logged it in Basecamp
+  personId        String? // their Basecamp person id (photo, person filter)
+  note            String? // the entry's description in Basecamp's timesheet
   employee        Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   employeeId      String? // who logged it in HCM
   date            DateTime  @db.Date

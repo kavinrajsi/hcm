@@ -184,6 +184,8 @@ export async function syncTimesheetHours(
         todoBasecampId: String(entry.parent.id),
         source: "basecamp",
         personName: entry.person?.name ?? null,
+        personId: entry.person ? String(entry.person.id) : null,
+        note: entry.description?.trim() ? entry.description.trim().slice(0, 2000) : null,
         date: new Date(`${entry.date}T00:00:00Z`),
         minutes: hoursToMinutes(entry.hours),
       };

@@ -2,12 +2,8 @@ import { Fragment } from "react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/rbac";
 import { myEmployeeId } from "@/lib/my-employee";
-import {
-  listParam,
-  parseTableParams,
-  stringParam,
-} from "@/lib/table-params";
-import { dayRange, istDay } from "@/lib/date-filter";
+import { parseTableParams } from "@/lib/table-params";
+import { istDay } from "@/lib/date-filter";
 import {
   FilterDateRange,
   FilterMultiSelect,
@@ -33,11 +29,14 @@ import {
   effectiveMinutes,
   formatHours,
   rowStatus,
-  statusWhere,
   type QuantumStatus,
   type QuantumTodoData,
 } from "@/lib/quantum/todos";
 import { lastQuantumSync } from "@/lib/quantum/sync";
+import { quantumFilters } from "@/lib/quantum/filters";
+import { timesheet } from "@/lib/quantum/timesheet";
+import { Segmented } from "@/components/segmented";
+import { TimesheetView } from "./timesheet-view";
 import { cn } from "@/lib/utils";
 import { QuantumSyncForm } from "./sync-form";
 import { QuantumHoursForm } from "./hours-form";
@@ -68,20 +67,6 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
   const params = parseTableParams(raw);
   const today = istDay();
 
-  const projects = listParam(raw.project);
-  const people = listParam(raw.person);
-  const kindParam = listParam(raw.type);
-  const kinds = QUANTUM_KINDS.map((kind) => kind.value).filter((value) => kindParam.includes(value));
-  const statusParam = listParam(raw.status);
-  const statuses = QUANTUM_STATUSES.map((status) => status.value).filter((value) =>
-    statusParam.includes(value),
-  );
-  const days = dayRange({
-    preset: stringParam(raw.day),
-    from: stringParam(raw.from),
-    to: stringParam(raw.to),
-  });
-
   // Whose Basecamp to-dos are "mine": the viewer's linked employee record.
   const employeeId = await myEmployeeId(user);
   const me = employeeId
@@ -103,26 +88,12 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
     );
   }
 
-  // Trashed to-dos stay in the table (so the sync can tell) but never show.
-  const visible: Prisma.QuantumTodoWhereInput = {
-    status: { not: "trashed" },
-    ...(isTeamView ? {} : { assigneeIds: { has: myPersonId! } }),
-  };
-  const and: Prisma.QuantumTodoWhereInput[] = [visible];
-  if (params.q)
-    and.push({
-      OR: [
-        { title: { contains: params.q, mode: "insensitive" } },
-        { projectName: { contains: params.q, mode: "insensitive" } },
-        { listName: { contains: params.q, mode: "insensitive" } },
-      ],
-    });
-  if (projects.length) and.push({ projectId: { in: projects } });
-  if (kinds.length) and.push({ kind: { in: kinds } });
-  if (isTeamView && people.length) and.push({ assigneeIds: { hasSome: people } });
-  const byStatus = statusWhere(statuses, today);
-  if (byStatus) and.push(byStatus);
-  if (days) and.push({ sheetDay: days });
+  const { projects, people, days, visible, and, withoutPeopleOrDates } = quantumFilters(raw, {
+    today,
+    isTeamView,
+    myPersonId,
+  });
+  const view = raw.view === "timesheet" ? "timesheet" : "todos";
   const where: Prisma.QuantumTodoWhereInput = { AND: and };
 
   // People options follow the project filter: only who works on those projects.
@@ -289,6 +260,27 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
       .join(" · ");
   };
 
+  // The same filters in a link, switching only the view (or for the CSV).
+  const withView = (next: "todos" | "timesheet", base = "/quantum") => {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(raw)) {
+      if (key === "view" || key === "page" || value === undefined) continue;
+      for (const item of Array.isArray(value) ? value : [value]) query.append(key, item);
+    }
+    if (next === "timesheet") query.set("view", "timesheet");
+    const text = query.toString();
+    return `${base}${text ? `?${text}` : ""}`;
+  };
+  const sheet =
+    view === "timesheet"
+      ? await timesheet({
+          todoWhere: { AND: withoutPeopleOrDates },
+          dateRange: days,
+          people: isTeamView ? people : [],
+          ...(isTeamView ? {} : { onlyPersonId: myPersonId, onlyEmployeeId: me?.id ?? null }),
+        })
+      : null;
+
   return (
     <PageShell>
       <PageHeader
@@ -302,6 +294,7 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
       />
 
       {/* Totals for the current filters (all pages). */}
+      {view === "todos" && (
       <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 md:mt-6">
         {[
           { label: "Total hours", value: totalMinutes ? formatHours(totalMinutes) : "0h", strong: true },
@@ -317,6 +310,7 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
           </div>
         ))}
       </dl>
+      )}
 
       <div className="mt-5 flex flex-col gap-3 md:mt-6">
         <FilterSearch placeholder="Search to-do, card, project or list" />
@@ -363,122 +357,139 @@ export default async function QuantumPage({ searchParams }: PageProps<"/quantum"
           />
           <FilterDateRange param="day" presets={["7d", "30d", "month", "year"]} />
         </div>
+        <Segmented
+          label="View"
+          items={[
+            { key: "todos", href: withView("todos"), label: "To-dos", active: view === "todos" },
+            { key: "timesheet", href: withView("timesheet"), label: "Timesheet", active: view === "timesheet" },
+          ]}
+        />
       </div>
 
-      <div className="mt-4">
-        <MobileList isEmpty={todos.length === 0} empty="No to-dos found.">
-          {groups.map((group) => (
-            <Fragment key={group.key}>
-              <li className="mt-3 flex items-baseline justify-between gap-2 px-1 first:mt-0">
-                <h2 className="text-sm font-semibold">{dayLabel(group)}</h2>
-                <span className="text-xs text-zinc-500">{dayCount(group)}</span>
-              </li>
-              {group.rows.map((todo) => {
-                const data = todo.data as QuantumTodoData;
-                const status = rowStatus(todo, today);
-                const assignees = assigneesOf(data);
-                return (
-                  <ListCard
-                    key={todo.id}
-                    href={todo.appUrl}
-                    leading={assignees.length > 0 ? <AvatarStack people={assignees} max={3} /> : undefined}
-                    title={
-                      <>
-                        <KindTag kind={todo.kind} />
-                        {todo.title}
-                      </>
-                    }
-                    subtitle={[todo.projectName, todo.listName].filter(Boolean).join(" › ")}
-                    badge={<StatusPill status={status} />}
-                    meta={
-                      <>
-                        {assignees.length === 0 && <span>Unassigned</span>}
-                        {!todo.completed && todo.dueOn && <span>Due {formatDay(todo.dueOn)}</span>}
-                      </>
-                    }
-                    actions={
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-zinc-500">Hours</span>
-                        {hoursCell(todo)}
-                      </div>
-                    }
-                  />
-                );
-              })}
-            </Fragment>
-          ))}
-        </MobileList>
-      </div>
-
-      <DesktopTable>
-        <Table>
-          <TableBody>
-            {todos.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4} className="py-10 text-center text-zinc-500">
-                  No to-dos found.
-                </TableCell>
-              </TableRow>
-            )}
+      {sheet ? (
+        <TimesheetView
+          projects={sheet.projects}
+          totalMinutes={sheet.totalMinutes}
+          csvHref={withView("timesheet", "/api/quantum/timesheet")}
+        />
+      ) : (
+        <>
+        <div className="mt-4">
+          <MobileList isEmpty={todos.length === 0} empty="No to-dos found.">
             {groups.map((group) => (
               <Fragment key={group.key}>
-                <TableRow className="bg-muted/60 hover:bg-muted/60">
-                  <TableCell colSpan={4} className="py-2.5">
-                    <div className="flex items-baseline justify-between gap-4">
-                      <span className="font-semibold">{dayLabel(group)}</span>
-                      <span className="text-xs text-zinc-500">{dayCount(group)}</span>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                <li className="mt-3 flex items-baseline justify-between gap-2 px-1 first:mt-0">
+                  <h2 className="text-sm font-semibold">{dayLabel(group)}</h2>
+                  <span className="text-xs text-zinc-500">{dayCount(group)}</span>
+                </li>
                 {group.rows.map((todo) => {
                   const data = todo.data as QuantumTodoData;
                   const status = rowStatus(todo, today);
                   const assignees = assigneesOf(data);
                   return (
-                    <TableRow key={todo.id} className="align-top">
-                      <TableCell className="w-40 py-3">
-                        {assignees.length === 0 ? (
-                          <span className="text-zinc-500">Unassigned</span>
-                        ) : (
-                          // Photos only; names show on hover and to screen readers.
-                          <AvatarStack people={assignees} />
-                        )}
-                      </TableCell>
-                      <TableCell className="w-36 py-3">{hoursCell(todo)}</TableCell>
-                      <TableCell className="w-28 py-3">
-                        <StatusPill status={status} />
-                        {!todo.completed && todo.dueOn && (
-                          <div className="mt-1 text-xs text-zinc-500">Due {formatDay(todo.dueOn)}</div>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-3 whitespace-normal">
-                        <a
-                          href={todo.appUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-start gap-1 font-medium underline-offset-4 hover:underline"
-                        >
+                    <ListCard
+                      key={todo.id}
+                      href={todo.appUrl}
+                      leading={assignees.length > 0 ? <AvatarStack people={assignees} max={3} /> : undefined}
+                      title={
+                        <>
                           <KindTag kind={todo.kind} />
                           {todo.title}
-                          <ArrowOutwardIcon className="mt-0.5 size-3.5 shrink-0 text-zinc-400" />
-                        </a>
-                        <div className="mt-0.5 text-xs text-zinc-500">
-                          {[todo.projectName, todo.listName].filter(Boolean).join(" › ")}
-                          {data.completion?.by && ` · completed by ${data.completion.by.name}`}
+                        </>
+                      }
+                      subtitle={[todo.projectName, todo.listName].filter(Boolean).join(" › ")}
+                      badge={<StatusPill status={status} />}
+                      meta={
+                        <>
+                          {assignees.length === 0 && <span>Unassigned</span>}
+                          {!todo.completed && todo.dueOn && <span>Due {formatDay(todo.dueOn)}</span>}
+                        </>
+                      }
+                      actions={
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-zinc-500">Hours</span>
+                          {hoursCell(todo)}
                         </div>
-                      </TableCell>
-                    </TableRow>
+                      }
+                    />
                   );
                 })}
               </Fragment>
             ))}
-          </TableBody>
-        </Table>
-      </DesktopTable>
+          </MobileList>
+        </div>
 
-      <div className="mt-4">
-        <TablePagination page={params.page} total={total} searchParams={raw} pathname="/quantum" />
-      </div>
+        <DesktopTable>
+          <Table>
+            <TableBody>
+              {todos.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="py-10 text-center text-zinc-500">
+                    No to-dos found.
+                  </TableCell>
+                </TableRow>
+              )}
+              {groups.map((group) => (
+                <Fragment key={group.key}>
+                  <TableRow className="bg-muted/60 hover:bg-muted/60">
+                    <TableCell colSpan={4} className="py-2.5">
+                      <div className="flex items-baseline justify-between gap-4">
+                        <span className="font-semibold">{dayLabel(group)}</span>
+                        <span className="text-xs text-zinc-500">{dayCount(group)}</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  {group.rows.map((todo) => {
+                    const data = todo.data as QuantumTodoData;
+                    const status = rowStatus(todo, today);
+                    const assignees = assigneesOf(data);
+                    return (
+                      <TableRow key={todo.id} className="align-top">
+                        <TableCell className="w-40 py-3">
+                          {assignees.length === 0 ? (
+                            <span className="text-zinc-500">Unassigned</span>
+                          ) : (
+                            // Photos only; names show on hover and to screen readers.
+                            <AvatarStack people={assignees} />
+                          )}
+                        </TableCell>
+                        <TableCell className="w-36 py-3">{hoursCell(todo)}</TableCell>
+                        <TableCell className="w-28 py-3">
+                          <StatusPill status={status} />
+                          {!todo.completed && todo.dueOn && (
+                            <div className="mt-1 text-xs text-zinc-500">Due {formatDay(todo.dueOn)}</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-3 whitespace-normal">
+                          <a
+                            href={todo.appUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-start gap-1 font-medium underline-offset-4 hover:underline"
+                          >
+                            <KindTag kind={todo.kind} />
+                            {todo.title}
+                            <ArrowOutwardIcon className="mt-0.5 size-3.5 shrink-0 text-zinc-400" />
+                          </a>
+                          <div className="mt-0.5 text-xs text-zinc-500">
+                            {[todo.projectName, todo.listName].filter(Boolean).join(" › ")}
+                            {data.completion?.by && ` · completed by ${data.completion.by.name}`}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </Fragment>
+              ))}
+            </TableBody>
+          </Table>
+        </DesktopTable>
+
+        <div className="mt-4">
+          <TablePagination page={params.page} total={total} searchParams={raw} pathname="/quantum" />
+        </div>
+        </>
+      )}
     </PageShell>
   );
 }

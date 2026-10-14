@@ -155,6 +155,7 @@ export type BasecampTimesheetEntry = {
   status: string;
   date: string; // YYYY-MM-DD
   hours: string; // "1.5"
+  description?: string | null; // plain-text note
   parent: { id: number; type: string };
   person?: { id: number; name: string } | null;
 };

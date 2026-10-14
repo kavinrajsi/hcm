@@ -172,7 +172,7 @@ describe("syncTimesheetHours", () => {
     basecamp.eachPage.mockImplementation(async (_token, url: string, _agent, onPage) => {
       expect(url).toContain("start_date=2025-10-13&end_date=2026-10-13");
       await onPage([
-        { id: 1, status: "active", date: "2026-10-07", hours: "1.5", parent: { id: 42, type: "Todo" }, person: { id: 5, name: "Ravi" } },
+        { id: 1, status: "active", date: "2026-10-07", hours: "1.5", description: " update the content ", parent: { id: 42, type: "Todo" }, person: { id: 5, name: "Ravi" } },
         { id: 2, status: "active", date: "2026-10-07", hours: "2.0", parent: { id: 9, type: "Message" } },
         { id: 4, status: "active", date: "2026-10-08", hours: "0.5", parent: { id: 77, type: "Kanban::Card" } },
         { id: 3, status: "trashed", date: "2026-10-07", hours: "1.0", parent: { id: 43, type: "Todo" } },
@@ -187,7 +187,14 @@ describe("syncTimesheetHours", () => {
     );
     expect(db.quantumHours.upsert).toHaveBeenCalledWith({
       where: { basecampEntryId: "1" },
-      create: expect.objectContaining({ todoBasecampId: "42", minutes: 90, source: "basecamp", basecampEntryId: "1" }),
+      create: expect.objectContaining({
+        todoBasecampId: "42",
+        minutes: 90,
+        source: "basecamp",
+        basecampEntryId: "1",
+        personId: "5",
+        note: "update the content",
+      }),
       update: expect.objectContaining({ minutes: 90 }),
     });
     expect(db.quantumHours.deleteMany.mock.calls[0][0].where).toMatchObject({
