@@ -177,7 +177,7 @@ describe("saveSignature", () => {
   const SIGNATURE = {
     enabled: "on",
     closing: " Regards, ",
-    name: " Kavinraj Ilangovan ",
+    name: " Madarth's System Email ",
     website: "www.madarth.com",
     address: "#4, Alamelumangapuram,\nMylapore Chennai 4",
   };
@@ -199,7 +199,7 @@ describe("saveSignature", () => {
     const value = {
       enabled: true,
       closing: "Regards,",
-      name: "Kavinraj Ilangovan",
+      name: "Madarth's System Email",
       website: "www.madarth.com",
       address: "#4, Alamelumangapuram,\nMylapore Chennai 4",
       logoPathname: "email/signature-logo-old.png",

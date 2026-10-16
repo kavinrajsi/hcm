@@ -21,7 +21,7 @@ export type EmailSignature = {
 export const DEFAULT_SIGNATURE: EmailSignature = {
   enabled: true,
   closing: "Regards,",
-  name: "Kavinraj Ilangovan",
+  name: "Madarth's System Email",
   website: "www.madarth.com",
   address: "#4, Alamelumangapuram,\nMylapore Chennai 4",
   logoPathname: null,

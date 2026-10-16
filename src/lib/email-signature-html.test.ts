@@ -7,12 +7,12 @@ beforeEach(() => {
 });
 
 describe("readSignature", () => {
-  it("starts with Kavinraj's sign-off and the Madarth logo", () => {
+  it("starts with the system sign-off and the Madarth logo", () => {
     expect(readSignature(undefined)).toEqual(DEFAULT_SIGNATURE);
     expect(DEFAULT_SIGNATURE).toMatchObject({
       enabled: true,
       closing: "Regards,",
-      name: "Kavinraj Ilangovan",
+      name: "Madarth's System Email",
       website: "www.madarth.com",
       address: "#4, Alamelumangapuram,\nMylapore Chennai 4",
       logoPathname: null,
@@ -33,7 +33,7 @@ describe("readSignature", () => {
 describe("signatureHtml", () => {
   it("shows the closing, name, website link, address lines and logo", () => {
     const html = signatureHtml(DEFAULT_SIGNATURE);
-    expect(html).toContain("Regards,<br>Kavinraj Ilangovan");
+    expect(html).toContain("Regards,<br>Madarth&#39;s System Email");
     expect(html).toContain('href="https://www.madarth.com"');
     expect(html).toContain(">www.madarth.com</a>");
     expect(html).toContain("#4, Alamelumangapuram,<br>Mylapore Chennai 4");
@@ -77,9 +77,9 @@ describe("the signature slot", () => {
 
   it("is filled with the signature, or removed when it's off", () => {
     const html = renderEmail({ preheader: "P", heading: "H", body: "B" });
-    expect(fillSignature(html, DEFAULT_SIGNATURE)).toContain("Kavinraj Ilangovan");
+    expect(fillSignature(html, DEFAULT_SIGNATURE)).toContain("Madarth&#39;s System Email");
     const off = fillSignature(html, { ...DEFAULT_SIGNATURE, enabled: false });
     expect(off).not.toContain(SIGNATURE_SLOT);
-    expect(off).not.toContain("Kavinraj");
+    expect(off).not.toContain("System Email");
   });
 });

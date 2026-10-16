@@ -400,10 +400,10 @@ describe("signature", () => {
   it("signs the email before sending, and the log keeps the signed copy", async () => {
     vi.stubEnv("AUTH_URL", "https://connect.madarth.com");
     await sendEmail({ kind: "letter", to: "a@x.com", subject: "S", html: SLOT });
-    expect(sentBody().htmlbody).toContain("Kavinraj Ilangovan");
+    expect(sentBody().htmlbody).toContain("Madarth&#39;s System Email");
     expect(sentBody().htmlbody).toContain("https://connect.madarth.com/email/madarth-logo.png");
     expect(sentBody().htmlbody).not.toContain("<!--hcm:signature-->");
-    expect(db.emailLog.create.mock.calls[0][0].data.html).toContain("Kavinraj Ilangovan");
+    expect(db.emailLog.create.mock.calls[0][0].data.html).toContain("Madarth&#39;s System Email");
     vi.unstubAllEnvs();
   });
 
