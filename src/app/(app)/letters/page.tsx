@@ -20,6 +20,7 @@ import { CollapsibleForm } from "@/components/collapsible-form";
 import { LetterComposer } from "./letter-composer";
 import { TemplateEditor } from "./template-editor";
 import { getLetterTemplate } from "@/lib/letter-templates";
+import { getSignature, signatureHtml } from "@/lib/email-signature";
 import { formatDateTime, formatInstantDay } from "@/lib/format-date";
 
 const TEMPLATE_TYPES = [
@@ -33,7 +34,7 @@ export const metadata = { title: "Letters" };
 export default async function LettersPage() {
   await requirePageRole("HR_ADMIN");
 
-  const [employees, letters, templates] = await Promise.all([
+  const [employees, letters, templates, savedSignature] = await Promise.all([
     db.employee.findMany({
       where: { dateOfExit: null },
       orderBy: { name: "asc" },
@@ -45,7 +46,10 @@ export default async function LettersPage() {
       include: { employee: { select: { id: true, empId: true, name: true } } },
     }),
     Promise.all(TEMPLATE_TYPES.map(([type]) => getLetterTemplate(type))),
+    getSignature(),
   ]);
+  // Previews show the finished email, sign-off included.
+  const signature = signatureHtml(savedSignature);
 
   return (
     <PageShell>
@@ -56,7 +60,7 @@ export default async function LettersPage() {
 
       <div className="mt-5 md:mt-6">
         <CollapsibleForm label="New letter">
-          <LetterComposer employees={employees} />
+          <LetterComposer employees={employees} signatureHtml={signature} />
         </CollapsibleForm>
       </div>
 
@@ -78,6 +82,7 @@ export default async function LettersPage() {
                   subject={template.subject}
                   body={template.body}
                   custom={template.custom}
+                  signatureHtml={signature}
                   editedNote={
                     template.updatedAt
                       ? `Edited by ${template.updatedBy ?? "HR"} on ${formatDateTime(template.updatedAt)}`

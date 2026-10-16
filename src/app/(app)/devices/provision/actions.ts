@@ -165,9 +165,9 @@ async function deliver(requestId: string): Promise<SendState> {
     if (result.skipped) {
       await db.devicePurchaseRequest.update({
         where: { id: requestId },
-        data: { sendError: "Email isn't configured on this server (ZEPTOMAIL_TOKEN unset)." },
+        data: { sendError: result.reason },
       });
-      return { error: "Saved, but email isn't configured here, so nothing was sent.", requestId };
+      return { error: `Saved, but not emailed: ${result.reason}`, requestId };
     }
     await db.devicePurchaseRequest.update({
       where: { id: requestId },

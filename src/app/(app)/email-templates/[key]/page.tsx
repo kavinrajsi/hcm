@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePageRole } from "@/lib/rbac";
 import { catalogEmail } from "@/lib/email-catalog";
+import { currentEmailTransport, EMAIL_TRANSPORT_NAMES, getEmailRouting } from "@/lib/email";
+import { applySignature } from "@/lib/email-signature";
 import { PageHeader, PageShell } from "@/components/page";
 import { Button } from "@/components/ui/button";
 
@@ -15,7 +17,14 @@ export default async function EmailTemplatePage({ params }: { params: Promise<{ 
   await requirePageRole("HR_ADMIN");
   const email = await catalogEmail((await params).key);
   if (!email) notFound();
-  const rendered = await email.render();
+  const [rendered, routing, defaultTransport] = await Promise.all([email.render(), getEmailRouting(), currentEmailTransport()]);
+  const route = routing[email.key];
+  const sentVia =
+    route === "off"
+      ? "Don't send (turned off on the Email templates list)"
+      : route
+        ? `${EMAIL_TRANSPORT_NAMES[route]} (set for this email)`
+        : `${EMAIL_TRANSPORT_NAMES[defaultTransport]} (default)`;
 
   const details: [string, string | undefined][] = [
     ["When", email.trigger],
@@ -24,6 +33,7 @@ export default async function EmailTemplatePage({ params }: { params: Promise<{ 
     ["CC", email.cc],
     ["Reply-to", email.replyTo],
     ["Subject", rendered.subject],
+    ["Sent via", sentVia],
   ];
 
   return (
@@ -56,7 +66,7 @@ export default async function EmailTemplatePage({ params }: { params: Promise<{ 
       </dl>
       <iframe
         title={`${email.name} preview`}
-        srcDoc={rendered.html}
+        srcDoc={await applySignature(rendered.html)}
         sandbox=""
         className="mt-6 h-[720px] w-full rounded-xl border border-zinc-200 bg-white dark:border-zinc-800"
       />

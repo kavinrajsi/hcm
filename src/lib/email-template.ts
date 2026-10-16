@@ -13,6 +13,12 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
+/**
+ * Where the sign-off goes. Filled at send/preview time from the saved
+ * signature (src/lib/email-signature.ts) so builders stay synchronous.
+ */
+export const SIGNATURE_SLOT = "<!--hcm:signature-->";
+
 /** Absolute app URL for links in emails. */
 export function appUrl(path = "/"): string {
   const base =
@@ -72,6 +78,7 @@ export function renderEmail({
           <tr><td style="font-size:15px;line-height:24px;color:#3f3f46;padding-bottom:16px">${body}</td></tr>
           ${cta}
           ${small}
+          <tr><td>${SIGNATURE_SLOT}</td></tr>
         </table>
       </td></tr>
       <tr><td style="padding:16px 4px;font-size:12px;line-height:18px;color:#a1a1aa">

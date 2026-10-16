@@ -14,6 +14,9 @@ export function ResendButton({ id }: { id: string }) {
         {pending ? "Sending…" : "Resend"}
       </Button>
       <FormMessage error={state.error} />
+      <p className="w-full text-xs text-zinc-500">
+        Goes through the service set for this email on Email templates (letters use the default).
+      </p>
     </form>
   );
 }

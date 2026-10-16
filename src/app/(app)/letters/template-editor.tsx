@@ -24,6 +24,7 @@ export function TemplateEditor({
   body,
   custom,
   editedNote,
+  signatureHtml,
 }: {
   type: string;
   label: string;
@@ -31,6 +32,7 @@ export function TemplateEditor({
   body: string;
   custom: boolean;
   editedNote: string | null;
+  signatureHtml: string;
 }) {
   const [state, action, pending] = useActionState<TemplateFormState, FormData>(
     saveLetterTemplate,
@@ -70,6 +72,7 @@ export function TemplateEditor({
             subject={subject}
             placeholders
             label={`${label} body`}
+            signatureHtml={signatureHtml}
           />
           <FieldError name="body" />
         </div>

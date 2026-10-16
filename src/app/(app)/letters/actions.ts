@@ -128,6 +128,7 @@ export async function sendLetter(
   try {
     const result = await sendEmail({
       kind: "letter",
+      template: `letter-${parsed.data.type.toLowerCase()}`,
       employeeId: parsed.data.employeeId,
       sentById: user.id,
       to,
@@ -138,8 +139,7 @@ export async function sendLetter(
     });
     sent = !result.skipped;
     if (result.skipped) {
-      sendError =
-        "Letter saved, but not emailed — email isn't set up (ZEPTOMAIL_TOKEN).";
+      sendError = `Letter saved, but not emailed — ${result.reason}`;
     }
   } catch (error) {
     console.error("[letters] email failed", error);

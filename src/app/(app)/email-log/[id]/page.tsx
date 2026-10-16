@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
 import { formatDateTime } from "@/lib/format-date";
-import { EMAIL_KINDS, isEmailKind, type WebhookEvent } from "@/lib/email-log";
+import { EMAIL_KINDS, EMAIL_PROVIDERS, isEmailKind, providerOf, type WebhookEvent } from "@/lib/email-log";
 import { PageHeader, PageShell } from "@/components/page";
 import { EmailStatusBadge } from "../status";
 import { ResendButton } from "./resend-button";
@@ -28,10 +28,12 @@ export default async function EmailLogEntryPage({ params }: { params: Promise<{ 
     select: { id: true, status: true, delivery: true, createdAt: true },
   });
   const events = (Array.isArray(row.events) ? row.events : []) as WebhookEvent[];
+  const provider = providerOf(row.provider);
   const details: [string, React.ReactNode][] = [
     ["Email", isEmailKind(row.kind) ? EMAIL_KINDS[row.kind] : row.kind],
     ["Sent", formatDateTime(row.createdAt)],
     ["Status", <EmailStatusBadge key="status" status={row.status} delivery={row.delivery} />],
+    ["Sent via", provider === "off" ? "Not sent: turned off for this email" : EMAIL_PROVIDERS[provider]],
     ["From", row.from],
     ["To", row.to.join(", ")],
     ["CC", row.cc.join(", ")],
@@ -103,7 +105,11 @@ export default async function EmailLogEntryPage({ params }: { params: Promise<{ 
         <h2 className="text-sm font-semibold">Delivery</h2>
         {events.length === 0 ? (
           <p className="mt-1 text-sm text-zinc-500">
-            {row.status === "SENT" ? "No opens or bounces reported by ZeptoMail yet." : "Not sent, so nothing to report."}
+            {row.status !== "SENT"
+              ? "Not sent, so nothing to report."
+              : provider === "smtp"
+                ? "Opens and bounces are only tracked for emails sent through ZeptoMail."
+                : "No opens or bounces reported by ZeptoMail yet."}
           </p>
         ) : (
           <ul className="mt-2 space-y-1 text-sm">

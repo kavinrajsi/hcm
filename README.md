@@ -26,7 +26,7 @@ Madarth's internal HR system, live at **https://connect.madarth.com**. It runs t
 - **Prisma 7** on **Neon Postgres** (client generated to `src/generated/prisma`)
 - **Vercel**: hosting, crons (`vercel.ts`), private Blob storage, AI Gateway
 - **AI SDK 7** through Vercel AI Gateway (Gemini 2.5 Flash by default; Claude Haiku/Sonnet selectable in MadMax)
-- **Basecamp 4** API (leave check-ins, people and photos, to-dos), **ZeptoMail** for email
+- **Basecamp 4** API (leave check-ins, people and photos, to-dos), **ZeptoMail** (or any SMTP server, set up in the app) for email
 - **next-auth v5**: email + password and passkeys (WebAuthn)
 - **Vitest** for tests
 

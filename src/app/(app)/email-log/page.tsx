@@ -5,7 +5,7 @@ import { requirePageRole } from "@/lib/rbac";
 import { parseTableParams, stringParam } from "@/lib/table-params";
 import { instantRange } from "@/lib/date-filter";
 import { formatDateTime } from "@/lib/format-date";
-import { EMAIL_KINDS, isEmailKind } from "@/lib/email-log";
+import { EMAIL_KINDS, EMAIL_PROVIDERS, isEmailKind, isEmailProvider, providerOf, providerWhere } from "@/lib/email-log";
 import { AddFilter } from "@/components/data-table/add-filter";
 import { CountChips } from "@/components/data-table/count-chips";
 import { EMAIL_STATUS_CHIPS } from "@/lib/chip-tones";
@@ -35,9 +35,12 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
   const params = parseTableParams(raw);
   const kind = isEmailKind(raw.kind) ? raw.kind : undefined;
   const status = stringParam(raw.status);
+  const via = isEmailProvider(raw.via) ? raw.via : undefined;
   const sent = instantRange({ preset: stringParam(raw.sent), from: stringParam(raw.from), to: stringParam(raw.to) });
 
   const where: Prisma.EmailLogWhereInput = {
+    // AND keeps the service filter's OR apart from the search's OR.
+    ...(via ? { AND: [providerWhere(via)] } : {}),
     ...(kind ? { kind } : {}),
     ...(status && STATUS_FILTERS[status] ? STATUS_FILTERS[status].where : {}),
     ...(sent ? { createdAt: sent } : {}),
@@ -54,7 +57,7 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
       : {}),
   };
 
-  const [rows, total, kinds, statuses, opened, bounced] = await Promise.all([
+  const [rows, total, kinds, statuses, opened, bounced, providers] = await Promise.all([
     db.emailLog.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -67,6 +70,7 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
         subject: true,
         status: true,
         delivery: true,
+        provider: true,
         createdAt: true,
         employee: { select: { id: true, name: true } },
       },
@@ -76,7 +80,13 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
     db.emailLog.groupBy({ by: ["status"], _count: true }),
     db.emailLog.count({ where: { delivery: "OPENED" } }),
     db.emailLog.count({ where: { delivery: "BOUNCED" } }),
+    db.emailLog.groupBy({ by: ["provider"], _count: true }),
   ]);
+  const providerCounts = new Map<string, number>();
+  for (const group of providers) {
+    const key = providerOf(group.provider);
+    providerCounts.set(key, (providerCounts.get(key) ?? 0) + group._count);
+  }
   const kindCounts = new Map(kinds.map((group) => [group.kind, group._count]));
   const statusCounts = new Map<string, number>(statuses.map((group) => [group.status, group._count]));
   statusCounts.set("OPENED", opened);
@@ -88,7 +98,7 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
     <PageShell>
       <PageHeader
         title="Email log"
-        description="Every email HCM sends: who got it, when, and whether it was delivered. Kept for a year; links in password emails are removed."
+        description="Every email HCM sends, through ZeptoMail or SMTP: who got it, when, and whether it was delivered. Kept for a year; links in password emails are removed."
       />
       <CountChips
         items={Object.entries(STATUS_FILTERS).map(([key, filter]) => ({
@@ -109,6 +119,15 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
                 value,
                 label,
                 count: kindCounts.get(value) ?? 0,
+              })),
+            },
+            {
+              param: "via",
+              label: "Sent via",
+              options: Object.entries(EMAIL_PROVIDERS).map(([value, label]) => ({
+                value,
+                label,
+                count: providerCounts.get(value) ?? 0,
               })),
             },
             {
@@ -133,14 +152,15 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
                 <TableHead>Email</TableHead>
                 <TableHead>To</TableHead>
                 <TableHead>Subject</TableHead>
+                <TableHead>Via</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-10 text-center text-zinc-500">
-                    No emails{params.q || kind || status || sent ? " match these filters." : " sent yet."}
+                  <TableCell colSpan={6} className="py-10 text-center text-zinc-500">
+                    No emails{params.q || kind || status || sent || via ? " match these filters." : " sent yet."}
                   </TableCell>
                 </TableRow>
               )}
@@ -160,10 +180,13 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
                       </Link>
                     )}
                   </TableCell>
-                  <TableCell className="max-w-xs truncate">
+                  <TableCell className="max-w-56 truncate">
                     <Link href={`/email-log/${row.id}`} className="hover:underline">
                       {row.subject}
                     </Link>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-zinc-600 dark:text-zinc-400">
+                    {EMAIL_PROVIDERS[providerOf(row.provider)]}
                   </TableCell>
                   <TableCell>
                     <EmailStatusBadge status={row.status} delivery={row.delivery} />
@@ -184,6 +207,7 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
               meta={
                 <>
                   <span>{kindLabel(row.kind)}</span>
+                  <span>{EMAIL_PROVIDERS[providerOf(row.provider)]}</span>
                   <span>{formatDateTime(row.createdAt)}</span>
                 </>
               }
@@ -196,7 +220,7 @@ export default async function EmailLogPage({ searchParams }: { searchParams: Pro
       </div>
       <details className="mt-8 rounded-xl border border-zinc-200 p-4 text-sm dark:border-zinc-800" open={!process.env.ZEPTOMAIL_WEBHOOK_SECRET}>
         <summary className="cursor-pointer font-medium">
-          Delivery tracking (opens and bounces){process.env.ZEPTOMAIL_WEBHOOK_SECRET ? " · on" : " · not set up yet"}
+          Delivery tracking for ZeptoMail (opens and bounces){process.env.ZEPTOMAIL_WEBHOOK_SECRET ? " · on" : " · not set up yet"}
         </summary>
         <ol className="mt-3 list-decimal space-y-2 pl-5 text-zinc-600 dark:text-zinc-400">
           <li>

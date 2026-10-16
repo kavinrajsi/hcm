@@ -1154,8 +1154,8 @@ enum EmailDelivery {
 }
 
 /// Every email HCM sends (Admin → Email log). `html` has password and
-/// invite links removed. Delivery comes from ZeptoMail webhooks. Rows
-/// older than a year are deleted daily.
+/// invite links removed. Delivery comes from ZeptoMail webhooks (not
+/// tracked for SMTP). Rows older than a year are deleted daily.
 model EmailLog {
   id              String         @id @default(cuid())
   kind            String // template key, e.g. "type-change" (see email-catalog)
@@ -1168,7 +1168,8 @@ model EmailLog {
   attachmentNames String[]
   status          EmailStatus
   error           String?
-  providerId      String? // ZeptoMail request_id
+  provider        String? // "zeptomail" | "smtp"; null on older rows = ZeptoMail
+  providerId      String? // ZeptoMail request_id or SMTP Message-ID
   delivery        EmailDelivery?
   deliveryAt      DateTime?
   events          Json           @default("[]")

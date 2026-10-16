@@ -8,7 +8,7 @@ export const SERVICES = [
   { key: "basecamp-sync", name: "Basecamp sync", description: "Chat, Quantum Sheet and Leave" },
   { key: "ai", name: "AI Gateway", description: "Resume scoring, MadMax, leave and Assign" },
   { key: "storage", name: "File storage", description: "Documents and resumes" },
-  { key: "email", name: "Email", description: "ZeptoMail" },
+  { key: "email", name: "Email", description: "ZeptoMail or SMTP" },
   { key: "jobs", name: "Background jobs", description: "Scheduled syncs and reminders" },
 ] as const;
 

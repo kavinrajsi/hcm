@@ -15,6 +15,7 @@ export const EMAIL_KINDS = {
   "ending-soon": "Ending within a week",
   letter: "Letter",
   "device-request": "Device request to vendor",
+  test: "Test email",
 } as const;
 export type EmailKind = keyof typeof EMAIL_KINDS;
 
@@ -40,14 +41,14 @@ const list = (to: string | string[]) => (Array.isArray(to) ? to : [to]);
 /** Records one send attempt. Never throws: logging mustn't break email. */
 export async function logEmail(
   options: SendEmailOptions,
-  outcome: { status: EmailStatus; error?: string; providerId?: string },
+  outcome: { status: EmailStatus; provider?: string; error?: string; providerId?: string; from?: string },
 ): Promise<void> {
   try {
     const { senderOf } = await import("@/lib/email");
     await db.emailLog.create({
       data: {
         kind: options.kind,
-        from: senderOf(options),
+        from: outcome.from ?? senderOf(options),
         to: list(options.to),
         cc: options.cc ?? [],
         replyTo: options.replyTo ?? null,
@@ -56,6 +57,7 @@ export async function logEmail(
         attachmentNames: (options.attachments ?? []).map((attachment) => attachment.filename),
         status: outcome.status,
         error: outcome.error ?? null,
+        provider: outcome.provider ?? null,
         providerId: outcome.providerId ?? null,
         resendable: isResendable(options.kind, options.html, options.attachments?.length ?? 0),
         employeeId: options.employeeId ?? null,
@@ -66,6 +68,31 @@ export async function logEmail(
   } catch (error) {
     console.error("[email-log] couldn't record email", options.kind, error);
   }
+}
+
+// --- Which service sent it ---
+
+/**
+ * `EmailLog.provider` → label. Rows from before the column existed are
+ * null and all went through ZeptoMail; "off" means turned off for that email.
+ */
+export const EMAIL_PROVIDERS = {
+  zeptomail: "ZeptoMail",
+  smtp: "SMTP",
+  off: "Turned off",
+} as const;
+export type EmailProvider = keyof typeof EMAIL_PROVIDERS;
+
+export const isEmailProvider = (value: unknown): value is EmailProvider =>
+  typeof value === "string" && value in EMAIL_PROVIDERS;
+
+export function providerOf(provider: string | null): EmailProvider {
+  return isEmailProvider(provider) ? provider : "zeptomail";
+}
+
+/** Email log "Sent via" filter. */
+export function providerWhere(provider: EmailProvider): Prisma.EmailLogWhereInput {
+  return provider === "zeptomail" ? { OR: [{ provider: "zeptomail" }, { provider: null }] } : { provider };
 }
 
 // --- ZeptoMail webhooks ---

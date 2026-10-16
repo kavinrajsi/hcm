@@ -23,8 +23,10 @@ const TYPES = [
 
 export function LetterComposer({
   employees,
+  signatureHtml,
 }: {
   employees: { id: string; empId: string; name: string }[];
+  signatureHtml: string;
 }) {
   const [genState, genAction, genPending] = useActionState<
     LetterFormState,
@@ -94,6 +96,7 @@ export function LetterComposer({
           sendAction={sendAction}
           sendState={sendState}
           sendPending={sendPending}
+          signatureHtml={signatureHtml}
         />
       )}
     </div>
@@ -105,11 +108,13 @@ function DraftForm({
   sendAction,
   sendState,
   sendPending,
+  signatureHtml,
 }: {
   draft: NonNullable<LetterFormState["draft"]>;
   sendAction: (formData: FormData) => void;
   sendState: LetterFormState;
   sendPending: boolean;
+  signatureHtml: string;
 }) {
   const [subject, setSubject] = useState(draft.subject);
   return (
@@ -140,6 +145,7 @@ function DraftForm({
               defaultValue={draft.bodyHtml}
               subject={subject}
               label="Letter body"
+              signatureHtml={signatureHtml}
             />
             <FieldError name="bodyHtml" />
           </div>

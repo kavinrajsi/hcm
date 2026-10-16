@@ -336,6 +336,7 @@ export function EmailEditor({
   subject,
   placeholders = false,
   label,
+  signatureHtml,
 }: {
   /** Form field that receives the email-safe HTML. */
   name: string;
@@ -345,6 +346,8 @@ export function EmailEditor({
   /** Show {{placeholder}} chips (template editing). */
   placeholders?: boolean;
   label: string;
+  /** The saved email signature, so Preview shows the finished email. */
+  signatureHtml?: string;
 }) {
   const clearError = useClearFieldError();
   const [tab, setTab] = useState<Tab>("write");
@@ -459,7 +462,7 @@ export function EmailEditor({
         <iframe
           title={`${label} preview`}
           sandbox=""
-          srcDoc={letterEmailHtml(subject || "(no subject)", html)}
+          srcDoc={letterEmailHtml(subject || "(no subject)", html, signatureHtml)}
           className="h-[32rem] w-full rounded-b-lg bg-white"
         />
       )}

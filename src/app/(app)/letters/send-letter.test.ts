@@ -66,6 +66,8 @@ describe("sendLetter", () => {
     const state = await sendLetter({}, form({ subject: "Revision", bodyHtml: "<p>Your new salary is 10.</p>" }));
     expect(state).toEqual({ ok: true, error: undefined });
     expect(sendEmail).toHaveBeenCalledTimes(1);
+    // Routed by the letter's own row on Email templates.
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ kind: "letter", template: "letter-compensation" }));
     expect(db.letter.create).toHaveBeenCalledTimes(1);
   });
 });

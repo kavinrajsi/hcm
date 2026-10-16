@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { isEmailReady } from "@/lib/email";
 import { invalid, type FormState } from "@/lib/form-state";
 import { mailPasswordLink } from "@/lib/logins";
 import { createPasswordLink, RESET_TTL_MS } from "@/lib/password-links";
@@ -47,10 +48,7 @@ export async function requestPasswordReset(
     // Never log the link itself: it's a working credential, and even local
     // dev points at the production database. Only local dev without a mail
     // token prints it, so the flow can be tried without email.
-    if (
-      process.env.NODE_ENV === "development" &&
-      !process.env.ZEPTOMAIL_TOKEN
-    ) {
+    if (process.env.NODE_ENV === "development" && !(await isEmailReady())) {
       console.log(`[password-reset] link for ${email}: ${resetUrl}`);
     } else {
       console.error(`[password-reset] email failed for user ${user.id}`);

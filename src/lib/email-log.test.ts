@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const db = vi.hoisted(() => ({ emailLog: { findFirst: vi.fn(), update: vi.fn() } }));
 vi.mock("@/lib/db", () => ({ db }));
 
-const { applyWebhook, deliveryFor, isResendable, redactEmailHtml } = await import("./email-log");
+const { applyWebhook, deliveryFor, isResendable, providerOf, providerWhere, redactEmailHtml } = await import("./email-log");
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -58,5 +58,20 @@ describe("ZeptoMail events", () => {
     expect(await applyWebhook({ event_name: "email opens", request_id: "nope" })).toBe(false);
     expect(await applyWebhook({ nothing: true })).toBe(false);
     expect(db.emailLog.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("which service sent it", () => {
+  it("reads older rows (no provider) as ZeptoMail", () => {
+    expect(providerOf(null)).toBe("zeptomail");
+    expect(providerOf("smtp")).toBe("smtp");
+    expect(providerOf("off")).toBe("off");
+    expect(providerOf("something-else")).toBe("zeptomail");
+  });
+
+  it("filters ZeptoMail including older rows, others exactly", () => {
+    expect(providerWhere("zeptomail")).toEqual({ OR: [{ provider: "zeptomail" }, { provider: null }] });
+    expect(providerWhere("smtp")).toEqual({ provider: "smtp" });
+    expect(providerWhere("off")).toEqual({ provider: "off" });
   });
 });

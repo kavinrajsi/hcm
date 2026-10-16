@@ -125,3 +125,15 @@ export function letterEmail({
 }): Email {
   return { subject, html: letterEmailHtml(subject, bodyHtml) };
 }
+
+/** Admin → Email templates "Send test email": proves the chosen service works. */
+export function testEmail({ service }: { service: string }): Email {
+  return {
+    subject: `HCM test email via ${service}`,
+    html: renderEmail({
+      preheader: `HCM can send email through ${service}.`,
+      heading: "Test email",
+      body: `This is a test from HCM, sent through <strong>${escapeHtml(service)}</strong>. If you can read it, email is working.`,
+    }),
+  };
+}
