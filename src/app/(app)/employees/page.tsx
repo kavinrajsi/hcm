@@ -133,8 +133,8 @@ export default async function EmployeesPage({
       slices.map((slice) =>
         db.employee.findMany({
           where: { ...where, empType: slice.empType as never },
-          // Newest joiners first; IDs are prefix + zero-padded number.
-          orderBy: [{ dateOfJoining: "desc" }, { empId: "desc" }],
+          // A–Z by name within each emp type; Emp ID breaks ties.
+          orderBy: [{ name: "asc" }, { empId: "asc" }],
           skip: slice.skip,
           take: slice.take,
           select: {
