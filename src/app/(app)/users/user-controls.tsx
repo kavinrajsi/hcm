@@ -3,7 +3,10 @@
 import { useActionState, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { EmployeeSelect, type Employee } from "@/components/employee-select";
+import {
+  EmployeeOrEmailSelect,
+  type Employee,
+} from "@/components/employee-select";
 import type { Role } from "@/generated/prisma/enums";
 import {
   createLoginForEmployee,
@@ -65,7 +68,6 @@ export function InviteForm({ employees }: { employees: Employee[] }) {
     inviteUser,
     {},
   );
-  const [employeeId, setEmployeeId] = useState("");
 
   return (
     <ValidatedForm
@@ -78,38 +80,23 @@ export function InviteForm({ employees }: { employees: Employee[] }) {
           htmlFor="invite-employee-desktop"
           className="hidden text-sm font-medium md:block"
         >
-          Employee
+          Employee or email
         </label>
         <label
           htmlFor="invite-employee-phone"
           className="text-sm font-medium md:hidden"
         >
-          Employee
+          Employee or email
         </label>
-        <EmployeeSelect
+        <EmployeeOrEmailSelect
           id="invite-employee"
-          name="employeeId"
+          employeeName="employeeId"
+          emailName="email"
           employees={employees}
-          selectedId={employeeId}
-          onSelect={setEmployeeId}
         />
         <FieldError name="employeeId" />
+        <FieldError name="email" />
       </div>
-      {!employeeId && (
-        <FormField
-          name="email"
-          label="…or email (no employee record)"
-          className="gap-1.5"
-        >
-          <Input
-            id="invite-email"
-            name="email"
-            type="email"
-            placeholder="name@madarth.com"
-            className="md:w-56"
-          />
-        </FormField>
-      )}
       <FormField name="role" label="Role" className="gap-1.5">
         <select
           id="invite-role"

@@ -23,15 +23,21 @@ function EmployeePicker({
   employees,
   selected,
   onSelect,
+  email,
+  onEmail,
 }: {
   id: string;
   employees: Employee[];
   selected: Employee | undefined;
   onSelect: (id: string) => void;
+  /** With onEmail: typing an address offers it in place of an employee. */
+  email?: string;
+  onEmail?: (email: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const searchQuery = query.trim().toLowerCase();
+  const typedEmail = onEmail && searchQuery.includes("@") ? query.trim() : "";
   const matches = searchQuery
     ? employees.filter(
         (employee) =>
@@ -52,13 +58,14 @@ function EmployeePicker({
         id={id}
         className={cn(
           "flex h-10 w-full items-center rounded-md border border-input bg-transparent px-3 text-left text-base dark:bg-input/30",
-          !selected && "text-muted-foreground",
+          !selected && !email && "text-muted-foreground",
         )}
       >
         <span className="truncate">
           {selected
             ? `${selected.empId} — ${selected.name}`
-            : "Select employee…"}
+            : email ||
+              (onEmail ? "Select employee or enter email…" : "Select employee…")}
         </span>
       </SheetTrigger>
       {/* Tall: covers any sheet it opens from, and stays steady while typing. */}
@@ -70,13 +77,31 @@ function EmployeePicker({
           <Input
             type="search"
             autoFocus
-            placeholder="Search name or Emp ID…"
+            placeholder={
+              onEmail ? "Search name, Emp ID or enter email…" : "Search name or Emp ID…"
+            }
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             className="h-11"
           />
+          {typedEmail && (
+            <button
+              type="button"
+              onClick={() => {
+                onEmail?.(typedEmail);
+                setOpen(false);
+                setQuery("");
+              }}
+              className="flex min-h-12 w-full items-center rounded-lg border border-dashed border-zinc-300 px-3 text-left hover:bg-muted dark:border-zinc-700"
+            >
+              <span className="truncate">
+                Use email <span className="font-medium">{typedEmail}</span> (no
+                employee record)
+              </span>
+            </button>
+          )}
           <ul className="max-h-[55dvh] overflow-y-auto overscroll-contain">
-            {matches.length === 0 && (
+            {matches.length === 0 && !typedEmail && (
               <li className="py-8 text-center text-zinc-500">No match.</li>
             )}
             {matches.map((employee) => (
@@ -137,31 +162,99 @@ function EmployeeCombobox({
       <Combobox.Input
         id={id}
         placeholder="Search name or Emp ID…"
-        className="h-9 w-64 rounded-md border border-input bg-transparent px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
+        className={comboboxInputClass}
       />
-      <Combobox.Portal>
-        <Combobox.Positioner sideOffset={4} align="start" className="z-50">
-          <Combobox.Popup className="max-h-72 w-(--anchor-width) min-w-64 overflow-y-auto rounded-md border border-zinc-200 bg-popover p-1 text-sm text-popover-foreground shadow-md dark:border-zinc-800">
-            <Combobox.Empty className="px-2 py-3 text-center text-zinc-500 empty:hidden">
-              No match.
-            </Combobox.Empty>
-            <Combobox.List>
-              {(employee: Employee) => (
-                <Combobox.Item
-                  key={employee.id}
-                  value={employee}
-                  className="flex cursor-default items-center gap-3 rounded px-2 py-1.5 outline-none select-none data-highlighted:bg-muted data-selected:font-medium"
-                >
-                  <span className="w-16 shrink-0 text-xs text-zinc-500 tabular-nums">
-                    {employee.empId}
-                  </span>
-                  <span className="truncate">{employee.name}</span>
-                </Combobox.Item>
-              )}
-            </Combobox.List>
-          </Combobox.Popup>
-        </Combobox.Positioner>
-      </Combobox.Portal>
+      <EmployeeOptions empty="No match." />
+    </Combobox.Root>
+  );
+}
+
+const comboboxInputClass =
+  "h-9 w-64 rounded-md border border-input bg-transparent px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30";
+
+/** The combobox dropdown: matching employees, or `empty` when none match. */
+function EmployeeOptions({ empty }: { empty: React.ReactNode }) {
+  return (
+    <Combobox.Portal>
+      <Combobox.Positioner sideOffset={4} align="start" className="z-50">
+        <Combobox.Popup className="max-h-72 w-(--anchor-width) min-w-64 overflow-y-auto rounded-md border border-zinc-200 bg-popover p-1 text-sm text-popover-foreground shadow-md dark:border-zinc-800">
+          <Combobox.Empty className="px-2 py-3 text-center text-zinc-500 empty:hidden">
+            {empty}
+          </Combobox.Empty>
+          <Combobox.List>
+            {(employee: Employee) => (
+              <Combobox.Item
+                key={employee.id}
+                value={employee}
+                className="flex cursor-default items-center gap-3 rounded px-2 py-1.5 outline-none select-none data-highlighted:bg-muted data-selected:font-medium"
+              >
+                <span className="w-16 shrink-0 text-xs text-zinc-500 tabular-nums">
+                  {employee.empId}
+                </span>
+                <span className="truncate">{employee.name}</span>
+              </Combobox.Item>
+            )}
+          </Combobox.List>
+        </Combobox.Popup>
+      </Combobox.Positioner>
+    </Combobox.Portal>
+  );
+}
+
+/**
+ * Desktop: the same search, but free text is kept — anything typed that
+ * isn't an employee is the email, and survives the blur.
+ */
+function EmployeeOrEmailCombobox({
+  id,
+  employees,
+  selected,
+  onSelect,
+  email,
+  onEmail,
+}: {
+  id: string;
+  employees: Employee[];
+  selected: Employee | undefined;
+  onSelect: (id: string) => void;
+  email: string;
+  onEmail: (email: string) => void;
+}) {
+  const typed = email.trim();
+  return (
+    <Combobox.Root
+      items={employees}
+      value={selected ?? null}
+      onValueChange={(employee: Employee | null) => {
+        onSelect(employee?.id ?? "");
+        if (employee) onEmail("");
+      }}
+      inputValue={selected ? employeeLabel(selected) : email}
+      onInputValueChange={(next, details) => {
+        // Only the user's typing counts; Base UI's own syncs (label on pick,
+        // clear on close) are ignored — inputValue above already shows the
+        // right text, and reacting would undo a pick or drop a typed email.
+        if (details.reason !== "input-change") return;
+        if (selected) onSelect("");
+        onEmail(next);
+      }}
+      itemToStringLabel={employeeLabel}
+      isItemEqualToValue={(left: Employee, right: Employee) =>
+        left.id === right.id
+      }
+    >
+      <Combobox.Input
+        id={id}
+        placeholder="Search name, Emp ID or enter email…"
+        className={comboboxInputClass}
+      />
+      <EmployeeOptions
+        empty={
+          typed.includes("@")
+            ? `No employee — will invite ${typed}`
+            : "No match. Enter an email to invite someone without a record."
+        }
+      />
     </Combobox.Root>
   );
 }
@@ -201,6 +294,64 @@ export function EmployeeSelect({
           employees={employees}
           selected={selected}
           onSelect={onSelect}
+        />
+      </div>
+    </>
+  );
+}
+
+/**
+ * One field for "an employee, or an email for someone without a record".
+ * Posts `employeeName` (the employee's id, empty when none) and `emailName`
+ * (the typed address, empty when an employee is picked). Labels follow
+ * EmployeeSelect: htmlFor={`${id}-phone`} / {`${id}-desktop`}.
+ */
+export function EmployeeOrEmailSelect({
+  id,
+  employeeName,
+  emailName,
+  employees,
+}: {
+  id: string;
+  employeeName: string;
+  emailName: string;
+  employees: Employee[];
+}) {
+  const [selectedId, setSelectedId] = useState("");
+  const [email, setEmail] = useState("");
+  const selected = employees.find((employee) => employee.id === selectedId);
+  return (
+    <>
+      <input type="hidden" name={employeeName} value={selected?.id ?? ""} />
+      <input
+        type="hidden"
+        name={emailName}
+        value={selected ? "" : email.trim()}
+      />
+      <div className="md:hidden">
+        <EmployeePicker
+          id={`${id}-phone`}
+          employees={employees}
+          selected={selected}
+          onSelect={(next) => {
+            setSelectedId(next);
+            setEmail("");
+          }}
+          email={email}
+          onEmail={(next) => {
+            setSelectedId("");
+            setEmail(next);
+          }}
+        />
+      </div>
+      <div className="hidden md:block">
+        <EmployeeOrEmailCombobox
+          id={`${id}-desktop`}
+          employees={employees}
+          selected={selected}
+          onSelect={setSelectedId}
+          email={email}
+          onEmail={setEmail}
         />
       </div>
     </>
