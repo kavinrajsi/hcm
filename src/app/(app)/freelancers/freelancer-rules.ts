@@ -107,8 +107,8 @@ export const rateFormSchema = z
     if (value.rateUnit !== "other") return;
     if (!value.rateOtherUnit) {
       ctx.addIssue({ code: "custom", path: ["rateOtherUnit"], message: "Enter the unit, e.g. shoot" });
-    } else if (!/^[\p{L} -]+$/u.test(value.rateOtherUnit)) {
-      ctx.addIssue({ code: "custom", path: ["rateOtherUnit"], message: "Use letters only, e.g. shoot" });
+    } else if (!/^[\p{L}\p{N} ]+$/u.test(value.rateOtherUnit)) {
+      ctx.addIssue({ code: "custom", path: ["rateOtherUnit"], message: "Use letters, numbers and spaces, e.g. 2 reels" });
     }
   });
 
@@ -120,7 +120,7 @@ export function rateFrom(value: z.infer<typeof rateFormSchema>): string {
 
 /** Reads a CSV rate such as "2500/day" or "₹2500/reel"; null if it isn't one. */
 export function rateFromText(raw: string): string | null {
-  const match = /^₹?\s*(\d{1,9}(?:\.\d{1,2})?)\s*\/\s*([\p{L} -]{1,20})$/u.exec(raw.trim());
+  const match = /^₹?\s*(\d{1,9}(?:\.\d{1,2})?)\s*\/\s*([\p{L}\p{N} ]{1,20})$/u.exec(raw.trim());
   return match ? `₹${match[1]}/${match[2].trim().toLowerCase()}` : null;
 }
 

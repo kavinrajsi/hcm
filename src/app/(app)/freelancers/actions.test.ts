@@ -159,13 +159,18 @@ describe("rate", () => {
     expect(db.freelancer.create.mock.calls.at(-1)?.[0].data.rate).toBe("₹800/shoot");
   });
 
-  it("asks for the unit and refuses a unit with numbers in it", async () => {
+  it("accepts letters, numbers and spaces in the typed unit", async () => {
+    await addFreelancer({}, form({ ...complete, rateAmount: "1500", rateUnit: "other", rateOtherUnit: "2 Reels" }));
+    expect(db.freelancer.create.mock.calls.at(-1)?.[0].data.rate).toBe("₹1500/2 reels");
+  });
+
+  it("asks for the unit and refuses symbols in it", async () => {
     const missing = await addFreelancer({}, form({ ...complete, rateUnit: "" }));
     expect(missing.fieldErrors?.rateUnit?.[0]).toMatch(/Pick what/);
     const other = await addFreelancer({}, form({ ...complete, rateUnit: "other", rateOtherUnit: "" }));
     expect(other.fieldErrors?.rateOtherUnit?.[0]).toMatch(/Enter the unit/);
-    const digits = await addFreelancer({}, form({ ...complete, rateUnit: "other", rateOtherUnit: "day2" }));
-    expect(digits.fieldErrors?.rateOtherUnit?.[0]).toMatch(/letters only/);
+    const symbols = await addFreelancer({}, form({ ...complete, rateUnit: "other", rateOtherUnit: "shoot!" }));
+    expect(symbols.fieldErrors?.rateOtherUnit?.[0]).toMatch(/letters, numbers and spaces/);
   });
 });
 
