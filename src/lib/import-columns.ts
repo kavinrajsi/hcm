@@ -40,6 +40,7 @@ export const FREELANCER_IMPORT_COLUMNS = [
   "rate",
   "availability",
   "notes",
+  "profileUrl",
 ] as const;
 
 export const SESSION_IMPORT_COLUMNS = [

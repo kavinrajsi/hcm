@@ -487,6 +487,7 @@ model Freelancer {
   rate         String? // free-form: "₹2500/day", "$40/hr"
   availability Availability @default(UNKNOWN)
   notes        String?
+  profileUrl   String? // portfolio or profile link, https:// added if missing
   // Linked only if converted to FTE
   employee     Employee?    @relation(fields: [employeeId], references: [id])
   employeeId   String?      @unique

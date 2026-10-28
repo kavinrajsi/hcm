@@ -37,6 +37,8 @@ export const NAV: NavGroup[] = [
       { title: "ID Cards", url: "/id-cards", roles: HR },
       // Birthdays & work anniversaries.
       { title: "Wish", url: "/birthdays", roles: HR_OR_MANAGER },
+      // Freelance Resource Pool, moved here from Work.
+      { title: "Freelance Resource Pool", url: "/freelancers", roles: HR_OR_MANAGER },
     ],
   },
   {
@@ -60,7 +62,6 @@ export const NAV: NavGroup[] = [
       { title: "Chat", url: "/chat", roles: HR_OR_MANAGER },
       // Assignment Intelligence: who should take a design job.
       { title: "Assign", url: "/assign", roles: HR_OR_MANAGER },
-      { title: "Freelancers", url: "/freelancers", roles: HR_OR_MANAGER },
     ],
   },
   {

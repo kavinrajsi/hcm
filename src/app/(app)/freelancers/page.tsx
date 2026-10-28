@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePageRole } from "@/lib/rbac";
 import { listParam, parseTableParams, stringParam } from "@/lib/table-params";
@@ -25,9 +26,10 @@ import {
   PageHeader,
   PageShell,
 } from "@/components/page";
-import { CollapsibleForm } from "@/components/collapsible-form";
 import { DeleteIcon } from "@/components/icons";
-import { FreelancerAddForm } from "./freelancer-forms";
+import { AddFreelancerSheet, FreelancerDetailSheet } from "./freelancer-sheets";
+import { parseNotes, formatNoteTime } from "@/app/(app)/candidates/notes";
+import { cleanNoteHtml } from "@/app/(app)/candidates/note-html";
 import { deleteFreelancer, importFreelancers } from "./actions";
 import { BulkImportForm } from "@/components/bulk-import-form";
 import { FREELANCER_IMPORT_COLUMNS } from "@/lib/import-columns";
@@ -56,6 +58,7 @@ export default async function FreelancersPage({
   const isHr = user.role === "HR_ADMIN";
   const raw = await searchParams;
   const params = parseTableParams(raw);
+  const openId = stringParam(raw.freelancer);
 
   // Repeated ?type= params; unknown availabilities are ignored.
   const typeValues = listParam(raw.type);
@@ -83,7 +86,7 @@ export default async function FreelancersPage({
     ...(added ? { createdAt: added } : {}),
   };
 
-  const [freelancers, total, availabilityGroups] = await Promise.all([
+  const [freelancers, total, availabilityGroups, opened] = await Promise.all([
     db.freelancer.findMany({
       where,
       orderBy: { name: "asc" },
@@ -93,6 +96,9 @@ export default async function FreelancersPage({
     db.freelancer.count({ where }),
     // Indexed enum, so cheap even across the whole pool.
     db.freelancer.groupBy({ by: ["availability"], _count: true }),
+    openId
+      ? db.freelancer.findUnique({ where: { id: openId } })
+      : Promise.resolve(null),
   ]);
   const availabilityCounts = new Map(
     availabilityGroups.map((group) => [
@@ -106,19 +112,37 @@ export default async function FreelancersPage({
       <PageHeader
         title="Freelance Resource Pool"
         actions={
-          <BulkImportForm
-            action={importFreelancers}
-            columns={FREELANCER_IMPORT_COLUMNS}
-            title="Import freelancers"
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <BulkImportForm
+              action={importFreelancers}
+              columns={FREELANCER_IMPORT_COLUMNS}
+              title="Import freelancers"
+            />
+            <AddFreelancerSheet />
+          </div>
         }
       />
 
-      <div className="mt-5 md:mt-6">
-        <CollapsibleForm label="Add freelancer">
-          <FreelancerAddForm />
-        </CollapsibleForm>
-      </div>
+      {opened && (
+        <FreelancerDetailSheet
+          closeHref={pageHref(raw, { freelancer: null })}
+          freelancer={{
+            id: opened.id,
+            name: opened.name,
+            phone: opened.phone,
+            email: opened.email,
+            skillset: opened.skillset,
+            profileUrl: opened.profileUrl,
+            rate: opened.rate,
+            availability: opened.availability,
+            timeline: parseNotes(opened.notes).map((note) => ({
+              ...note,
+              text: cleanNoteHtml(note.text),
+              when: formatNoteTime(note.timestamp),
+            })),
+          }}
+        />
+      )}
 
       {/* Row 1: one search across everything. Row 2: the filters. */}
       <div className="mt-5 flex flex-col gap-3 md:mt-6">
@@ -152,6 +176,7 @@ export default async function FreelancersPage({
           {freelancers.map((freelancer) => (
             <ListCard
               key={freelancer.id}
+              href={pageHref(raw, { freelancer: freelancer.id })}
               title={freelancer.name}
               subtitle={
                 <>
@@ -175,6 +200,16 @@ export default async function FreelancersPage({
                   )}
                   {freelancer.phone && <span>{freelancer.phone}</span>}
                   {freelancer.rate && <span>Rate {freelancer.rate}</span>}
+                  {freelancer.profileUrl && (
+                    <a
+                      href={freelancer.profileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="break-all underline-offset-4 hover:underline"
+                    >
+                      Profile
+                    </a>
+                  )}
                 </>
               }
               actions={
@@ -205,6 +240,7 @@ export default async function FreelancersPage({
               <TableHead>Contact</TableHead>
               <TableHead>Skillset</TableHead>
               <TableHead>Rate</TableHead>
+              <TableHead>Profile</TableHead>
               <TableHead>Availability</TableHead>
               <TableHead>Notes</TableHead>
               <TableHead />
@@ -213,14 +249,21 @@ export default async function FreelancersPage({
           <TableBody>
             {freelancers.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-zinc-500">
+                <TableCell colSpan={8} className="text-center text-zinc-500">
                   No freelancers found.
                 </TableCell>
               </TableRow>
             )}
             {freelancers.map((freelancer) => (
               <TableRow key={freelancer.id}>
-                <TableCell className="font-medium">{freelancer.name}</TableCell>
+                <TableCell className="font-medium">
+                  <Link
+                    href={pageHref(raw, { freelancer: freelancer.id })}
+                    className="underline-offset-4 hover:underline"
+                  >
+                    {freelancer.name}
+                  </Link>
+                </TableCell>
                 <TableCell className="text-sm">
                   {[freelancer.email, freelancer.phone]
                     .filter(Boolean)
@@ -228,6 +271,20 @@ export default async function FreelancersPage({
                 </TableCell>
                 <TableCell>{freelancer.skillset}</TableCell>
                 <TableCell>{freelancer.rate ?? "—"}</TableCell>
+                <TableCell>
+                  {freelancer.profileUrl ? (
+                    <a
+                      href={freelancer.profileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium underline-offset-4 hover:underline"
+                    >
+                      Open
+                    </a>
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
                 <TableCell>
                   <Badge variant={badgeVariant[freelancer.availability]}>
                     {freelancer.availability}
@@ -265,4 +322,21 @@ export default async function FreelancersPage({
       </div>
     </PageShell>
   );
+}
+
+/** Current list URL with some params replaced (null removes one). */
+function pageHref(
+  raw: Record<string, string | string[] | undefined>,
+  patch: Record<string, string | null>,
+): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(raw)) {
+    if (key in patch || value === undefined) continue;
+    for (const item of Array.isArray(value) ? value : [value]) params.append(key, item);
+  }
+  for (const [key, value] of Object.entries(patch)) {
+    if (value !== null) params.set(key, value);
+  }
+  const query = params.toString();
+  return query ? `/freelancers?${query}` : "/freelancers";
 }
