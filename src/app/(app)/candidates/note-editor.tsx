@@ -5,7 +5,6 @@ import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import {
   Bold,
-  Code,
   Italic,
   Link as LinkIcon,
   List,
@@ -66,6 +65,7 @@ export function NoteEditor({ name, placeholder }: { name: string; placeholder: s
     extensions: [
       StarterKit.configure({
         heading: false,
+        code: false,
         codeBlock: false,
         horizontalRule: false,
         link: {
@@ -104,7 +104,6 @@ export function NoteEditor({ name, placeholder }: { name: string; placeholder: s
       italic: current?.isActive("italic") ?? false,
       underline: current?.isActive("underline") ?? false,
       strike: current?.isActive("strike") ?? false,
-      code: current?.isActive("code") ?? false,
       bulletList: current?.isActive("bulletList") ?? false,
       orderedList: current?.isActive("orderedList") ?? false,
       blockquote: current?.isActive("blockquote") ?? false,
@@ -141,9 +140,6 @@ export function NoteEditor({ name, placeholder }: { name: string; placeholder: s
         </ToolButton>
         <ToolButton label="Strikethrough" active={state?.strike} onClick={() => editor?.chain().focus().toggleStrike().run()}>
           <Strikethrough className={ICON} />
-        </ToolButton>
-        <ToolButton label="Code" active={state?.code} onClick={() => editor?.chain().focus().toggleCode().run()}>
-          <Code className={ICON} />
         </ToolButton>
         <span className="mx-1 h-5 w-px bg-zinc-200 dark:bg-zinc-800" aria-hidden />
         <ToolButton label="Bulleted list" active={state?.bulletList} onClick={() => editor?.chain().focus().toggleBulletList().run()}>
