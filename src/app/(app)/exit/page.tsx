@@ -163,7 +163,7 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
           {exits.map((exitedEmployee) => (
             <ListCard
               key={exitedEmployee.id}
-              href={isHr ? `/employees/${exitedEmployee.id}` : undefined}
+              href={isHr ? `/exit/${exitedEmployee.id}/letters` : undefined}
               leading={
                 <EmployeeAvatar
                   name={exitedEmployee.name}
@@ -202,12 +202,13 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
               <TableHead>Date of Exit</TableHead>
               <TableHead>Designation</TableHead>
               <TableHead>Emp Type</TableHead>
+              {isHr && <TableHead>Exit letters</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {exits.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-zinc-500">
+                <TableCell colSpan={isHr ? 7 : 6} className="text-center text-zinc-500">
                   No exits recorded.
                 </TableCell>
               </TableRow>
@@ -240,6 +241,16 @@ export default async function ExitPage({ searchParams }: PageProps<"/exit">) {
                 <TableCell>{formatDay(exitedEmployee.dateOfExit)}</TableCell>
                 <TableCell>{exitedEmployee.designation}</TableCell>
                 <TableCell>{exitedEmployee.empType}</TableCell>
+                {isHr && (
+                  <TableCell>
+                    <Link
+                      href={`/exit/${exitedEmployee.id}/letters`}
+                      className="font-medium underline-offset-4 hover:underline"
+                    >
+                      Exit letters
+                    </Link>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>

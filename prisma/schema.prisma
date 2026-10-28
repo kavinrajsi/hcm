@@ -80,6 +80,9 @@ enum LetterType {
   OFFER
   INTERN
   COMPENSATION
+  RELIEVING
+  EXPERIENCE
+  INTERNSHIP_CERTIFICATE
 }
 
 model User {
@@ -504,6 +507,7 @@ model Letter {
   bodyHtml   String
   sentAt     DateTime?
   sentTo     String?
+  pdfBlobKey String? // private blob with the generated PDF (exit letters)
   createdAt  DateTime   @default(now())
 
   @@index([employeeId])

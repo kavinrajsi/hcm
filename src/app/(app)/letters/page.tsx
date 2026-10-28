@@ -41,6 +41,8 @@ export default async function LettersPage() {
       select: { id: true, empId: true, name: true },
     }),
     db.letter.findMany({
+      // Exit letters are PDFs made from the exit page, not emailed here.
+      where: { type: { in: ["OFFER", "INTERN", "COMPENSATION"] } },
       orderBy: { createdAt: "desc" },
       take: 50,
       include: { employee: { select: { id: true, empId: true, name: true } } },
