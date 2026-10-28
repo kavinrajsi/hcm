@@ -20,6 +20,7 @@ import { AddIcon, CallIcon, LinkIcon, MailIcon, StickyNoteIcon } from "@/compone
 import { NoteEditor } from "@/app/(app)/candidates/note-editor";
 import type { CandidateNote } from "@/app/(app)/candidates/notes";
 import { addFreelancer, addFreelancerNote, type FreelancerFormState } from "./actions";
+import { FREELANCER_LIMITS, PHONE_PATTERN, PHONE_TITLE } from "./freelancer-rules";
 
 const AVAILABILITY_OPTIONS = [
   ["AVAILABLE", "Available"],
@@ -74,22 +75,22 @@ export function AddFreelancerSheet() {
             className="flex flex-col gap-3"
           >
             <FormField name="name" label={requiredLabel("Name")}>
-              <Input id="fl-name" name="name" required />
+              <Input id="fl-name" name="name" required maxLength={FREELANCER_LIMITS.name} />
             </FormField>
             <FormField name="phone" label={requiredLabel("Phone number")}>
-              <Input name="phone" type="tel" required />
+              <Input name="phone" type="tel" required pattern={PHONE_PATTERN} title={PHONE_TITLE} maxLength={FREELANCER_LIMITS.phone} />
             </FormField>
             <FormField name="email" label={requiredLabel("Email ID")}>
-              <Input name="email" type="email" required />
+              <Input name="email" type="email" required maxLength={FREELANCER_LIMITS.email} />
             </FormField>
             <FormField name="skillset" label={requiredLabel("Skill set")}>
-              <Input name="skillset" required />
+              <Input name="skillset" required maxLength={FREELANCER_LIMITS.skillset} />
             </FormField>
             <FormField name="profileUrl" label={requiredLabel("Profile URL")}>
-              <Input name="profileUrl" placeholder="behance.net/name" required />
+              <Input name="profileUrl" placeholder="behance.net/name" required maxLength={FREELANCER_LIMITS.profileUrl} />
             </FormField>
             <FormField name="rate" label={requiredLabel("Rate")}>
-              <Input name="rate" placeholder="₹2500/day" required />
+              <Input name="rate" placeholder="₹2500/day" required maxLength={FREELANCER_LIMITS.rate} />
             </FormField>
             <FormField name="availability" label={requiredLabel("Status")}>
               <select name="availability" required defaultValue="" className={selectClass}>

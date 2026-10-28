@@ -103,3 +103,44 @@ describe("addFreelancerNote", () => {
     expect(db.freelancer.update).not.toHaveBeenCalled();
   });
 });
+
+describe("field rules", () => {
+  const bad = async (fields: Record<string, string>, field: string, message: RegExp) => {
+    db.freelancer.create.mockClear();
+    const state = await addFreelancer({}, form({ ...complete, ...fields }));
+    expect(state.fieldErrors?.[field]?.[0], field).toMatch(message);
+    expect(db.freelancer.create).not.toHaveBeenCalled();
+  };
+
+  it("needs letters in the name and skill set", async () => {
+    await bad({ name: "1234" }, "name", /must contain letters/);
+    await bad({ skillset: "***" }, "skillset", /at least one skill/);
+  });
+
+  it("checks the phone number has 7 to 15 digits and no letters", async () => {
+    await bad({ phone: "12345" }, "phone", /7 to 15 digits/);
+    await bad({ phone: "98765 abc12" }, "phone", /7 to 15 digits/);
+    await bad({ phone: "1234567890123456" }, "phone", /7 to 15 digits/);
+  });
+
+  it("accepts a phone number with spaces, brackets and a plus", async () => {
+    const state = await addFreelancer({}, form({ ...complete, phone: "+91 (98765) 43210" }));
+    expect(state).toEqual({ ok: true });
+  });
+
+  it("needs an amount in the rate", async () => {
+    await bad({ rate: "per day" }, "rate", /needs an amount/);
+  });
+
+  it("refuses a profile URL with no real domain", async () => {
+    await bad({ profileUrl: "localhost" }, "profileUrl", /web address/);
+    await bad({ profileUrl: "ftp://example.com" }, "profileUrl", /web address/);
+  });
+
+  it("limits the length of each text field", async () => {
+    await bad({ name: "a".repeat(101) }, "name", /at most/);
+    await bad({ skillset: "a".repeat(201) }, "skillset", /at most/);
+    await bad({ rate: "1".repeat(51) }, "rate", /at most/);
+    await bad({ email: `${"a".repeat(250)}@x.com` }, "email", /at most|valid email/);
+  });
+});

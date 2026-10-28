@@ -14,35 +14,9 @@ import {
 } from "@/lib/csv-import";
 import { appendNote } from "@/app/(app)/candidates/notes";
 import { cleanNoteHtml, plainNoteText } from "@/app/(app)/candidates/note-html";
+import { freelancerSchema } from "./freelancer-rules";
 
 export type FreelancerFormState = FormState;
-
-// Every field is required. `notes` is the first entry of the freelancer's
-// timeline (a JSON log, same shape as candidate notes), not a single text.
-// "behance.net/meena" becomes "https://behance.net/meena" so the link works.
-const profileUrl = z
-  .string()
-  .trim()
-  .min(1, "Profile URL is required")
-  .transform((value) => (/^https?:\/\//i.test(value) ? value : `https://${value}`))
-  .refine((value) => URL.canParse(value), "Profile URL must be a web address, e.g. behance.net/name");
-
-const freelancerSchema = z.object({
-  name: z.string().trim().min(1, "Name is required"),
-  email: z.string().trim().min(1, "Email is required").email("Enter a valid email"),
-  phone: z.string().trim().min(1, "Phone number is required"),
-  skillset: z.string().trim().min(1, "Skillset is required"),
-  profileUrl,
-  rate: z.string().trim().min(1, "Rate is required"),
-  availability: z.enum(["AVAILABLE", "BUSY", "UNAVAILABLE", "UNKNOWN"], {
-    error: "Pick a status",
-  }),
-  notes: z
-    .string()
-    .transform(cleanNoteHtml)
-    .refine((html) => plainNoteText(html) !== "", "Note is required")
-    .refine((html) => plainNoteText(html).length <= 5000, "Note is too long (5,000 characters at most)"),
-});
 
 function parse(formData: FormData) {
   return freelancerSchema.safeParse({
