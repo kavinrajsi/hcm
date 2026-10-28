@@ -195,10 +195,12 @@ export default async function FreelancersPage({
                     <Button
                       type="submit"
                       variant="ghost"
-                      className="h-10 text-zinc-500 active:text-red-600"
+                      size="icon"
+                      aria-label="Delete freelancer"
+                      title="Delete"
+                      className="size-10 text-zinc-500 active:text-red-600"
                     >
                       <DeleteIcon className="size-4" />
-                      Delete
                     </Button>
                   </form>
                 )
@@ -271,9 +273,11 @@ export default async function FreelancersPage({
                       <input type="hidden" name="id" value={freelancer.id} />
                       <button
                         type="submit"
-                        className="text-xs text-zinc-400 hover:text-red-600"
+                        aria-label="Delete freelancer"
+                        title="Delete"
+                        className="rounded p-1.5 text-zinc-400 hover:text-red-600"
                       >
-                        Delete
+                        <DeleteIcon className="size-4" />
                       </button>
                     </form>
                   )}
