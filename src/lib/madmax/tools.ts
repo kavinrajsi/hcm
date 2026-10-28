@@ -34,6 +34,7 @@ import {
   statusWhere,
 } from "@/app/(app)/candidates/query";
 import { parseNotes } from "@/app/(app)/candidates/notes";
+import { plainNoteText } from "@/app/(app)/candidates/note-html";
 import {
   resumeForScoring,
   resumesToScore,
@@ -543,7 +544,7 @@ export function buildTools(context: MadmaxContext): ToolSet {
           location: candidate.location,
           status: statusOf(candidate.status),
           applied: formatInstantDay(candidate.createdAt),
-          notes: parseNotes(candidate.notes).map((note) => note.text),
+          notes: parseNotes(candidate.notes).map((note) => plainNoteText(note.text)),
         };
       },
     }),

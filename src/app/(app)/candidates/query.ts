@@ -3,6 +3,7 @@ import { SCORE_BANDS, type ScoreBand } from "@/lib/candidates/score-bands";
 import type { CandidateDetail } from "./candidate-dialog";
 import { CANDIDATE_STATUSES, type CandidateStatus } from "./statuses";
 import { formatNoteTime, parseNotes } from "./notes";
+import { cleanNoteHtml } from "./note-html";
 import { instantRange } from "@/lib/date-filter";
 
 // Shared by the list view, the board view and the board's "Load more" action.
@@ -125,7 +126,10 @@ export function toCandidateDetail(
       : null,
     status: statusOf(candidate.status),
     // Newest first, with IST display time resolved on the server.
-    notes: parseNotes(candidate.notes)
+    notes: parseNotes(candidate.notes).map((note) => ({
+      ...note,
+      text: cleanNoteHtml(note.text),
+    }))
       .map((note) => ({ ...note, when: formatNoteTime(note.timestamp) }))
       .reverse(),
     appliedOn: candidate.createdAt.toISOString().slice(0, 10),

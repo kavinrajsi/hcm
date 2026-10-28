@@ -2,7 +2,6 @@
 
 import { useActionState, useTransition } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { ValidatedForm } from "@/components/form/validated-form";
 import { FormField, FormMessage } from "@/components/form/form-field";
 import {
@@ -36,6 +35,7 @@ import {
   StickyNoteIcon,
 } from "@/components/icons";
 import type { CandidateNote } from "./notes";
+import { NoteEditor } from "./note-editor";
 import { StatusHistory } from "./status-history";
 import { ConvertToEmployee } from "./convert-to-employee";
 import { ScoreSection } from "./score-section";
@@ -138,7 +138,7 @@ function NotesLog({
     <section className="mt-8 text-sm">
       <h3 className="flex items-center gap-1.5 font-medium">
         <StickyNoteIcon className="size-4 text-zinc-500" />
-        Notes
+        Timeline
       </h3>
       {/* Remount after a note lands so the textarea clears. */}
       <ValidatedForm
@@ -149,26 +149,19 @@ function NotesLog({
       >
         <input type="hidden" name="id" value={candidateId} />
         <FormField name="text">
-          <Textarea
-            name="text"
-            rows={2}
-            placeholder="Add a note…"
-            aria-label="Note"
-            maxLength={5000}
-            required
-          />
+          <NoteEditor name="text" placeholder="Add a note… (⌘↵ to submit)" />
         </FormField>
         <div className="flex items-center gap-3">
           <Button type="submit" size="sm" disabled={pending}>
             <AddIcon className="size-4" />
-            {pending ? "Adding…" : "Add note"}
+            {pending ? "Adding…" : "Add Note"}
           </Button>
           <FormMessage error={state.error} />
         </div>
       </ValidatedForm>
 
       {notes.length === 0 ? (
-        <p className="mt-4 text-zinc-500">No notes yet.</p>
+        <p className="mt-4 text-zinc-500">No notes yet — add one above.</p>
       ) : (
         <ol className="mt-4 flex flex-col gap-3">
           {notes.map((note) => (
@@ -198,7 +191,11 @@ function NotesLog({
                   <DeleteIcon className="size-4" />
                 </button>
               </div>
-              <p className="mt-1 whitespace-pre-line">{note.text}</p>
+              {/* Cleaned on the server (note-html.ts), so only formatting we allow gets through. */}
+              <div
+                className="mt-1 whitespace-pre-line [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-zinc-300 [&_blockquote]:pl-3 [&_code]:rounded [&_code]:bg-zinc-100 [&_code]:px-1 dark:[&_code]:bg-zinc-800 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 [&_ul]:list-disc [&_ul]:pl-5"
+                dangerouslySetInnerHTML={{ __html: note.text }}
+              />
             </li>
           ))}
         </ol>

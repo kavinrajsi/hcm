@@ -21,6 +21,7 @@ import {
 } from "./query";
 import type { CandidateDetail } from "./candidate-dialog";
 import { formatNoteTime, removeNote } from "./notes";
+import { cleanNoteHtml, plainNoteText } from "./note-html";
 
 const updateSchema = z.object({
   id: z.string().regex(/^\d+$/),
@@ -103,7 +104,14 @@ export async function loadMoreCandidates(
 
 const noteSchema = z.object({
   id: z.string().regex(/^\d+$/),
-  text: z.string().trim().min(1, "Note is empty").max(5000),
+  text: z
+    .string()
+    .transform(cleanNoteHtml)
+    .refine((html) => plainNoteText(html) !== "", "Note is empty")
+    .refine(
+      (html) => plainNoteText(html).length <= 5000,
+      "Note is too long (5,000 characters at most)",
+    ),
 });
 
 /** Appends to the candidate's JSON note log (same shape as the old app). */
@@ -114,7 +122,7 @@ export async function addCandidateNote(
   await requireRole("HR_ADMIN");
   const parsed = noteSchema.safeParse({
     id: formData.get("id"),
-    text: formData.get("text"),
+    text: formData.get("text") ?? "",
   });
   if (!parsed.success) return invalid(parsed.error);
   await addNoteToCandidate(BigInt(parsed.data.id), parsed.data.text);
