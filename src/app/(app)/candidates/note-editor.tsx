@@ -9,7 +9,6 @@ import {
   Link as LinkIcon,
   List,
   ListOrdered,
-  Quote,
   Redo,
   Strikethrough,
   Underline as UnderlineIcon,
@@ -66,6 +65,7 @@ export function NoteEditor({ name, placeholder }: { name: string; placeholder: s
       StarterKit.configure({
         heading: false,
         code: false,
+        blockquote: false,
         codeBlock: false,
         horizontalRule: false,
         link: {
@@ -106,7 +106,6 @@ export function NoteEditor({ name, placeholder }: { name: string; placeholder: s
       strike: current?.isActive("strike") ?? false,
       bulletList: current?.isActive("bulletList") ?? false,
       orderedList: current?.isActive("orderedList") ?? false,
-      blockquote: current?.isActive("blockquote") ?? false,
       link: current?.isActive("link") ?? false,
       canUndo: current?.can().undo() ?? false,
       canRedo: current?.can().redo() ?? false,
@@ -147,9 +146,6 @@ export function NoteEditor({ name, placeholder }: { name: string; placeholder: s
         </ToolButton>
         <ToolButton label="Numbered list" active={state?.orderedList} onClick={() => editor?.chain().focus().toggleOrderedList().run()}>
           <ListOrdered className={ICON} />
-        </ToolButton>
-        <ToolButton label="Quote" active={state?.blockquote} onClick={() => editor?.chain().focus().toggleBlockquote().run()}>
-          <Quote className={ICON} />
         </ToolButton>
         <ToolButton label="Link" active={state?.link} onClick={setLink}>
           <LinkIcon className={ICON} />

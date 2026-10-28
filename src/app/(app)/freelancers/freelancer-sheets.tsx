@@ -89,6 +89,9 @@ export function AddFreelancerSheet() {
             <FormField name="phone" label={requiredLabel("Phone number")}>
               <Input data-1p-ignore data-lpignore="true" autoComplete="off" name="phone" type="tel" required pattern={PHONE_PATTERN} title={PHONE_TITLE} maxLength={FREELANCER_LIMITS.phone} defaultValue={state.values?.phone} />
             </FormField>
+            <FormField name="designation" label={requiredLabel("Designation")}>
+              <Input data-1p-ignore data-lpignore="true" autoComplete="off" name="designation" placeholder="Video editor" required maxLength={FREELANCER_LIMITS.designation} defaultValue={state.values?.designation} />
+            </FormField>
             <FormField name="email" label={requiredLabel("Email ID")}>
               <Input data-1p-ignore data-lpignore="true" autoComplete="off" name="email" type="email" required maxLength={FREELANCER_LIMITS.email} defaultValue={state.values?.email} />
             </FormField>
@@ -97,9 +100,6 @@ export function AddFreelancerSheet() {
             </FormField>
             <FormField name="profileUrl" label={requiredLabel("Profile URL")}>
               <Input data-1p-ignore data-lpignore="true" autoComplete="off" name="profileUrl" placeholder="behance.net/name" required maxLength={FREELANCER_LIMITS.profileUrl} defaultValue={state.values?.profileUrl} />
-            </FormField>
-            <FormField name="designation" label={requiredLabel("Designation")}>
-              <Input data-1p-ignore data-lpignore="true" autoComplete="off" name="designation" placeholder="Video editor" required maxLength={FREELANCER_LIMITS.designation} defaultValue={state.values?.designation} />
             </FormField>
             <FormField name="workMode" label={requiredLabel("Status")}>
               <select
