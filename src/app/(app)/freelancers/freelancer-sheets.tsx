@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -139,10 +140,6 @@ export function FreelancerDetailSheet({
   closeHref: string;
 }) {
   const router = useRouter();
-  const [state, formAction, pending] = useActionState<FreelancerFormState, FormData>(
-    addFreelancerNote,
-    {},
-  );
 
   return (
     <Sheet
@@ -156,88 +153,114 @@ export function FreelancerDetailSheet({
           <SheetTitle>{freelancer.name}</SheetTitle>
           <SheetDescription>{freelancer.skillset}</SheetDescription>
         </SheetHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 text-sm">
-          <dl className="grid grid-cols-[8.5rem_1fr] gap-x-3 gap-y-2">
-            <Row icon={CallIcon} label="Phone">
-              {freelancer.phone ?? "—"}
-            </Row>
-            <Row icon={MailIcon} label="Email ID">
-              {freelancer.email ? (
-                <a href={`mailto:${freelancer.email}`} className="break-all underline underline-offset-4">
-                  {freelancer.email}
-                </a>
-              ) : (
-                "—"
-              )}
-            </Row>
-            <Row icon={StickyNoteIcon} label="Skill set">
-              {freelancer.skillset}
-            </Row>
-            <Row icon={LinkIcon} label="Profile URL">
-              {freelancer.profileUrl ? (
-                <a
-                  href={freelancer.profileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="break-all underline underline-offset-4"
-                >
-                  {freelancer.profileUrl}
-                </a>
-              ) : (
-                "—"
-              )}
-            </Row>
-            <Row icon={StickyNoteIcon} label="Rate">
-              {freelancer.rate ?? "—"}
-            </Row>
-            <Row icon={StickyNoteIcon} label="Status">
-              <Badge variant={badgeVariant[freelancer.availability]}>{freelancer.availability}</Badge>
-            </Row>
-          </dl>
-
-          <section className="mt-8">
-            <h3 className="font-medium">Timeline</h3>
-            {/* Remount after a note lands so the editor clears. */}
-            <ValidatedForm
-              key={freelancer.timeline.length}
-              action={formAction}
-              fieldErrors={state.fieldErrors}
-              className="mt-2 flex flex-col gap-2"
-            >
-              <input type="hidden" name="id" value={freelancer.id} />
-              <FormField name="text">
-                <NoteEditor name="text" placeholder="Add a note… (⌘↵ to submit)" />
-              </FormField>
-              <div className="flex items-center gap-3">
-                <Button type="submit" size="sm" disabled={pending}>
-                  <AddIcon className="size-4" />
-                  {pending ? "Adding…" : "Add Note"}
-                </Button>
-                <FormMessage error={state.error} />
-              </div>
-            </ValidatedForm>
-
-            {freelancer.timeline.length === 0 ? (
-              <p className="mt-4 text-zinc-500">No notes yet — add one above.</p>
-            ) : (
-              <ol className="mt-4 flex flex-col gap-3">
-                {freelancer.timeline.map((note) => (
-                  <li key={note.id} className="rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800">
-                    <time dateTime={note.timestamp ?? undefined} className="text-xs text-zinc-500">
-                      {note.when ?? "Undated"}
-                    </time>
-                    <div
-                      className="mt-1 whitespace-pre-line [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-zinc-300 [&_blockquote]:pl-3 [&_code]:rounded [&_code]:bg-zinc-100 [&_code]:px-1 dark:[&_code]:bg-zinc-800 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 [&_ul]:list-disc [&_ul]:pl-5"
-                      dangerouslySetInnerHTML={{ __html: note.text }}
-                    />
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
+        <div className="px-4">
+          <Link href={`/freelancers/${freelancer.id}`} className="text-sm font-medium underline underline-offset-4">
+            Open full page
+          </Link>
         </div>
+        <FreelancerDetailBody
+          freelancer={freelancer}
+          className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 text-sm"
+        />
       </SheetContent>
     </Sheet>
+  );
+}
+
+/** Details and timeline, shared by the side sheet and the full page. */
+export function FreelancerDetailBody({
+  freelancer,
+  className,
+}: {
+  freelancer: FreelancerDetail;
+  className?: string;
+}) {
+  const [state, formAction, pending] = useActionState<FreelancerFormState, FormData>(
+    addFreelancerNote,
+    {},
+  );
+
+  return (
+    <div className={className}>
+      <dl className="grid grid-cols-[8.5rem_1fr] gap-x-3 gap-y-2">
+        <Row icon={CallIcon} label="Phone">
+          {freelancer.phone ?? "—"}
+        </Row>
+        <Row icon={MailIcon} label="Email ID">
+          {freelancer.email ? (
+            <a href={`mailto:${freelancer.email}`} className="break-all underline underline-offset-4">
+              {freelancer.email}
+            </a>
+          ) : (
+            "—"
+          )}
+        </Row>
+        <Row icon={StickyNoteIcon} label="Skill set">
+          {freelancer.skillset}
+        </Row>
+        <Row icon={LinkIcon} label="Profile URL">
+          {freelancer.profileUrl ? (
+            <a
+              href={freelancer.profileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="break-all underline underline-offset-4"
+            >
+              {freelancer.profileUrl}
+            </a>
+          ) : (
+            "—"
+          )}
+        </Row>
+        <Row icon={StickyNoteIcon} label="Rate">
+          {freelancer.rate ?? "—"}
+        </Row>
+        <Row icon={StickyNoteIcon} label="Status">
+          <Badge variant={badgeVariant[freelancer.availability]}>{freelancer.availability}</Badge>
+        </Row>
+      </dl>
+
+      <section className="mt-8">
+        <h3 className="font-medium">Timeline</h3>
+        {/* Remount after a note lands so the editor clears. */}
+        <ValidatedForm
+          key={freelancer.timeline.length}
+          action={formAction}
+          fieldErrors={state.fieldErrors}
+          className="mt-2 flex flex-col gap-2"
+        >
+          <input type="hidden" name="id" value={freelancer.id} />
+          <FormField name="text">
+            <NoteEditor name="text" placeholder="Add a note… (⌘↵ to submit)" />
+          </FormField>
+          <div className="flex items-center gap-3">
+            <Button type="submit" size="sm" disabled={pending}>
+              <AddIcon className="size-4" />
+              {pending ? "Adding…" : "Add Note"}
+            </Button>
+            <FormMessage error={state.error} />
+          </div>
+        </ValidatedForm>
+
+        {freelancer.timeline.length === 0 ? (
+          <p className="mt-4 text-zinc-500">No notes yet — add one above.</p>
+        ) : (
+          <ol className="mt-4 flex flex-col gap-3">
+            {freelancer.timeline.map((note) => (
+              <li key={note.id} className="rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800">
+                <time dateTime={note.timestamp ?? undefined} className="text-xs text-zinc-500">
+                  {note.when ?? "Undated"}
+                </time>
+                <div
+                  className="mt-1 whitespace-pre-line [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-zinc-300 [&_blockquote]:pl-3 [&_code]:rounded [&_code]:bg-zinc-100 [&_code]:px-1 dark:[&_code]:bg-zinc-800 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 [&_ul]:list-disc [&_ul]:pl-5"
+                  dangerouslySetInnerHTML={{ __html: note.text }}
+                />
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+    </div>
   );
 }
 

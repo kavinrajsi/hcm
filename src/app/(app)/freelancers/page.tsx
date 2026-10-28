@@ -28,8 +28,7 @@ import {
 } from "@/components/page";
 import { DeleteIcon } from "@/components/icons";
 import { AddFreelancerSheet, FreelancerDetailSheet } from "./freelancer-sheets";
-import { parseNotes, formatNoteTime } from "@/app/(app)/candidates/notes";
-import { cleanNoteHtml } from "@/app/(app)/candidates/note-html";
+import { toFreelancerDetail } from "./detail";
 import { deleteFreelancer, importFreelancers } from "./actions";
 import { BulkImportForm } from "@/components/bulk-import-form";
 import { FREELANCER_IMPORT_COLUMNS } from "@/lib/import-columns";
@@ -126,21 +125,7 @@ export default async function FreelancersPage({
       {opened && (
         <FreelancerDetailSheet
           closeHref={pageHref(raw, { freelancer: null })}
-          freelancer={{
-            id: opened.id,
-            name: opened.name,
-            phone: opened.phone,
-            email: opened.email,
-            skillset: opened.skillset,
-            profileUrl: opened.profileUrl,
-            rate: opened.rate,
-            availability: opened.availability,
-            timeline: parseNotes(opened.notes).map((note) => ({
-              ...note,
-              text: cleanNoteHtml(note.text),
-              when: formatNoteTime(note.timestamp),
-            })),
-          }}
+          freelancer={toFreelancerDetail(opened)}
         />
       )}
 
@@ -178,16 +163,7 @@ export default async function FreelancersPage({
               key={freelancer.id}
               href={pageHref(raw, { freelancer: freelancer.id })}
               title={freelancer.name}
-              subtitle={
-                <>
-                  {freelancer.skillset}
-                  {freelancer.notes && (
-                    <span className="mt-1 line-clamp-3 block">
-                      {freelancer.notes}
-                    </span>
-                  )}
-                </>
-              }
+              subtitle={freelancer.skillset}
               badge={
                 <Badge variant={badgeVariant[freelancer.availability]}>
                   {freelancer.availability}
@@ -242,14 +218,13 @@ export default async function FreelancersPage({
               <TableHead>Rate</TableHead>
               <TableHead>Profile</TableHead>
               <TableHead>Availability</TableHead>
-              <TableHead>Notes</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {freelancers.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-zinc-500">
+                <TableCell colSpan={7} className="text-center text-zinc-500">
                   No freelancers found.
                 </TableCell>
               </TableRow>
@@ -289,9 +264,6 @@ export default async function FreelancersPage({
                   <Badge variant={badgeVariant[freelancer.availability]}>
                     {freelancer.availability}
                   </Badge>
-                </TableCell>
-                <TableCell className="max-w-48 truncate">
-                  {freelancer.notes ?? "—"}
                 </TableCell>
                 <TableCell>
                   {isHr && (
