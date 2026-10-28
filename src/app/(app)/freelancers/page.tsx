@@ -29,6 +29,7 @@ import {
 import { DeleteIcon } from "@/components/icons";
 import { AddFreelancerSheet, FreelancerDetailSheet } from "./freelancer-sheets";
 import { toFreelancerDetail } from "./detail";
+import { WORK_MODE_LABELS, WORK_MODES } from "./freelancer-rules";
 import { deleteFreelancer, importFreelancers } from "./actions";
 import { BulkImportForm } from "@/components/bulk-import-form";
 import { FREELANCER_IMPORT_COLUMNS } from "@/lib/import-columns";
@@ -36,18 +37,10 @@ import type { Prisma } from "@/generated/prisma/client";
 
 export const metadata = { title: "Freelance Resource Pool" };
 
-const AVAILABILITY_FILTER = [
-  { value: "AVAILABLE", label: "Available" },
-  { value: "BUSY", label: "Busy" },
-  { value: "UNAVAILABLE", label: "Unavailable" },
-  { value: "UNKNOWN", label: "Unknown" },
-] as const;
-
 const badgeVariant = {
-  AVAILABLE: "default",
-  BUSY: "secondary",
-  UNAVAILABLE: "destructive",
-  UNKNOWN: "outline",
+  REMOTE: "default",
+  ONSITE: "secondary",
+  FLEXIBLE: "outline",
 } as const;
 
 export default async function FreelancersPage({
@@ -59,11 +52,9 @@ export default async function FreelancersPage({
   const params = parseTableParams(raw);
   const openId = stringParam(raw.freelancer);
 
-  // Repeated ?type= params; unknown availabilities are ignored.
+  // Repeated ?type= params (Remote, Onsite, Flexible); unknown values are ignored.
   const typeValues = listParam(raw.type);
-  const availabilities = AVAILABILITY_FILTER.filter((option) =>
-    typeValues.includes(option.value),
-  ).map((option) => option.value);
+  const workModes = WORK_MODES.filter((mode) => typeValues.includes(mode.value)).map((mode) => mode.value);
   const added = instantRange({
     preset: stringParam(raw.added),
     from: stringParam(raw.from),
@@ -81,7 +72,7 @@ export default async function FreelancersPage({
           ],
         }
       : {}),
-    ...(availabilities.length ? { availability: { in: availabilities } } : {}),
+    ...(workModes.length ? { workMode: { in: workModes } } : {}),
     ...(added ? { createdAt: added } : {}),
   };
 
@@ -94,14 +85,14 @@ export default async function FreelancersPage({
     }),
     db.freelancer.count({ where }),
     // Indexed enum, so cheap even across the whole pool.
-    db.freelancer.groupBy({ by: ["availability"], _count: true }),
+    db.freelancer.groupBy({ by: ["workMode"], _count: true }),
     openId
       ? db.freelancer.findUnique({ where: { id: openId } })
       : Promise.resolve(null),
   ]);
   const availabilityCounts = new Map(
     availabilityGroups.map((group) => [
-      group.availability as string,
+      group.workMode as string,
       group._count,
     ]),
   );
@@ -141,12 +132,12 @@ export default async function FreelancersPage({
             />
             <FilterMultiSelect
               param="type"
-              label="Availability"
-              plural="Availabilities"
-              options={AVAILABILITY_FILTER.map((option) => ({
-                value: option.value,
-                label: option.label,
-                count: availabilityCounts.get(option.value) ?? 0,
+              label="Status"
+              plural="Statuses"
+              options={WORK_MODES.map((mode) => ({
+                value: mode.value,
+                label: mode.label,
+                count: availabilityCounts.get(mode.value) ?? 0,
               }))}
             />
           </div>
@@ -163,11 +154,13 @@ export default async function FreelancersPage({
               key={freelancer.id}
               href={pageHref(raw, { freelancer: freelancer.id })}
               title={freelancer.name}
-              subtitle={freelancer.skillset}
+              subtitle={freelancer.designation ?? freelancer.skillset}
               badge={
-                <Badge variant={badgeVariant[freelancer.availability]}>
-                  {freelancer.availability}
-                </Badge>
+                freelancer.workMode ? (
+                  <Badge variant={badgeVariant[freelancer.workMode]}>
+                    {WORK_MODE_LABELS[freelancer.workMode]}
+                  </Badge>
+                ) : null
               }
               meta={
                 <>
@@ -175,7 +168,7 @@ export default async function FreelancersPage({
                     <span className="break-all">{freelancer.email}</span>
                   )}
                   {freelancer.phone && <span>{freelancer.phone}</span>}
-                  {freelancer.rate && <span>Rate {freelancer.rate}</span>}
+                  <span>{freelancer.skillset}</span>
                   {freelancer.profileUrl && (
                     <a
                       href={freelancer.profileUrl}
@@ -215,11 +208,11 @@ export default async function FreelancersPage({
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>Designation</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Skillset</TableHead>
-              <TableHead>Rate</TableHead>
               <TableHead>Profile</TableHead>
-              <TableHead>Availability</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -241,13 +234,13 @@ export default async function FreelancersPage({
                     {freelancer.name}
                   </Link>
                 </TableCell>
+                <TableCell>{freelancer.designation ?? "—"}</TableCell>
                 <TableCell className="text-sm">
                   {[freelancer.email, freelancer.phone]
                     .filter(Boolean)
                     .join(" · ") || "—"}
                 </TableCell>
                 <TableCell>{freelancer.skillset}</TableCell>
-                <TableCell>{freelancer.rate ?? "—"}</TableCell>
                 <TableCell>
                   {freelancer.profileUrl ? (
                     <a
@@ -263,9 +256,13 @@ export default async function FreelancersPage({
                   )}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={badgeVariant[freelancer.availability]}>
-                    {freelancer.availability}
-                  </Badge>
+                  {freelancer.workMode ? (
+                    <Badge variant={badgeVariant[freelancer.workMode]}>
+                      {WORK_MODE_LABELS[freelancer.workMode]}
+                    </Badge>
+                  ) : (
+                    "—"
+                  )}
                 </TableCell>
                 <TableCell>
                   {isHr && (

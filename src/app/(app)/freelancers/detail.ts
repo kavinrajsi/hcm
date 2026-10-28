@@ -12,8 +12,8 @@ export function toFreelancerDetail(row: {
   email: string | null;
   skillset: string;
   profileUrl: string | null;
-  rate: string | null;
-  availability: FreelancerDetail["availability"];
+  designation: string | null;
+  workMode: FreelancerDetail["workMode"];
   notes: string | null;
 }): FreelancerDetail {
   return {
@@ -23,8 +23,8 @@ export function toFreelancerDetail(row: {
     email: row.email,
     skillset: row.skillset,
     profileUrl: row.profileUrl,
-    rate: row.rate,
-    availability: row.availability,
+    designation: row.designation,
+    workMode: row.workMode,
     timeline: parseNotes(row.notes).map((note) => ({
       ...note,
       text: cleanNoteHtml(note.text),

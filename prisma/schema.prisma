@@ -54,6 +54,12 @@ enum SessionMode {
   VIRTUAL
 }
 
+enum WorkMode {
+  REMOTE
+  ONSITE
+  FLEXIBLE
+}
+
 enum Availability {
   AVAILABLE
   BUSY
@@ -489,6 +495,8 @@ model Freelancer {
   availability Availability @default(UNKNOWN)
   notes        String?
   profileUrl   String? // portfolio or profile link, https:// added if missing
+  designation  String? // the freelancer's role, e.g. Video editor
+  workMode     WorkMode? // remote, onsite or flexible (replaces availability on the form)
   // Linked only if converted to FTE
   employee     Employee?    @relation(fields: [employeeId], references: [id])
   employeeId   String?      @unique
@@ -498,6 +506,7 @@ model Freelancer {
   @@index([name])
   @@index([skillset])
   @@index([availability])
+  @@index([workMode])
 }
 
 model Letter {

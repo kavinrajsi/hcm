@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Freelancer actions: every field is required, and notes become the first
-// entry of the timeline.
+// Freelancer actions: every field is required, the status is remote, onsite
+// or flexible, and notes become the first entry of the timeline.
 
 const db = vi.hoisted(() => ({
   freelancer: { create: vi.fn(), update: vi.fn(), findUnique: vi.fn() },
@@ -26,12 +26,10 @@ const complete = {
   name: "Meena",
   phone: "9876543210",
   email: "meena@example.com",
+  designation: "Video editor",
   skillset: "Illustration",
   profileUrl: "behance.net/meena",
-  rateAmount: "2500",
-  rateUnit: "day",
-  rateOtherUnit: "",
-  availability: "AVAILABLE",
+  workMode: "REMOTE",
   notes: "<p>Met at the design meetup</p>",
 };
 
@@ -46,9 +44,11 @@ describe("addFreelancer", () => {
     expect(data).toMatchObject({
       name: "Meena",
       email: "meena@example.com",
+      designation: "Video editor",
       profileUrl: "https://behance.net/meena",
-      availability: "AVAILABLE",
+      workMode: "REMOTE",
     });
+    expect(data).not.toHaveProperty("rate");
     expect(parseNotes(data.notes)).toMatchObject([
       { text: "<p>Met at the design meetup</p>", timestamp: expect.any(String) },
     ]);
@@ -56,17 +56,20 @@ describe("addFreelancer", () => {
 
   it("requires every field", async () => {
     const state = await addFreelancer({}, form({}));
-    for (const field of ["name", "phone", "email", "skillset", "profileUrl", "rateAmount", "rateUnit", "availability", "notes"]) {
+    for (const field of ["name", "phone", "email", "designation", "skillset", "profileUrl", "workMode", "notes"]) {
       expect(state.fieldErrors?.[field], field).toBeDefined();
     }
     expect(db.freelancer.create).not.toHaveBeenCalled();
   });
 
+  it("only takes remote, onsite or flexible as the status", async () => {
+    const state = await addFreelancer({}, form({ ...complete, workMode: "Other" }));
+    expect(state.fieldErrors?.workMode?.[0]).toMatch(/Pick a status/);
+    expect(db.freelancer.create).not.toHaveBeenCalled();
+  });
+
   it("checks the email and profile URL", async () => {
-    const state = await addFreelancer(
-      {},
-      form({ ...complete, email: "not-an-email", profileUrl: "http://" }),
-    );
+    const state = await addFreelancer({}, form({ ...complete, email: "not-an-email", profileUrl: "http://" }));
     expect(state.fieldErrors?.email?.[0]).toMatch(/valid email/);
     expect(state.fieldErrors?.profileUrl?.[0]).toMatch(/web address/);
     expect(db.freelancer.create).not.toHaveBeenCalled();
@@ -83,7 +86,7 @@ describe("updateFreelancer", () => {
     await updateFreelancer("f1", {}, form({ ...complete, notes: "new note" }));
     const data = db.freelancer.update.mock.calls[0][0].data;
     expect(data).not.toHaveProperty("notes");
-    expect(data).toMatchObject({ name: "Meena", rate: "₹2500/day" });
+    expect(data).toMatchObject({ name: "Meena", designation: "Video editor", workMode: "REMOTE" });
   });
 });
 
@@ -114,8 +117,9 @@ describe("field rules", () => {
     expect(db.freelancer.create).not.toHaveBeenCalled();
   };
 
-  it("needs letters in the name and skill set", async () => {
+  it("needs letters in the name, designation and skill set", async () => {
     await bad({ name: "1234" }, "name", /must contain letters/);
+    await bad({ designation: "123" }, "designation", /must contain letters/);
     await bad({ skillset: "***" }, "skillset", /at least one skill/);
   });
 
@@ -130,11 +134,6 @@ describe("field rules", () => {
     expect(state).toEqual({ ok: true });
   });
 
-  it("takes the rate as an amount in numbers", async () => {
-    await bad({ rateAmount: "2,500" }, "rateAmount", /Numbers only/);
-    await bad({ rateAmount: "₹2500" }, "rateAmount", /Numbers only/);
-  });
-
   it("refuses a profile URL with no real domain", async () => {
     await bad({ profileUrl: "localhost" }, "profileUrl", /web address/);
     await bad({ profileUrl: "ftp://example.com" }, "profileUrl", /web address/);
@@ -142,35 +141,8 @@ describe("field rules", () => {
 
   it("limits the length of each text field", async () => {
     await bad({ name: "a".repeat(101) }, "name", /at most/);
+    await bad({ designation: "a".repeat(81) }, "designation", /at most/);
     await bad({ skillset: "a".repeat(201) }, "skillset", /at most/);
-    await bad({ rateOtherUnit: "a".repeat(21), rateUnit: "other" }, "rateOtherUnit", /At most 20/);
     await bad({ email: `${"a".repeat(250)}@x.com` }, "email", /at most|valid email/);
   });
 });
-
-describe("rate", () => {
-  it("stores the amount with the rupee sign and the unit", async () => {
-    await addFreelancer({}, form({ ...complete, rateAmount: "2500", rateUnit: "reel" }));
-    expect(db.freelancer.create.mock.calls.at(-1)?.[0].data.rate).toBe("₹2500/reel");
-  });
-
-  it("takes a typed unit when Other is picked", async () => {
-    await addFreelancer({}, form({ ...complete, rateAmount: "800", rateUnit: "other", rateOtherUnit: "Shoot" }));
-    expect(db.freelancer.create.mock.calls.at(-1)?.[0].data.rate).toBe("₹800/shoot");
-  });
-
-  it("accepts letters, numbers and spaces in the typed unit", async () => {
-    await addFreelancer({}, form({ ...complete, rateAmount: "1500", rateUnit: "other", rateOtherUnit: "2 Reels" }));
-    expect(db.freelancer.create.mock.calls.at(-1)?.[0].data.rate).toBe("₹1500/2 reels");
-  });
-
-  it("asks for the unit and refuses symbols in it", async () => {
-    const missing = await addFreelancer({}, form({ ...complete, rateUnit: "" }));
-    expect(missing.fieldErrors?.rateUnit?.[0]).toMatch(/Pick what/);
-    const other = await addFreelancer({}, form({ ...complete, rateUnit: "other", rateOtherUnit: "" }));
-    expect(other.fieldErrors?.rateOtherUnit?.[0]).toMatch(/Enter the unit/);
-    const symbols = await addFreelancer({}, form({ ...complete, rateUnit: "other", rateOtherUnit: "shoot!" }));
-    expect(symbols.fieldErrors?.rateOtherUnit?.[0]).toMatch(/letters, numbers and spaces/);
-  });
-});
-

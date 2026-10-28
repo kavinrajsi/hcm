@@ -36,11 +36,11 @@ export const FREELANCER_IMPORT_COLUMNS = [
   "name",
   "email",
   "phone",
+  "designation",
   "skillset",
-  "rate",
-  "availability",
-  "notes",
   "profileUrl",
+  "status",
+  "notes",
 ] as const;
 
 export const SESSION_IMPORT_COLUMNS = [

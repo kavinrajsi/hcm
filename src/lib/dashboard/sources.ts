@@ -684,7 +684,7 @@ function idCardWhere({ range, filters }: LoadContext): Prisma.IdCardWhereInput {
 
 // -------------------------------------------------------------- freelancers
 
-const AVAILABILITY_LABELS = { AVAILABLE: "Available", BUSY: "Busy", UNAVAILABLE: "Unavailable", UNKNOWN: "Unknown" };
+const WORK_MODE_LABELS = { REMOTE: "Remote", ONSITE: "Onsite", FLEXIBLE: "Flexible" };
 
 const freelancers: Source = {
   key: "freelancers",
@@ -694,7 +694,7 @@ const freelancers: Source = {
   measures: [{ key: "count", label: "Freelancers" }],
   dateFields: [{ key: "added", label: "Added on" }],
   fields: [
-    { key: "availability", label: "Availability", labels: AVAILABILITY_LABELS, param: "type" },
+    { key: "workMode", label: "Status", labels: WORK_MODE_LABELS, param: "type" },
     {
       key: "skillset",
       label: "Skills",
@@ -706,9 +706,9 @@ const freelancers: Source = {
   async load(context) {
     const rows = await db.freelancer.findMany({
       where: freelancerWhere(context),
-      select: { createdAt: true, availability: true, skillset: true },
+      select: { createdAt: true, workMode: true, skillset: true },
     });
-    return rows.map((row) => ({ day: dayOf(row.createdAt, "instant"), value: 1, keys: { availability: row.availability, skillset: row.skillset } }));
+    return rows.map((row) => ({ day: dayOf(row.createdAt, "instant"), value: 1, keys: { workMode: row.workMode ?? "", skillset: row.skillset } }));
   },
   count: (context) => db.freelancer.count({ where: freelancerWhere(context) }),
 };
@@ -717,8 +717,8 @@ function freelancerWhere({ range, filters }: LoadContext): Prisma.FreelancerWher
   const and: Prisma.FreelancerWhereInput[] = [];
   const bounds = instantBounds(range);
   if (bounds) and.push({ createdAt: bounds });
-  const availability = pick(filters.availability, AVAILABILITY_LABELS);
-  if (availability.length) and.push({ availability: { in: availability as never } });
+  const workMode = pick(filters.workMode, WORK_MODE_LABELS);
+  if (workMode.length) and.push({ workMode: { in: workMode as never } });
   if (list(filters.skillset).length) and.push({ skillset: { in: list(filters.skillset) } });
   return { AND: and };
 }

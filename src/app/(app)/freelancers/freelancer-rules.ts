@@ -9,11 +9,22 @@ export const FREELANCER_LIMITS = {
   name: 100,
   phone: 25,
   email: 254,
+  designation: 80,
   skillset: 200,
-  rate: 50,
   profileUrl: 500,
   note: 5000,
 } as const;
+
+/** Where the freelancer works. The Status field and filters use these. */
+export const WORK_MODES = [
+  { value: "REMOTE", label: "Remote" },
+  { value: "ONSITE", label: "Onsite" },
+  { value: "FLEXIBLE", label: "Flexible" },
+] as const;
+
+export const WORK_MODE_LABELS: Record<string, string> = Object.fromEntries(
+  WORK_MODES.map((mode) => [mode.value, mode.label]),
+);
 
 /** Browser check for the phone field; the server also counts the digits. */
 export const PHONE_PATTERN = "[+]?[0-9 ()-]{7,25}";
@@ -51,6 +62,10 @@ export const freelancerSchema = z.object({
   phone: required("Phone number", FREELANCER_LIMITS.phone)
     .regex(/^\+?[0-9 ()-]+$/, PHONE_TITLE)
     .refine((value) => digitCount(value) >= 7 && digitCount(value) <= 15, PHONE_TITLE),
+  designation: required("Designation", FREELANCER_LIMITS.designation).refine(
+    hasLetter,
+    "Designation must contain letters",
+  ),
   skillset: required("Skill set", FREELANCER_LIMITS.skillset).refine(
     hasLetter,
     "Skill set must name at least one skill",
@@ -62,13 +77,10 @@ export const freelancerSchema = z.object({
     .max(FREELANCER_LIMITS.profileUrl, `Profile URL is too long (${FREELANCER_LIMITS.profileUrl} characters at most)`)
     .transform(withHttps)
     .refine(isWebAddress, "Profile URL must be a web address, e.g. behance.net/name"),
-  rate: required("Rate", FREELANCER_LIMITS.rate).refine(
-    (value) => /\d/.test(value),
-    "Rate needs an amount, e.g. ₹2500/day",
+  workMode: z.enum(
+    WORK_MODES.map((mode) => mode.value),
+    { error: "Pick a status" },
   ),
-  availability: z.enum(["AVAILABLE", "BUSY", "UNAVAILABLE", "UNKNOWN"], {
-    error: "Pick a status",
-  }),
   notes: z
     .string()
     .transform(cleanNoteHtml)
@@ -78,49 +90,3 @@ export const freelancerSchema = z.object({
       `Note is too long (${FREELANCER_LIMITS.note} characters at most)`,
     ),
 });
-
-// Rate: an amount and what it is paid per. The form asks for them apart and
-// stores them as one value, "₹2500/day", with the ₹ added automatically.
-export const RATE_UNITS = [
-  { value: "day", label: "Day" },
-  { value: "hour", label: "Hour" },
-  { value: "reel", label: "Reel" },
-  { value: "video", label: "Video" },
-  { value: "project", label: "Project" },
-  { value: "other", label: "Other" },
-] as const;
-
-export const rateFormSchema = z
-  .object({
-    rateAmount: z
-      .string()
-      .trim()
-      .min(1, "Enter the rate amount")
-      .regex(/^\d{1,9}(\.\d{1,2})?$/, "Numbers only, e.g. 2500"),
-    rateUnit: z.enum(
-      RATE_UNITS.map((unit) => unit.value),
-      { error: "Pick what the rate is per" },
-    ),
-    rateOtherUnit: z.string().trim().max(20, "At most 20 characters").default(""),
-  })
-  .superRefine((value, ctx) => {
-    if (value.rateUnit !== "other") return;
-    if (!value.rateOtherUnit) {
-      ctx.addIssue({ code: "custom", path: ["rateOtherUnit"], message: "Enter the unit, e.g. shoot" });
-    } else if (!/^[\p{L}\p{N} ]+$/u.test(value.rateOtherUnit)) {
-      ctx.addIssue({ code: "custom", path: ["rateOtherUnit"], message: "Use letters, numbers and spaces, e.g. 2 reels" });
-    }
-  });
-
-/** "₹2500/day" from the parsed rate fields. */
-export function rateFrom(value: z.infer<typeof rateFormSchema>): string {
-  const unit = value.rateUnit === "other" ? value.rateOtherUnit.toLowerCase() : value.rateUnit;
-  return `₹${value.rateAmount}/${unit}`;
-}
-
-/** Reads a CSV rate such as "2500/day" or "₹2500/reel"; null if it isn't one. */
-export function rateFromText(raw: string): string | null {
-  const match = /^₹?\s*(\d{1,9}(?:\.\d{1,2})?)\s*\/\s*([\p{L}\p{N} ]{1,20})$/u.exec(raw.trim());
-  return match ? `₹${match[1]}/${match[2].trim().toLowerCase()}` : null;
-}
-

@@ -14,26 +14,18 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { ValidatedForm, useFieldError } from "@/components/form/validated-form";
-import { FieldError, FormField, FormMessage } from "@/components/form/form-field";
+import { ValidatedForm } from "@/components/form/validated-form";
+import { FormField, FormMessage } from "@/components/form/form-field";
 import { AddIcon, CallIcon, LinkIcon, MailIcon, StickyNoteIcon } from "@/components/icons";
 import { NoteEditor } from "@/app/(app)/candidates/note-editor";
 import type { CandidateNote } from "@/app/(app)/candidates/notes";
 import { addFreelancer, addFreelancerNote, type FreelancerFormState } from "./actions";
-import { FREELANCER_LIMITS, PHONE_PATTERN, PHONE_TITLE, RATE_UNITS } from "./freelancer-rules";
-
-const AVAILABILITY_OPTIONS = [
-  ["AVAILABLE", "Available"],
-  ["BUSY", "Busy"],
-  ["UNAVAILABLE", "Unavailable"],
-  ["UNKNOWN", "Unknown"],
-] as const;
+import { FREELANCER_LIMITS, PHONE_PATTERN, PHONE_TITLE, WORK_MODE_LABELS, WORK_MODES } from "./freelancer-rules";
 
 const badgeVariant = {
-  AVAILABLE: "default",
-  BUSY: "secondary",
-  UNAVAILABLE: "destructive",
-  UNKNOWN: "outline",
+  REMOTE: "default",
+  ONSITE: "secondary",
+  FLEXIBLE: "outline",
 } as const;
 
 const selectClass =
@@ -41,40 +33,12 @@ const selectClass =
 
 const requiredLabel = (text: string) => `${text} *`;
 
-/** Amount in numbers; the ₹ is shown and added to the saved rate for you. */
-function RateAmountInput({ defaultValue }: { defaultValue?: string }) {
-  const error = useFieldError("rateAmount");
-  return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium">{requiredLabel("Rate")}</span>
-      <span className="relative">
-        <span aria-hidden className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-zinc-500">
-          ₹
-        </span>
-        <Input data-1p-ignore data-lpignore="true" autoComplete="off"
-          name="rateAmount"
-          inputMode="numeric"
-          placeholder="2500"
-          required
-          pattern="[0-9]+(\.[0-9]{1,2})?"
-          title="Numbers only, e.g. 2500"
-          aria-invalid={error ? true : undefined}
-          className="pl-6"
-          defaultValue={defaultValue}
-        />
-      </span>
-      <FieldError name="rateAmount" />
-    </label>
-  );
-}
-
 /** "Add candidate" button and the sheet with the required details. */
 type AddFreelancerState = FreelancerFormState & { values?: Record<string, string> };
 
 export function AddFreelancerSheet() {
   const [open, setOpen] = useState(false);
   // Dropdowns are controlled: the form reset after a save doesn't clear them.
-  const [rateUnit, setRateUnit] = useState("");
   const [status, setStatus] = useState("");
   // React clears a form after its action returns, errors included. Keeping
   // what was typed in `values` and passing it back as defaultValue puts the
@@ -84,7 +48,6 @@ export function AddFreelancerSheet() {
       const result = await addFreelancer(previous, formData);
       if (result.ok) {
         setOpen(false);
-        setRateUnit("");
         setStatus("");
         return {};
       }
@@ -135,41 +98,12 @@ export function AddFreelancerSheet() {
             <FormField name="profileUrl" label={requiredLabel("Profile URL")}>
               <Input data-1p-ignore data-lpignore="true" autoComplete="off" name="profileUrl" placeholder="behance.net/name" required maxLength={FREELANCER_LIMITS.profileUrl} defaultValue={state.values?.profileUrl} />
             </FormField>
-            <div className="grid gap-3 sm:grid-cols-[1fr_9rem]">
-              <RateAmountInput defaultValue={state.values?.rateAmount} />
-              <FormField name="rateUnit" label={requiredLabel("Per")}>
-                <select
-                  name="rateUnit"
-                  required
-                  value={rateUnit}
-                  onChange={(event) => setRateUnit(event.target.value)}
-                  className={selectClass}
-                >
-                  <option value="" disabled>
-                    Pick
-                  </option>
-                  {RATE_UNITS.map((unit) => (
-                    <option key={unit.value} value={unit.value}>
-                      {unit.label}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-            </div>
-            {rateUnit === "other" && (
-              <FormField name="rateOtherUnit" label={requiredLabel("Other unit")}>
-                <Input data-1p-ignore data-lpignore="true" autoComplete="off"
-                  name="rateOtherUnit"
-                  placeholder="shoot, post, slide"
-                  required
-                  maxLength={20}
-                  defaultValue={state.values?.rateOtherUnit}
-                />
-              </FormField>
-            )}
-            <FormField name="availability" label={requiredLabel("Status")}>
+            <FormField name="designation" label={requiredLabel("Designation")}>
+              <Input data-1p-ignore data-lpignore="true" autoComplete="off" name="designation" placeholder="Video editor" required maxLength={FREELANCER_LIMITS.designation} defaultValue={state.values?.designation} />
+            </FormField>
+            <FormField name="workMode" label={requiredLabel("Status")}>
               <select
-                name="availability"
+                name="workMode"
                 required
                 value={status}
                 onChange={(event) => setStatus(event.target.value)}
@@ -178,9 +112,9 @@ export function AddFreelancerSheet() {
                 <option value="" disabled>
                   Pick a status
                 </option>
-                {AVAILABILITY_OPTIONS.map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
+                {WORK_MODES.map((mode) => (
+                  <option key={mode.value} value={mode.value}>
+                    {mode.label}
                   </option>
                 ))}
               </select>
@@ -208,8 +142,8 @@ export type FreelancerDetail = {
   email: string | null;
   skillset: string;
   profileUrl: string | null;
-  rate: string | null;
-  availability: keyof typeof badgeVariant;
+  designation: string | null;
+  workMode: keyof typeof badgeVariant | null;
   timeline: (CandidateNote & { when: string | null })[];
 };
 
@@ -294,11 +228,15 @@ export function FreelancerDetailBody({
             "—"
           )}
         </Row>
-        <Row icon={StickyNoteIcon} label="Rate">
-          {freelancer.rate ?? "—"}
+        <Row icon={StickyNoteIcon} label="Designation">
+          {freelancer.designation ?? "—"}
         </Row>
         <Row icon={StickyNoteIcon} label="Status">
-          <Badge variant={badgeVariant[freelancer.availability]}>{freelancer.availability}</Badge>
+          {freelancer.workMode ? (
+            <Badge variant={badgeVariant[freelancer.workMode]}>{WORK_MODE_LABELS[freelancer.workMode]}</Badge>
+          ) : (
+            "—"
+          )}
         </Row>
       </dl>
 
