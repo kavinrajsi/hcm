@@ -14,21 +14,35 @@ import {
 } from "@/lib/csv-import";
 import { appendNote } from "@/app/(app)/candidates/notes";
 import { cleanNoteHtml, plainNoteText } from "@/app/(app)/candidates/note-html";
-import { freelancerSchema } from "./freelancer-rules";
+import { freelancerSchema, rateFormSchema, rateFrom, rateFromText } from "./freelancer-rules";
 
 export type FreelancerFormState = FormState;
 
-function parse(formData: FormData) {
-  return freelancerSchema.safeParse({
+type Parsed = z.infer<typeof freelancerSchema>;
+
+function parse(formData: FormData): { success: true; data: Parsed } | { success: false; error: z.ZodError } {
+  const rateParts = rateFormSchema.safeParse({
+    rateAmount: formData.get("rateAmount") ?? "",
+    rateUnit: formData.get("rateUnit") ?? "",
+    rateOtherUnit: formData.get("rateOtherUnit") ?? "",
+  });
+  const details = freelancerSchema.safeParse({
     name: formData.get("name") ?? "",
     email: formData.get("email") ?? "",
     phone: formData.get("phone") ?? "",
     skillset: formData.get("skillset") ?? "",
     profileUrl: formData.get("profileUrl") ?? "",
-    rate: formData.get("rate") ?? "",
+    rate: rateParts.success ? rateFrom(rateParts.data) : "",
     availability: formData.get("availability") ?? "",
     notes: formData.get("notes") ?? "",
   });
+  if (rateParts.success && details.success) return { success: true, data: details.data };
+  // A bad rate shows under its own fields, not as a second "Rate" error.
+  const issues = [
+    ...(rateParts.success ? [] : rateParts.error.issues),
+    ...(details.success ? [] : details.error.issues.filter((issue) => !(rateParts.success === false && issue.path[0] === "rate"))),
+  ];
+  return { success: false, error: new z.ZodError(issues) };
 }
 
 export async function addFreelancer(
@@ -107,13 +121,15 @@ export async function importFreelancers(
   if ("error" in parsed) return { error: parsed.error };
 
   const { valid, failures } = collectRows(parsed.rows, (row) => {
+    const rate = rateFromText(row.rate ?? "");
+    if (!rate) throw new Error("Rate must look like 2500/day");
     const result = freelancerSchema.safeParse({
       name: row.name ?? "",
       email: row.email ?? "",
       phone: row.phone ?? "",
       skillset: row.skillset ?? "",
       profileUrl: row.profileUrl ?? "",
-      rate: row.rate ?? "",
+      rate,
       availability: cell(row, "availability") ?? "UNKNOWN",
       notes: row.notes ?? "",
     });

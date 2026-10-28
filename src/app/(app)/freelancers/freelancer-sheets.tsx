@@ -14,13 +14,13 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { ValidatedForm } from "@/components/form/validated-form";
-import { FormField, FormMessage } from "@/components/form/form-field";
+import { ValidatedForm, useFieldError } from "@/components/form/validated-form";
+import { FieldError, FormField, FormMessage } from "@/components/form/form-field";
 import { AddIcon, CallIcon, LinkIcon, MailIcon, StickyNoteIcon } from "@/components/icons";
 import { NoteEditor } from "@/app/(app)/candidates/note-editor";
 import type { CandidateNote } from "@/app/(app)/candidates/notes";
 import { addFreelancer, addFreelancerNote, type FreelancerFormState } from "./actions";
-import { FREELANCER_LIMITS, PHONE_PATTERN, PHONE_TITLE } from "./freelancer-rules";
+import { FREELANCER_LIMITS, PHONE_PATTERN, PHONE_TITLE, RATE_UNITS } from "./freelancer-rules";
 
 const AVAILABILITY_OPTIONS = [
   ["AVAILABLE", "Available"],
@@ -41,17 +41,53 @@ const selectClass =
 
 const requiredLabel = (text: string) => `${text} *`;
 
+/** Amount in numbers; the ₹ is shown and added to the saved rate for you. */
+function RateAmountInput({ defaultValue }: { defaultValue?: string }) {
+  const error = useFieldError("rateAmount");
+  return (
+    <label className="flex flex-col gap-1 text-sm">
+      <span className="font-medium">{requiredLabel("Rate")}</span>
+      <span className="relative">
+        <span aria-hidden className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-zinc-500">
+          ₹
+        </span>
+        <Input
+          name="rateAmount"
+          inputMode="numeric"
+          placeholder="2500"
+          required
+          pattern="[0-9]+(\.[0-9]{1,2})?"
+          title="Numbers only, e.g. 2500"
+          aria-invalid={error ? true : undefined}
+          className="pl-6"
+          defaultValue={defaultValue}
+        />
+      </span>
+      <FieldError name="rateAmount" />
+    </label>
+  );
+}
+
 /** "Add candidate" button and the sheet with the required details. */
+type AddFreelancerState = FreelancerFormState & { values?: Record<string, string> };
+
 export function AddFreelancerSheet() {
   const [open, setOpen] = useState(false);
-  const [state, formAction, pending] = useActionState<FreelancerFormState, FormData>(
+  const [rateUnit, setRateUnit] = useState("");
+  // React clears a form after its action returns, errors included. Keeping
+  // what was typed in `values` and passing it back as defaultValue puts the
+  // entries back after a failed save.
+  const [state, formAction, pending] = useActionState<AddFreelancerState, FormData>(
     async (previous, formData) => {
       const result = await addFreelancer(previous, formData);
       if (result.ok) {
         setOpen(false);
         return {};
       }
-      return result;
+      const values = Object.fromEntries(
+        [...formData.entries()].filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+      );
+      return { ...result, values };
     },
     {},
   );
@@ -75,25 +111,54 @@ export function AddFreelancerSheet() {
             className="flex flex-col gap-3"
           >
             <FormField name="name" label={requiredLabel("Name")}>
-              <Input id="fl-name" name="name" required maxLength={FREELANCER_LIMITS.name} />
+              <Input id="fl-name" name="name" required maxLength={FREELANCER_LIMITS.name} defaultValue={state.values?.name} />
             </FormField>
             <FormField name="phone" label={requiredLabel("Phone number")}>
-              <Input name="phone" type="tel" required pattern={PHONE_PATTERN} title={PHONE_TITLE} maxLength={FREELANCER_LIMITS.phone} />
+              <Input name="phone" type="tel" required pattern={PHONE_PATTERN} title={PHONE_TITLE} maxLength={FREELANCER_LIMITS.phone} defaultValue={state.values?.phone} />
             </FormField>
             <FormField name="email" label={requiredLabel("Email ID")}>
-              <Input name="email" type="email" required maxLength={FREELANCER_LIMITS.email} />
+              <Input name="email" type="email" required maxLength={FREELANCER_LIMITS.email} defaultValue={state.values?.email} />
             </FormField>
             <FormField name="skillset" label={requiredLabel("Skill set")}>
-              <Input name="skillset" required maxLength={FREELANCER_LIMITS.skillset} />
+              <Input name="skillset" required maxLength={FREELANCER_LIMITS.skillset} defaultValue={state.values?.skillset} />
             </FormField>
             <FormField name="profileUrl" label={requiredLabel("Profile URL")}>
-              <Input name="profileUrl" placeholder="behance.net/name" required maxLength={FREELANCER_LIMITS.profileUrl} />
+              <Input name="profileUrl" placeholder="behance.net/name" required maxLength={FREELANCER_LIMITS.profileUrl} defaultValue={state.values?.profileUrl} />
             </FormField>
-            <FormField name="rate" label={requiredLabel("Rate")}>
-              <Input name="rate" placeholder="₹2500/day" required maxLength={FREELANCER_LIMITS.rate} />
-            </FormField>
+            <div className="grid gap-3 sm:grid-cols-[1fr_9rem]">
+              <RateAmountInput defaultValue={state.values?.rateAmount} />
+              <FormField name="rateUnit" label={requiredLabel("Per")}>
+                <select
+                  name="rateUnit"
+                  required
+                  defaultValue={state.values?.rateUnit ?? ""}
+                  onChange={(event) => setRateUnit(event.target.value)}
+                  className={selectClass}
+                >
+                  <option value="" disabled>
+                    Pick
+                  </option>
+                  {RATE_UNITS.map((unit) => (
+                    <option key={unit.value} value={unit.value}>
+                      {unit.label}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            </div>
+            {rateUnit === "other" && (
+              <FormField name="rateOtherUnit" label={requiredLabel("Other unit")}>
+                <Input
+                  name="rateOtherUnit"
+                  placeholder="shoot, post, slide"
+                  required
+                  maxLength={20}
+                  defaultValue={state.values?.rateOtherUnit}
+                />
+              </FormField>
+            )}
             <FormField name="availability" label={requiredLabel("Status")}>
-              <select name="availability" required defaultValue="" className={selectClass}>
+              <select name="availability" required defaultValue={state.values?.availability ?? ""} className={selectClass}>
                 <option value="" disabled>
                   Pick a status
                 </option>

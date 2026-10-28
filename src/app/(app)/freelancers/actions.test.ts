@@ -28,7 +28,9 @@ const complete = {
   email: "meena@example.com",
   skillset: "Illustration",
   profileUrl: "behance.net/meena",
-  rate: "₹2500/day",
+  rateAmount: "2500",
+  rateUnit: "day",
+  rateOtherUnit: "",
   availability: "AVAILABLE",
   notes: "<p>Met at the design meetup</p>",
 };
@@ -54,7 +56,7 @@ describe("addFreelancer", () => {
 
   it("requires every field", async () => {
     const state = await addFreelancer({}, form({}));
-    for (const field of ["name", "phone", "email", "skillset", "profileUrl", "rate", "availability", "notes"]) {
+    for (const field of ["name", "phone", "email", "skillset", "profileUrl", "rateAmount", "rateUnit", "availability", "notes"]) {
       expect(state.fieldErrors?.[field], field).toBeDefined();
     }
     expect(db.freelancer.create).not.toHaveBeenCalled();
@@ -128,8 +130,9 @@ describe("field rules", () => {
     expect(state).toEqual({ ok: true });
   });
 
-  it("needs an amount in the rate", async () => {
-    await bad({ rate: "per day" }, "rate", /needs an amount/);
+  it("takes the rate as an amount in numbers", async () => {
+    await bad({ rateAmount: "2,500" }, "rateAmount", /Numbers only/);
+    await bad({ rateAmount: "₹2500" }, "rateAmount", /Numbers only/);
   });
 
   it("refuses a profile URL with no real domain", async () => {
@@ -140,7 +143,29 @@ describe("field rules", () => {
   it("limits the length of each text field", async () => {
     await bad({ name: "a".repeat(101) }, "name", /at most/);
     await bad({ skillset: "a".repeat(201) }, "skillset", /at most/);
-    await bad({ rate: "1".repeat(51) }, "rate", /at most/);
+    await bad({ rateOtherUnit: "a".repeat(21), rateUnit: "other" }, "rateOtherUnit", /At most 20/);
     await bad({ email: `${"a".repeat(250)}@x.com` }, "email", /at most|valid email/);
   });
 });
+
+describe("rate", () => {
+  it("stores the amount with the rupee sign and the unit", async () => {
+    await addFreelancer({}, form({ ...complete, rateAmount: "2500", rateUnit: "reel" }));
+    expect(db.freelancer.create.mock.calls.at(-1)?.[0].data.rate).toBe("₹2500/reel");
+  });
+
+  it("takes a typed unit when Other is picked", async () => {
+    await addFreelancer({}, form({ ...complete, rateAmount: "800", rateUnit: "other", rateOtherUnit: "Shoot" }));
+    expect(db.freelancer.create.mock.calls.at(-1)?.[0].data.rate).toBe("₹800/shoot");
+  });
+
+  it("asks for the unit and refuses a unit with numbers in it", async () => {
+    const missing = await addFreelancer({}, form({ ...complete, rateUnit: "" }));
+    expect(missing.fieldErrors?.rateUnit?.[0]).toMatch(/Pick what/);
+    const other = await addFreelancer({}, form({ ...complete, rateUnit: "other", rateOtherUnit: "" }));
+    expect(other.fieldErrors?.rateOtherUnit?.[0]).toMatch(/Enter the unit/);
+    const digits = await addFreelancer({}, form({ ...complete, rateUnit: "other", rateOtherUnit: "day2" }));
+    expect(digits.fieldErrors?.rateOtherUnit?.[0]).toMatch(/letters only/);
+  });
+});
+
