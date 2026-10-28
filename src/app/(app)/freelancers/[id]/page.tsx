@@ -9,7 +9,7 @@ import { toFreelancerDetail } from "../detail";
 export const metadata = { title: "Freelancer" };
 
 // Full-page view of one freelancer: the same details and timeline as the
-// side sheet on the Freelance Resource Pool list.
+// side sheet on the Freelances list.
 export default async function FreelancerPage({
   params,
 }: PageProps<"/freelancers/[id]">) {

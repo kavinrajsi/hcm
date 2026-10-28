@@ -35,7 +35,7 @@ import { BulkImportForm } from "@/components/bulk-import-form";
 import { FREELANCER_IMPORT_COLUMNS } from "@/lib/import-columns";
 import type { Prisma } from "@/generated/prisma/client";
 
-export const metadata = { title: "Freelance Resource Pool" };
+export const metadata = { title: "Freelances" };
 
 const badgeVariant = {
   REMOTE: "default",
@@ -100,7 +100,7 @@ export default async function FreelancersPage({
   return (
     <PageShell>
       <PageHeader
-        title="Freelance Resource Pool"
+        title="Freelances"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <BulkImportForm

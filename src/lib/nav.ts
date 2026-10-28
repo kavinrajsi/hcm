@@ -37,8 +37,8 @@ export const NAV: NavGroup[] = [
       { title: "ID Cards", url: "/id-cards", roles: HR },
       // Birthdays & work anniversaries.
       { title: "Wish", url: "/birthdays", roles: HR_OR_MANAGER },
-      // Freelance Resource Pool, moved here from Work.
-      { title: "Freelance Resource Pool", url: "/freelancers", roles: HR_OR_MANAGER },
+      // Freelances, moved here from Work.
+      { title: "Freelances", url: "/freelancers", roles: HR_OR_MANAGER },
     ],
   },
   {
