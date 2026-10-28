@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,9 +108,15 @@ export function AddFreelancerSheet() {
           <SheetDescription>Every field is required.</SheetDescription>
         </SheetHeader>
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+          {/* Not a form action: React resets a form after its action returns, and that
+              undoes the dropdowns. The action runs from onSubmit instead. */}
           <ValidatedForm
             key={open ? "open" : "closed"}
-            action={formAction}
+            onSubmit={(event) => {
+              event.preventDefault();
+              const form = event.currentTarget;
+              startTransition(() => formAction(new FormData(form)));
+            }}
             fieldErrors={state.fieldErrors}
             className="flex flex-col gap-3"
           >
