@@ -73,7 +73,9 @@ type AddFreelancerState = FreelancerFormState & { values?: Record<string, string
 
 export function AddFreelancerSheet() {
   const [open, setOpen] = useState(false);
+  // Dropdowns are controlled: the form reset after a save doesn't clear them.
   const [rateUnit, setRateUnit] = useState("");
+  const [status, setStatus] = useState("");
   // React clears a form after its action returns, errors included. Keeping
   // what was typed in `values` and passing it back as defaultValue puts the
   // entries back after a failed save.
@@ -82,6 +84,8 @@ export function AddFreelancerSheet() {
       const result = await addFreelancer(previous, formData);
       if (result.ok) {
         setOpen(false);
+        setRateUnit("");
+        setStatus("");
         return {};
       }
       const values = Object.fromEntries(
@@ -131,7 +135,7 @@ export function AddFreelancerSheet() {
                 <select
                   name="rateUnit"
                   required
-                  defaultValue={state.values?.rateUnit ?? ""}
+                  value={rateUnit}
                   onChange={(event) => setRateUnit(event.target.value)}
                   className={selectClass}
                 >
@@ -158,7 +162,13 @@ export function AddFreelancerSheet() {
               </FormField>
             )}
             <FormField name="availability" label={requiredLabel("Status")}>
-              <select name="availability" required defaultValue={state.values?.availability ?? ""} className={selectClass}>
+              <select
+                name="availability"
+                required
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+                className={selectClass}
+              >
                 <option value="" disabled>
                   Pick a status
                 </option>
