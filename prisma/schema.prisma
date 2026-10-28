@@ -240,6 +240,7 @@ model Employee {
   freelancer          Freelancer?
   leaveEntries        LeaveEntry[]
   previousEmployments PreviousEmployment[]
+  skills              EmployeeSkill[]
   jobAssignments      JobAssignee[]
   devices             Device[]                @relation("DeviceHolder")
   deviceAssignments   DeviceAssignment[]
@@ -1551,4 +1552,19 @@ model DashboardCatalogWidget {
   createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdById String?
   createdAt   DateTime @default(now())
+}
+
+// A skill an employee has, rated 1 (beginner) to 5 (expert). One row per
+// skill per employee; the name is unique per employee, ignoring case.
+model EmployeeSkill {
+  id         String   @id @default(cuid())
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId String
+  name       String
+  level      Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([employeeId, name])
+  @@index([employeeId])
 }
