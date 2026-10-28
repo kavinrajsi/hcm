@@ -51,7 +51,7 @@ function RateAmountInput({ defaultValue }: { defaultValue?: string }) {
         <span aria-hidden className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-zinc-500">
           ₹
         </span>
-        <Input
+        <Input data-1p-ignore data-lpignore="true" autoComplete="off"
           name="rateAmount"
           inputMode="numeric"
           placeholder="2500"
@@ -121,19 +121,19 @@ export function AddFreelancerSheet() {
             className="flex flex-col gap-3"
           >
             <FormField name="name" label={requiredLabel("Name")}>
-              <Input id="fl-name" name="name" required maxLength={FREELANCER_LIMITS.name} defaultValue={state.values?.name} />
+              <Input data-1p-ignore data-lpignore="true" autoComplete="off" id="fl-name" name="name" required maxLength={FREELANCER_LIMITS.name} defaultValue={state.values?.name} />
             </FormField>
             <FormField name="phone" label={requiredLabel("Phone number")}>
-              <Input name="phone" type="tel" required pattern={PHONE_PATTERN} title={PHONE_TITLE} maxLength={FREELANCER_LIMITS.phone} defaultValue={state.values?.phone} />
+              <Input data-1p-ignore data-lpignore="true" autoComplete="off" name="phone" type="tel" required pattern={PHONE_PATTERN} title={PHONE_TITLE} maxLength={FREELANCER_LIMITS.phone} defaultValue={state.values?.phone} />
             </FormField>
             <FormField name="email" label={requiredLabel("Email ID")}>
-              <Input name="email" type="email" required maxLength={FREELANCER_LIMITS.email} defaultValue={state.values?.email} />
+              <Input data-1p-ignore data-lpignore="true" autoComplete="off" name="email" type="email" required maxLength={FREELANCER_LIMITS.email} defaultValue={state.values?.email} />
             </FormField>
             <FormField name="skillset" label={requiredLabel("Skill set")}>
-              <Input name="skillset" required maxLength={FREELANCER_LIMITS.skillset} defaultValue={state.values?.skillset} />
+              <Input data-1p-ignore data-lpignore="true" autoComplete="off" name="skillset" required maxLength={FREELANCER_LIMITS.skillset} defaultValue={state.values?.skillset} />
             </FormField>
             <FormField name="profileUrl" label={requiredLabel("Profile URL")}>
-              <Input name="profileUrl" placeholder="behance.net/name" required maxLength={FREELANCER_LIMITS.profileUrl} defaultValue={state.values?.profileUrl} />
+              <Input data-1p-ignore data-lpignore="true" autoComplete="off" name="profileUrl" placeholder="behance.net/name" required maxLength={FREELANCER_LIMITS.profileUrl} defaultValue={state.values?.profileUrl} />
             </FormField>
             <div className="grid gap-3 sm:grid-cols-[1fr_9rem]">
               <RateAmountInput defaultValue={state.values?.rateAmount} />
@@ -158,7 +158,7 @@ export function AddFreelancerSheet() {
             </div>
             {rateUnit === "other" && (
               <FormField name="rateOtherUnit" label={requiredLabel("Other unit")}>
-                <Input
+                <Input data-1p-ignore data-lpignore="true" autoComplete="off"
                   name="rateOtherUnit"
                   placeholder="shoot, post, slide"
                   required
