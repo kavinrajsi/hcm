@@ -17,9 +17,9 @@ import { LabelPicker } from "./label-picker";
 
 export const metadata = { title: "Print labels" };
 
-// A4 sticker sheet: 3 across × 7 down of 70 × 37 mm labels. Anything past
-// 21 starts a new printed page.
-const PER_SHEET = 21;
+// A4 sticker sheet: 4 across × 7 down of 52.5 × 37 mm labels. Anything past
+// 28 starts a new printed page.
+const PER_SHEET = 28;
 
 export default async function LabelsPage({
   searchParams,
@@ -43,7 +43,7 @@ export default async function LabelsPage({
       <PageShell width="md">
         <PageHeader
           title="Print labels"
-          description="Pick devices to print on an A4 sheet of 70 × 37 mm stickers (24 per sheet)."
+          description="Pick devices to print on an A4 sheet of 52.5 × 37 mm stickers (28 per sheet, 4 across)."
           actions={
             <Button variant="outline" nativeButton={false} render={<Link href="/devices" />}>
               All devices
@@ -101,7 +101,7 @@ export default async function LabelsPage({
         title={single || labels.length === 1 ? "Print label" : `Print ${labels.length} labels`}
         description={
           single
-            ? "Prints one 70 × 37 mm label at the top-left of the page."
+            ? "Prints one 52.5 × 37 mm label at the top-left of the page."
             : `${Math.ceil(labels.length / PER_SHEET)} A4 sheet(s). Print at 100% scale ("Actual size"), no margins added by the browser.`
         }
         actions={
@@ -118,7 +118,7 @@ export default async function LabelsPage({
           {sheets.map((sheet, sheetIndex) => (
             <div
               key={sheetIndex}
-              className="grid grid-cols-[repeat(3,70mm)] content-start bg-white break-after-page last:break-after-auto"
+              className="grid grid-cols-[repeat(4,52.5mm)] content-start bg-white break-after-page last:break-after-auto"
             >
               {sheet.map((label) => (
                 <DeviceLabel key={label.id} svg={label.svg} />
