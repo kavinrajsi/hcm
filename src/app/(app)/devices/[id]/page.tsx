@@ -135,16 +135,7 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
 
       <section className="mt-6 grid gap-6 md:grid-cols-[auto_1fr]">
         <div className="flex flex-col gap-2">
-          <DeviceLabel
-            svg={svg}
-            assetTag={device.assetTag}
-            type={device.type}
-            brand={device.brand}
-            model={shownModel(device.model)}
-            holder={device.holder}
-            vendorName={device.vendor?.name ?? null}
-            className="rounded-md border border-zinc-200"
-          />
+          <DeviceLabel svg={svg} className="rounded-md border border-zinc-200" />
           <div className="flex flex-wrap gap-2">
             {manage && (
               <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/devices/labels?ids=${device.id}&layout=single`} />}>

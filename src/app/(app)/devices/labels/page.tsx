@@ -121,16 +121,7 @@ export default async function LabelsPage({
               className="grid grid-cols-[repeat(3,70mm)] content-start bg-white break-after-page last:break-after-auto"
             >
               {sheet.map((label) => (
-                <DeviceLabel
-                  key={label.id}
-                  svg={label.svg}
-                  assetTag={label.assetTag}
-                  type={label.type}
-                  brand={label.brand}
-                  model={shownModel(label.model)}
-                  holder={label.holder}
-                  vendorName={label.vendor?.name ?? null}
-                />
+                <DeviceLabel key={label.id} svg={label.svg} />
               ))}
             </div>
           ))}
