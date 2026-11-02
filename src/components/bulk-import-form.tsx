@@ -158,10 +158,13 @@ export function BulkImportForm({
   action,
   columns,
   title,
+  presentation = "dialog",
 }: {
   action: (prev: ImportState, formData: FormData) => Promise<ImportState>;
   columns: readonly string[];
   title: string;
+  /** "sheet" opens from the right, like Add candidate; "dialog" is the default. */
+  presentation?: "dialog" | "sheet";
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [file, setFile] = useState<File | null>(null);
@@ -176,6 +179,88 @@ export function BulkImportForm({
     columns.join(",") + "\n",
   )}`;
 
+  const body = (
+    <>
+      <ValidatedForm
+        action={formAction}
+        fieldErrors={fileErrors}
+        className="flex flex-col gap-3"
+      >
+        <FormField name="file">
+          <Input
+            type="file"
+            name="file"
+            accept=".csv,text/csv"
+            required
+            aria-label="CSV file"
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+          />
+        </FormField>
+        <div className="flex gap-2">
+          <CsvPreviewDrawer file={file} columns={columns} />
+          <Button type="submit" disabled={pending} className="flex-1">
+            {pending ? "Importing…" : "Import"}
+          </Button>
+        </div>
+      </ValidatedForm>
+      {state.ok && (
+        <p className="text-sm text-emerald-600 dark:text-emerald-400">
+          {state.ok}
+        </p>
+      )}
+      {state.failures && state.failures.length > 0 && (
+        <div className="max-h-48 overflow-y-auto rounded-md border border-zinc-200 dark:border-zinc-800">
+          <table className="w-full text-xs">
+            <thead className="text-left text-zinc-500">
+              <tr>
+                <th className="px-2 py-1 font-medium">Row</th>
+                <th className="px-2 py-1 font-medium">Problem</th>
+              </tr>
+            </thead>
+            <tbody>
+              {state.failures.map((failure) => (
+                <tr
+                  key={`${failure.row}-${failure.message}`}
+                  className="border-t border-zinc-200 dark:border-zinc-800"
+                >
+                  <td className="px-2 py-1 tabular-nums">{failure.row}</td>
+                  <td className="px-2 py-1">{failure.message}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  );
+
+  const description = (
+    <>
+      Upload a CSV with a header row.{" "}
+      <a href={templateHref} download="template.csv">
+        Download template
+      </a>
+    </>
+  );
+
+  if (presentation === "sheet") {
+    return (
+      <Sheet>
+        <SheetTrigger render={<Button variant="outline" size="sm" />}>
+          <Upload className="size-4" />
+          Import CSV
+        </SheetTrigger>
+        <SheetContent side="right" className="w-full data-[side=right]:w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{title}</SheetTitle>
+            <SheetDescription>{description}</SheetDescription>
+          </SheetHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">{body}</div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
   return (
     <Dialog>
       <DialogTrigger render={<Button variant="outline" size="sm" />}>
@@ -185,63 +270,9 @@ export function BulkImportForm({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            Upload a CSV with a header row.{" "}
-            <a href={templateHref} download="template.csv">
-              Download template
-            </a>
-          </DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <ValidatedForm
-          action={formAction}
-          fieldErrors={fileErrors}
-          className="flex flex-col gap-3"
-        >
-          <FormField name="file">
-            <Input
-              type="file"
-              name="file"
-              accept=".csv,text/csv"
-              required
-              aria-label="CSV file"
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-            />
-          </FormField>
-          <div className="flex gap-2">
-            <CsvPreviewDrawer file={file} columns={columns} />
-            <Button type="submit" disabled={pending} className="flex-1">
-              {pending ? "Importing…" : "Import"}
-            </Button>
-          </div>
-        </ValidatedForm>
-        {state.ok && (
-          <p className="text-sm text-emerald-600 dark:text-emerald-400">
-            {state.ok}
-          </p>
-        )}
-        {state.failures && state.failures.length > 0 && (
-          <div className="max-h-48 overflow-y-auto rounded-md border border-zinc-200 dark:border-zinc-800">
-            <table className="w-full text-xs">
-              <thead className="text-left text-zinc-500">
-                <tr>
-                  <th className="px-2 py-1 font-medium">Row</th>
-                  <th className="px-2 py-1 font-medium">Problem</th>
-                </tr>
-              </thead>
-              <tbody>
-                {state.failures.map((failure) => (
-                  <tr
-                    key={`${failure.row}-${failure.message}`}
-                    className="border-t border-zinc-200 dark:border-zinc-800"
-                  >
-                    <td className="px-2 py-1 tabular-nums">{failure.row}</td>
-                    <td className="px-2 py-1">{failure.message}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {body}
       </DialogContent>
     </Dialog>
   );

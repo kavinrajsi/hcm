@@ -107,6 +107,7 @@ export default async function FreelancersPage({
               action={importFreelancers}
               columns={FREELANCER_IMPORT_COLUMNS}
               title="Import freelancers"
+              presentation="sheet"
             />
             <AddFreelancerSheet />
           </div>
