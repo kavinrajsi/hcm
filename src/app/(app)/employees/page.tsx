@@ -173,6 +173,13 @@ export default async function EmployeesPage({
                   title="Import employees"
                 />
                 <Button
+                  variant="outline"
+                  nativeButton={false}
+                  render={<a href="/employees/export" download />}
+                >
+                  Export
+                </Button>
+                <Button
                   nativeButton={false}
                   render={<Link href="/employees/new" />}
                 >
